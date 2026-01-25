@@ -48,7 +48,7 @@ function App() {
         <Route path="/docs" element={<Documentation />} />
         
         {/* Authenticated App Routes */}
-        <Route path="/app" element={<AllWorkspaces />} />
+        <Route path="/app" element={<WorkspaceHome />} />
         <Route path="/app/profile" element={<Profile />} />
         <Route path="/app/notifications" element={<Notification />} />
         <Route path="/app/create-workspace" element={<CreateWorkspace />} />

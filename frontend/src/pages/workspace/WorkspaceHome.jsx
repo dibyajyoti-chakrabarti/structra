@@ -1,18 +1,81 @@
-import { useNavigate, useParams } from 'react-router-dom';
+import AuthenticatedNavbar from '../../components/AuthenticatedNavbar';
+import WorkspaceNavbar from '../../components/WorkspaceNavbar';
 
 export default function WorkspaceHome() {
-  const navigate = useNavigate();
-  const { workspaceId } = useParams();
-  
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center gap-4 p-8">
-      <h1 className="text-4xl font-bold">Hello from WorkspaceHome.jsx</h1>
-      <p className="text-gray-600">Workspace ID: {workspaceId}</p>
-      <div className="flex gap-4">
-        <button onClick={() => navigate('/app')} className="px-4 py-2 bg-blue-500 text-white rounded">All Workspaces</button>
-        <button onClick={() => navigate(`/app/ws/${workspaceId}/create-system`)} className="px-4 py-2 bg-green-500 text-white rounded">Create System</button>
-        <button onClick={() => navigate(`/app/ws/${workspaceId}/settings/general`)} className="px-4 py-2 bg-purple-500 text-white rounded">Settings</button>
-        <button onClick={() => navigate(`/app/ws/${workspaceId}/system/system1`)} className="px-4 py-2 bg-orange-500 text-white rounded">Open System</button>
+    <div className="h-screen flex flex-col bg-[#0a0a0a] text-[#f5f5f5]">
+      
+      {/* Top Account Navbar */}
+      <AuthenticatedNavbar />
+
+      {/* Body */}
+      <div className="flex flex-1 overflow-hidden">
+        
+        {/* Left Workspace Sidebar */}
+        <WorkspaceNavbar />
+
+        {/* Main Content */}
+        <div className="flex-1 p-10 overflow-y-auto">
+          <div className="max-w-4xl">
+            <h1 className="text-2xl font-semibold mb-2">
+              Open your workspace or...
+            </h1>
+            <h2 className="text-xl text-[#a3a3a3] mb-8">
+              Create a new one
+            </h2>
+
+            <div className="border-t border-[#1f1f1f] pt-8 grid grid-cols-1 md:grid-cols-2 gap-8">
+              
+              {/* Left: Workspace Name */}
+              <div>
+                <label className="block text-sm text-[#a3a3a3] mb-2">
+                  Workspace Name
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g. Core Engineering"
+                  className="w-full px-3 py-2 bg-[#0a0a0a] border border-[#2a2a2a] rounded-md text-sm focus:outline-none focus:border-white"
+                />
+              </div>
+
+              {/* Right: Visibility */}
+              <div>
+                <label className="block text-sm text-[#a3a3a3] mb-2">
+                  Workspace Visibility
+                </label>
+                <select
+                  className="w-full px-3 py-2 bg-[#0a0a0a] border border-[#2a2a2a] rounded-md text-sm focus:outline-none focus:border-white"
+                >
+                  <option>Private</option>
+                  <option>Organization</option>
+                  <option>Public</option>
+                </select>
+              </div>
+
+              {/* Description */}
+              <div className="md:col-span-2">
+                <label className="block text-sm text-[#a3a3a3] mb-2">
+                  Description
+                </label>
+                <textarea
+                  rows={4}
+                  placeholder="Describe the purpose of this workspace"
+                  className="w-full px-3 py-2 bg-[#0a0a0a] border border-[#2a2a2a] rounded-md text-sm focus:outline-none focus:border-white"
+                />
+              </div>
+
+              {/* CTA */}
+              <div className="md:col-span-2 flex justify-end">
+                <button
+                  className="px-6 py-2 bg-white text-black rounded-md font-medium hover:bg-neutral-200 transition"
+                >
+                  Create Workspace
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
       </div>
     </div>
   );
