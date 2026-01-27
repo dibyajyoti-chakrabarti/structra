@@ -1,4 +1,5 @@
 import { useNavigate } from 'react-router-dom';
+import logo from '../assets/logo.png';
 
 export default function Navbar({ isScrolled = false }) {
   const navigate = useNavigate();
@@ -10,50 +11,43 @@ export default function Navbar({ isScrolled = false }) {
           ? 'bg-[#0a0a0a]/95 backdrop-blur-md border-b border-[#1f1f1f] shadow-lg' 
           : 'bg-transparent backdrop-blur-0'
       }`}
-      style={{
-        backgroundColor: isScrolled ? 'rgba(10, 10, 10, 0.95)' : 'transparent'
-      }}
     >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 sm:h-20 flex items-center justify-between">
+        {/* Left: Logo + Brand */}
         <button
           onClick={() => navigate('/')}
-          className={`text-lg sm:text-xl font-semibold tracking-tight transition-colors duration-300 ${
-            isScrolled ? 'text-white' : 'text-gray-900'
-          }`}
+          className="flex items-center gap-3 group transition-transform active:scale-95"
         >
-          structra.cloud
+          {/* Logo stays original color - filters removed */}
+          <img 
+            src={logo} 
+            alt="structra logo" 
+            className="h-8 w-auto object-contain transition-transform group-hover:scale-105" 
+          />
+          
+          {/* Text still flips for readability */}
+          <span className={`text-xl font-extrabold tracking-tighter transition-colors duration-300 ${
+            isScrolled ? 'text-white' : 'text-gray-900'
+          }`}>
+            structra<span className="text-blue-600">.cloud</span>
+          </span>
         </button>
 
         {/* Desktop Navigation */}
-        <div className="hidden md:flex items-center gap-6 lg:gap-8 text-sm">
+        <div className="hidden md:flex items-center gap-6 lg:gap-8 text-sm font-semibold">
           <button 
             onClick={() => navigate('/pricing')} 
             className={`transition-colors duration-300 ${
-              isScrolled 
-                ? 'text-[#a3a3a3] hover:text-white' 
-                : 'text-gray-700 hover:text-gray-900'
+              isScrolled ? 'text-[#a3a3a3] hover:text-white' : 'text-gray-600 hover:text-gray-900'
             }`}
           >
             Pricing
           </button>
 
           <button 
-            onClick={() => navigate('/support')} 
-            className={`transition-colors duration-300 ${
-              isScrolled 
-                ? 'text-[#a3a3a3] hover:text-white' 
-                : 'text-gray-700 hover:text-gray-900'
-            }`}
-          >
-            Support
-          </button>
-
-          <button 
             onClick={() => navigate('/login')} 
             className={`transition-colors duration-300 ${
-              isScrolled 
-                ? 'text-[#a3a3a3] hover:text-white' 
-                : 'text-gray-700 hover:text-gray-900'
+              isScrolled ? 'text-[#a3a3a3] hover:text-white' : 'text-gray-600 hover:text-gray-900'
             }`}
           >
             Log in
@@ -61,7 +55,7 @@ export default function Navbar({ isScrolled = false }) {
 
           <button
             onClick={() => navigate('/signup')}
-            className={`px-5 py-2 rounded-md font-medium transition-all duration-300 ${
+            className={`px-5 py-2.5 rounded-lg font-bold transition-all duration-300 transform hover:-translate-y-0.5 ${
               isScrolled
                 ? 'bg-white text-black hover:bg-neutral-200'
                 : 'bg-gray-900 text-white hover:bg-gray-800'
@@ -70,18 +64,6 @@ export default function Navbar({ isScrolled = false }) {
             Sign up
           </button>
         </div>
-
-        {/* Mobile Menu Button */}
-        <button
-          onClick={() => navigate('/signup')}
-          className={`md:hidden px-4 py-2 rounded-md font-medium text-sm transition-all duration-300 ${
-            isScrolled
-              ? 'bg-white text-black hover:bg-neutral-200'
-              : 'bg-gray-900 text-white hover:bg-gray-800'
-          }`}
-        >
-          Sign up
-        </button>
       </div>
     </nav>
   );
