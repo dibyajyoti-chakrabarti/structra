@@ -1,154 +1,98 @@
-import { useNavigate } from 'react-router-dom';
+import { useNavigate } from "react-router-dom";
+import logo from '../../assets/logo.png';
 
 export default function Privacy() {
   const navigate = useNavigate();
 
   return (
-    <div className="min-h-screen bg-[#0a0a0a] text-[#f5f5f5]">
+    <div className="min-h-screen bg-[#0a0a0a] text-[#f5f5f5] font-sans selection:bg-blue-500/30">
       
-      {/* Top Navigation Bar (matches Pricing.jsx) */}
+      {/* Top Navigation Bar */}
       <nav className="border-b border-[#1f1f1f] bg-[#0a0a0a] sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 sm:h-20 flex items-center justify-between">
-          <div className="flex items-center gap-4 sm:gap-6">
+          <div className="flex items-center gap-4 sm:gap-8">
             <button
               onClick={() => navigate(-1)}
               className="flex items-center gap-2 text-[#a3a3a3] hover:text-white transition-colors group"
             >
-              <svg 
-                className="w-5 h-5 transition-transform group-hover:-translate-x-1" 
-                fill="none" 
-                stroke="currentColor" 
-                viewBox="0 0 24 24"
-              >
+              <svg className="w-5 h-5 transition-transform group-hover:-translate-x-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
               </svg>
-              <span className="text-sm hidden sm:inline">Back</span>
+              <span className="text-sm font-medium hidden sm:inline">Back</span>
             </button>
-
             <div className="h-6 w-px bg-[#2a2a2a] hidden sm:block" />
-
-            <button
-              onClick={() => navigate('/')}
-              className="text-lg sm:text-xl font-semibold tracking-tight text-white hover:text-[#a3a3a3] transition-colors"
-            >
-              structra.cloud
+            <button onClick={() => navigate('/')} className="flex items-center gap-3 transition-transform active:scale-95">
+              <img src={logo} alt="Logo" className="h-7 w-auto object-contain" />
+              <span className="text-xl font-extrabold tracking-tighter text-white">
+                structra<span className="text-blue-500">.cloud</span>
+              </span>
             </button>
           </div>
-
-          <button
-            onClick={() => navigate('/signup')}
-            className="px-4 sm:px-5 py-2 bg-white text-black rounded-md font-medium hover:bg-neutral-200 transition-all text-sm"
-          >
-            Sign up
-          </button>
         </div>
       </nav>
 
-      {/* Header Section */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-12 sm:pt-16 lg:pt-20 pb-8 sm:pb-12">
-        <div className="max-w-3xl">
-          <h1 className="text-4xl sm:text-5xl lg:text-6xl font-light tracking-tight leading-tight">
+      {/* Main Content Body */}
+      <main className="max-w-3xl mx-auto px-6 py-16 sm:py-24">
+        {/* Header Section */}
+        <header className="mb-16 border-b border-[#1f1f1f] pb-10">
+          <h1 className="text-4xl sm:text-5xl font-black tracking-tighter text-white mb-6">
             Privacy Policy
           </h1>
-          <p className="mt-4 sm:mt-6 text-base sm:text-lg text-[#a3a3a3] leading-relaxed">
-            Effective date: January 2026
-          </p>
+          <div className="flex items-center gap-4 text-[10px] font-bold uppercase tracking-[0.2em] text-blue-500">
+            <span>Effective: Jan 2026</span>
+            <span className="w-1 h-1 bg-[#2a2a2a] rounded-full" />
+            <span className="text-[#6b6b6b]">Version 1.0.0</span>
+          </div>
+        </header>
+
+        {/* Text Layout Fixes */}
+        <div className="space-y-16">
+          <section className="group">
+            <h2 className="text-xl font-bold text-white mb-4 flex items-center gap-3 tracking-tight">
+              <span className="text-blue-500 text-sm font-mono">01.</span>
+              Data Collection
+            </h2>
+            <div className="text-[#a3a3a3] text-base leading-loose space-y-4">
+              <p>
+                We collect information necessary to provide system modeling services, including 
+                account identifiers, workspace configurations, and technical telemetry.
+              </p>
+              <p>
+                Our primary goal is to provide a seamless <span className="text-white">Decision Intelligence</span> 
+                experience while ensuring your architectural data remains isolated and secure.
+              </p>
+            </div>
+          </section>
+
+          <section className="group">
+            <h2 className="text-xl font-bold text-white mb-4 flex items-center gap-3 tracking-tight">
+              <span className="text-blue-500 text-sm font-mono">02.</span>
+              Information Security
+            </h2>
+            <div className="text-[#a3a3a3] text-base leading-loose">
+              <p>
+                Structra.cloud employs industry-standard AES-256 encryption at rest and TLS 1.3 
+                in transit. We conduct regular third-party security audits to maintain 
+                enterprise-grade protection for your intelligence assets.
+              </p>
+            </div>
+          </section>
+
+          {/* Contact Section - Stylized for the footer of the page */}
+          <section className="pt-10 border-t border-[#1f1f1f]">
+            <div className="bg-[#0f0f0f] border border-[#1f1f1f] rounded-2xl p-8">
+              <h3 className="text-lg font-bold text-white mb-2">Questions regarding privacy?</h3>
+              <p className="text-sm text-[#6b6b6b] mb-6">Our legal and security teams are here to help.</p>
+              <a 
+                href="mailto:support@structra.cloud" 
+                className="inline-flex items-center justify-center px-6 py-3 bg-white text-black text-sm font-bold rounded-xl hover:bg-neutral-200 transition-all"
+              >
+                Contact Security Team
+              </a>
+            </div>
+          </section>
         </div>
-      </div>
-
-      {/* Privacy Content */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12 lg:py-16">
-        <div className="max-w-3xl mx-auto space-y-12 text-sm leading-relaxed text-[#a3a3a3]">
-          
-          <section>
-            <h2 className="text-lg sm:text-xl font-medium text-white mb-3">
-              1. Information We Collect
-            </h2>
-            <p>
-              We collect information necessary to provide, operate, and improve
-              Structra.cloud. This may include account information, usage data,
-              system models, and technical metadata generated through platform use.
-            </p>
-          </section>
-
-          <section>
-            <h2 className="text-lg sm:text-xl font-medium text-white mb-3">
-              2. How We Use Information
-            </h2>
-            <p>
-              Information is used to operate the platform, provide AI-powered
-              evaluation, improve system performance, ensure security, and
-              support governance and auditability features.
-            </p>
-          </section>
-
-          <section>
-            <h2 className="text-lg sm:text-xl font-medium text-white mb-3">
-              3. Data Ownership
-            </h2>
-            <p>
-              Customers retain ownership of their system models, documentation,
-              and associated data. Structra.cloud does not claim ownership over
-              customer-submitted content.
-            </p>
-          </section>
-
-          <section>
-            <h2 className="text-lg sm:text-xl font-medium text-white mb-3">
-              4. Data Security
-            </h2>
-            <p>
-              We implement technical and organizational measures designed to
-              protect customer data, including access controls, logging, and
-              monitoring consistent with enterprise best practices.
-            </p>
-          </section>
-
-          <section>
-            <h2 className="text-lg sm:text-xl font-medium text-white mb-3">
-              5. Data Sharing
-            </h2>
-            <p>
-              We do not sell customer data. Data may be shared with trusted
-              service providers solely to operate and support the platform,
-              subject to confidentiality and security obligations.
-            </p>
-          </section>
-
-          <section>
-            <h2 className="text-lg sm:text-xl font-medium text-white mb-3">
-              6. Compliance & Legal
-            </h2>
-            <p>
-              Structra.cloud is designed to support enterprise compliance needs.
-              We may disclose information where required by law or to protect
-              platform security and integrity.
-            </p>
-          </section>
-
-          <section>
-            <h2 className="text-lg sm:text-xl font-medium text-white mb-3">
-              7. Changes to This Policy
-            </h2>
-            <p>
-              We may update this Privacy Policy periodically. Material changes
-              will be reflected by updating the effective date.
-            </p>
-          </section>
-
-          <section>
-            <h2 className="text-lg sm:text-xl font-medium text-white mb-3">
-              8. Contact
-            </h2>
-            <p>
-              For privacy-related inquiries, contact us at{' '}
-              <span className="text-white">support@structra.cloud</span>.
-            </p>
-          </section>
-
-        </div>
-      </div>
-
+      </main>
     </div>
   );
 }
