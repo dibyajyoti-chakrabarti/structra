@@ -1,16 +1,23 @@
 import { useNavigate } from 'react-router-dom';
-import { User, Bell, FileText, Zap, Search } from 'lucide-react';
+import { User, Bell, Zap, Search } from 'lucide-react';
+// Import the logo from your assets folder
+import logo from '../assets/logo.png'; 
 
 export default function AuthenticatedNavbar() {
   const navigate = useNavigate();
 
   return (
     <div className="h-16 bg-white border-b border-gray-200 px-8 flex items-center justify-between sticky top-0 z-50">
-      {/* Left: Brand Emphasized */}
+      {/* Left: Brand Emphasized with Logo */}
       <div 
-        className="flex items-center gap-2 cursor-pointer group" 
+        className="flex items-center gap-3 cursor-pointer group" 
         onClick={() => navigate('/')}
       >
+        <img 
+          src={logo} 
+          alt="structra logo" 
+          className="h-8 w-auto object-contain transition-transform group-hover:scale-105" 
+        />
         <span className="text-xl font-extrabold tracking-tighter text-gray-900 flex items-center">
           structra
           <span className="text-blue-600">.cloud</span>
