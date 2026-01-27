@@ -4,38 +4,64 @@ export default function Terms() {
   const navigate = useNavigate();
 
   return (
-    <div className="min-h-screen bg-[#0a0a0a] text-[#f5f5f5] p-8">
+    <div className="min-h-screen bg-[#0a0a0a] text-[#f5f5f5]">
       
-      {/* Top Bar with Close */}
-      <div className="flex items-center justify-between mb-12">
-        <button
-          onClick={() => navigate(-1)}
-          className="text-[#a3a3a3] hover:text-white transition text-xl"
-        >
-          ✕
-        </button>
+      {/* Top Navigation Bar (matches Pricing.jsx) */}
+      <nav className="border-b border-[#1f1f1f] bg-[#0a0a0a] sticky top-0 z-50">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 sm:h-20 flex items-center justify-between">
+          <div className="flex items-center gap-4 sm:gap-6">
+            <button
+              onClick={() => navigate(-1)}
+              className="flex items-center gap-2 text-[#a3a3a3] hover:text-white transition-colors group"
+            >
+              <svg 
+                className="w-5 h-5 transition-transform group-hover:-translate-x-1" 
+                fill="none" 
+                stroke="currentColor" 
+                viewBox="0 0 24 24"
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+              </svg>
+              <span className="text-sm hidden sm:inline">Back</span>
+            </button>
 
-        <div className="text-sm text-[#6b6b6b]">
-          structra.cloud
+            <div className="h-6 w-px bg-[#2a2a2a] hidden sm:block" />
+
+            <button
+              onClick={() => navigate('/')}
+              className="text-lg sm:text-xl font-semibold tracking-tight text-white hover:text-[#a3a3a3] transition-colors"
+            >
+              structra.cloud
+            </button>
+          </div>
+
+          <button
+            onClick={() => navigate('/signup')}
+            className="px-4 sm:px-5 py-2 bg-white text-black rounded-md font-medium hover:bg-neutral-200 transition-all text-sm"
+          >
+            Sign up
+          </button>
         </div>
+      </nav>
 
-        <div />
+      {/* Header Section (matches Pricing header style) */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-12 sm:pt-16 lg:pt-20 pb-8 sm:pb-12">
+        <div className="max-w-3xl">
+          <h1 className="text-4xl sm:text-5xl lg:text-6xl font-light tracking-tight leading-tight">
+            Terms of Service
+          </h1>
+          <p className="mt-4 sm:mt-6 text-base sm:text-lg text-[#a3a3a3] leading-relaxed">
+            Effective date: January 2026
+          </p>
+        </div>
       </div>
 
-      {/* Content */}
-      <div className="max-w-4xl mx-auto">
-        <h1 className="text-3xl font-semibold tracking-tight mb-6">
-          Terms of Service
-        </h1>
-
-        <p className="text-sm text-[#a3a3a3] mb-10">
-          Effective date: January 2026
-        </p>
-
-        <div className="space-y-10 text-sm leading-relaxed text-[#a3a3a3]">
+      {/* Terms Content */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12 lg:py-16">
+        <div className="max-w-3xl mx-auto space-y-12 text-sm leading-relaxed text-[#a3a3a3]">
           
           <section>
-            <h2 className="text-lg font-medium text-white mb-2">
+            <h2 className="text-lg sm:text-xl font-medium text-white mb-3">
               1. Acceptance of Terms
             </h2>
             <p>
@@ -45,7 +71,7 @@ export default function Terms() {
           </section>
 
           <section>
-            <h2 className="text-lg font-medium text-white mb-2">
+            <h2 className="text-lg sm:text-xl font-medium text-white mb-3">
               2. Use of the Platform
             </h2>
             <p>
@@ -56,7 +82,7 @@ export default function Terms() {
           </section>
 
           <section>
-            <h2 className="text-lg font-medium text-white mb-2">
+            <h2 className="text-lg sm:text-xl font-medium text-white mb-3">
               3. Accounts & Access
             </h2>
             <p>
@@ -67,7 +93,7 @@ export default function Terms() {
           </section>
 
           <section>
-            <h2 className="text-lg font-medium text-white mb-2">
+            <h2 className="text-lg sm:text-xl font-medium text-white mb-3">
               4. Customer Content
             </h2>
             <p>
@@ -79,7 +105,7 @@ export default function Terms() {
           </section>
 
           <section>
-            <h2 className="text-lg font-medium text-white mb-2">
+            <h2 className="text-lg sm:text-xl font-medium text-white mb-3">
               5. AI & Evaluation Outputs
             </h2>
             <p>
@@ -90,7 +116,7 @@ export default function Terms() {
           </section>
 
           <section>
-            <h2 className="text-lg font-medium text-white mb-2">
+            <h2 className="text-lg sm:text-xl font-medium text-white mb-3">
               6. Availability & Changes
             </h2>
             <p>
@@ -100,7 +126,7 @@ export default function Terms() {
           </section>
 
           <section>
-            <h2 className="text-lg font-medium text-white mb-2">
+            <h2 className="text-lg sm:text-xl font-medium text-white mb-3">
               7. Limitation of Liability
             </h2>
             <p>
@@ -111,7 +137,7 @@ export default function Terms() {
           </section>
 
           <section>
-            <h2 className="text-lg font-medium text-white mb-2">
+            <h2 className="text-lg sm:text-xl font-medium text-white mb-3">
               8. Termination
             </h2>
             <p>
@@ -121,7 +147,7 @@ export default function Terms() {
           </section>
 
           <section>
-            <h2 className="text-lg font-medium text-white mb-2">
+            <h2 className="text-lg sm:text-xl font-medium text-white mb-3">
               9. Governing Law
             </h2>
             <p>
@@ -131,7 +157,7 @@ export default function Terms() {
           </section>
 
           <section>
-            <h2 className="text-lg font-medium text-white mb-2">
+            <h2 className="text-lg sm:text-xl font-medium text-white mb-3">
               10. Contact
             </h2>
             <p>
@@ -142,6 +168,7 @@ export default function Terms() {
 
         </div>
       </div>
+
     </div>
   );
 }

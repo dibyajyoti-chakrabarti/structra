@@ -5,11 +5,14 @@ export default function Navbar({ isScrolled = false }) {
 
   return (
     <nav 
-      className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
+      className={`fixed top-0 left-0 right-0 z-50 transition-all duration-500 ${
         isScrolled 
-          ? 'bg-[#0a0a0a] border-b border-[#1f1f1f] shadow-lg' 
-          : 'bg-transparent'
+          ? 'bg-[#0a0a0a]/95 backdrop-blur-md border-b border-[#1f1f1f] shadow-lg' 
+          : 'bg-transparent backdrop-blur-0'
       }`}
+      style={{
+        backgroundColor: isScrolled ? 'rgba(10, 10, 10, 0.95)' : 'transparent'
+      }}
     >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 sm:h-20 flex items-center justify-between">
         <button
