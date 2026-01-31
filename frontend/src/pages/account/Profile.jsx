@@ -75,17 +75,17 @@ export default function Profile() {
         <AuthenticatedNavbar />
       </div>
 
-      {/* Main Layout: Split Screen */}
-      <div className="flex flex-1 overflow-hidden">
+      {/* Main Layout: Split Screen on Desktop, Vertical Scroll on Mobile */}
+      <div className="flex-1 flex flex-col md:flex-row overflow-y-auto md:overflow-hidden">
         
         {/* 2. Left Sidebar - User Details & Edit Form */}
-        <aside className="w-80 bg-white border-r border-gray-200 flex flex-col overflow-y-auto flex-shrink-0 relative group/sidebar">
+        <aside className="w-full md:w-80 bg-white border-b md:border-b-0 md:border-r border-gray-200 flex flex-col flex-shrink-0 relative group/sidebar md:overflow-y-auto">
           
-          {/* Edit Trigger (Top Right) - Visible on Hover or if Editing */}
+          {/* Edit Trigger (Top Right) */}
           {!isEditing && (
             <button 
               onClick={handleEdit}
-              className="absolute top-4 right-4 p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-full transition-all opacity-0 group-hover/sidebar:opacity-100"
+              className="absolute top-4 right-4 p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-full transition-all opacity-100 md:opacity-0 md:group-hover/sidebar:opacity-100"
               title="Edit Profile"
             >
               <Edit2 size={16} />
@@ -93,14 +93,13 @@ export default function Profile() {
           )}
 
           {/* Profile Header */}
-          <div className="p-8 flex flex-col items-center text-center border-b border-gray-100">
+          <div className="p-6 md:p-8 flex flex-col items-center text-center border-b border-gray-100">
             
-            {/* Avatar - Interactive */}
+            {/* Avatar */}
             <div className="relative group cursor-pointer mb-6">
               <div className="w-24 h-24 rounded-full bg-gray-50 border border-gray-200 flex items-center justify-center overflow-hidden shadow-sm">
                 <User size={40} className="text-gray-400" />
               </div>
-              {/* Overlay for "Change Photo" */}
               <div className={`absolute inset-0 bg-black/50 rounded-full flex items-center justify-center transition-opacity ${isEditing ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}>
                 <Camera size={24} className="text-white" />
               </div>
@@ -140,7 +139,7 @@ export default function Profile() {
           </div>
 
           {/* Contact / Details */}
-          <div className="p-6 space-y-5 flex-1">
+          <div className="p-6 space-y-5">
             <div className="space-y-4">
               
               {/* Organization */}
@@ -157,7 +156,6 @@ export default function Profile() {
                     onChange={handleChange}
                     placeholder="Organization"
                     className="flex-1 px-2 py-1 border-b border-blue-500 focus:outline-none bg-transparent"
-                    autoFocus
                   />
                 ) : (
                   <div className="flex-1 flex items-center justify-between">
@@ -190,16 +188,16 @@ export default function Profile() {
                 )}
               </div>
 
-              {/* Email (Read-only) */}
+              {/* Email */}
               <div className="flex items-center gap-3 text-sm text-gray-600 p-2 -ml-2">
                 <Mail size={16} className="text-gray-400 flex-shrink-0" />
-                <span className={`flex-1 ${isEditing ? "text-gray-400 cursor-not-allowed" : ""}`}>
+                <span className={`flex-1 break-all ${isEditing ? "text-gray-400 cursor-not-allowed" : ""}`}>
                   {user.email}
                 </span>
-                {isEditing && <Lock size={12} className="text-gray-300" />}
+                {isEditing && <Lock size={12} className="text-gray-300 flex-shrink-0" />}
               </div>
 
-              {/* Joined Date (Read-only) */}
+              {/* Joined Date */}
               <div className="flex items-center gap-3 text-sm text-gray-600 p-2 -ml-2">
                 <Calendar size={16} className="text-gray-400 flex-shrink-0" />
                 <span className={isEditing ? "text-gray-400" : ""}>Joined {user.joined}</span>
@@ -209,7 +207,7 @@ export default function Profile() {
           </div>
 
           {/* Sidebar Footer: Action Buttons */}
-          <div className="p-6 border-t border-gray-100 bg-white z-10">
+          <div className="p-6 border-t border-gray-100 bg-white mt-auto">
             {isEditing ? (
               <div className="flex gap-2 animate-in slide-in-from-bottom-2 duration-200">
                 <button 
@@ -217,7 +215,7 @@ export default function Profile() {
                   className="flex-1 py-2.5 flex items-center justify-center gap-2 bg-gray-900 text-white rounded-lg text-sm font-bold hover:bg-black transition-all shadow-lg shadow-gray-200"
                 >
                   <Check size={16} />
-                  Save Changes
+                  Save
                 </button>
                 <button 
                   onClick={handleCancel}
@@ -239,12 +237,12 @@ export default function Profile() {
         </aside>
 
         {/* 3. Right Content */}
-        <main className="flex-1 overflow-y-auto bg-gray-50/50 p-8 sm:p-12">
-          <div className="max-w-4xl">
+        <main className="flex-1 md:overflow-y-auto bg-gray-50/50 p-4 sm:p-8 md:p-12">
+          <div className="max-w-4xl mx-auto md:mx-0">
             
-            <div className="flex items-center justify-between mb-8">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
               <h1 className="text-2xl font-bold text-gray-900 tracking-tight">Workspaces</h1>
-              <span className="text-sm text-gray-500 bg-white px-3 py-1 rounded-full border border-gray-200 shadow-sm">
+              <span className="text-sm text-gray-500 bg-white px-3 py-1 rounded-full border border-gray-200 shadow-sm w-fit">
                 {workspaces.length} Active
               </span>
             </div>
@@ -253,7 +251,7 @@ export default function Profile() {
               {workspaces.map((workspace) => (
                 <div 
                   key={workspace.id}
-                  className="group bg-white border border-gray-200 rounded-xl p-6 hover:border-blue-500 hover:shadow-md transition-all duration-200 cursor-pointer"
+                  className="group bg-white border border-gray-200 rounded-xl p-5 md:p-6 hover:border-blue-500 hover:shadow-md transition-all duration-200 cursor-pointer"
                 >
                   <div className="flex items-start justify-between mb-3">
                     <div className="flex items-center gap-3">
@@ -270,14 +268,14 @@ export default function Profile() {
                       </div>
                     </div>
 
-                    {/* 4. Tags: Fixed Dimensions, No Rounded Edges */}
+                    {/* Tags */}
                     {workspace.visibility === 'public' ? (
-                      <span className="flex items-center justify-center gap-1.5 w-22 py-1 bg-blue-50 text-blue-700 border-2 border-blue-700 text-[10px] font-bold uppercase tracking-wide rounded-xl">
+                      <span className="flex items-center justify-center gap-1.5 w-24 py-1 bg-blue-50 text-blue-700 border-2 border-blue-700 text-[10px] font-bold uppercase tracking-wide rounded-xl">
                         <Globe size={12} />
                         Public
                       </span>
                     ) : (
-                      <span className="flex items-center justify-center gap-1.5 w-22 py-1 bg-black text-white border border-gray-800 text-[10px] font-bold uppercase tracking-wide rounded-xl">
+                      <span className="flex items-center justify-center gap-1.5 w-24 py-1 bg-black text-white border border-gray-800 text-[10px] font-bold uppercase tracking-wide rounded-xl">
                         <Lock size={12} />
                         Private
                       </span>
