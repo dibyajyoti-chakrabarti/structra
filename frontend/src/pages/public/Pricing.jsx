@@ -6,95 +6,64 @@ export default function Pricing() {
 
   return (
     <div className="h-screen bg-[#0a0a0a] text-[#f5f5f5] font-sans selection:bg-blue-500/30 flex flex-col overflow-hidden">
-      {/* Top Navigation Bar */}
-      <nav className="border-b border-[#1f1f1f] bg-[#0a0a0a] flex-none z-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 sm:h-20 flex items-center justify-between">
-          <div className="flex items-center gap-4 sm:gap-8">
-            {/* Back Button */}
-            <button
-              onClick={() => navigate("/")}
-              className="flex items-center gap-2 text-[#a3a3a3] hover:text-white transition-colors group"
-            >
-              <svg
-                className="w-5 h-5 transition-transform group-hover:-translate-x-1"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M15 19l-7-7 7-7"
-                />
-              </svg>
-              <span className="text-sm font-medium hidden sm:inline">Back</span>
-            </button>
+      
+      {/* Top Navigation Bar - Fixed Height, Flex-none */}
+      <nav className="border-b border-[#1f1f1f] bg-[#0a0a0a] sticky top-0 z-50">
+              <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 sm:h-20 flex items-center justify-between">
+                <div className="flex items-center gap-4 sm:gap-8">
+                  <button
+                    onClick={() => navigate(-1)}
+                    className="flex items-center gap-2 text-[#a3a3a3] hover:text-white transition-colors group"
+                  >
+                    <svg className="w-5 h-5 transition-transform group-hover:-translate-x-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                    </svg>
+                    <span className="text-sm font-medium hidden sm:inline">Back</span>
+                  </button>
+                  <div className="h-6 w-px bg-[#2a2a2a] hidden sm:block" />
+                  <button onClick={() => navigate('/')} className="flex items-center gap-3 transition-transform active:scale-95">
+                    <img src={logo} alt="Logo" className="h-7 w-auto object-contain" />
+                    <span className="text-xl font-extrabold tracking-tighter text-white">
+                      structra<span className="text-blue-500">.cloud</span>
+                    </span>
+                  </button>
+                </div>
+              </div>
+            </nav>
 
-            {/* Vertical Divider */}
-            <div className="h-6 w-px bg-[#2a2a2a] hidden sm:block" />
-
-            {/* Brand Logo & Name */}
-            <button
-              onClick={() => navigate("/")}
-              className="flex items-center gap-3 transition-transform active:scale-95 group"
-            >
-              <img
-                src={logo}
-                alt="structra logo"
-                className="h-7 w-auto object-contain"
-              />
-              <span className="text-xl font-extrabold tracking-tighter text-white">
-                structra<span className="text-blue-500">.cloud</span>
-              </span>
-            </button>
-          </div>
-
-          <div className="flex items-center gap-4">
-            <button
-              onClick={() => navigate("/login")}
-              className="text-sm font-semibold text-[#a3a3a3] hover:text-white transition-colors mr-4"
-            >
-              Log in
-            </button>
-            <button
-              onClick={() => navigate("/signup")}
-              className="px-5 py-2.5 bg-white text-black text-sm font-bold rounded-lg hover:bg-neutral-200 transition-all shadow-lg"
-            >
-              Get Started
-            </button>
-          </div>
-        </div>
-      </nav>
-
-      {/* Main Content Body */}
-      <main className="flex-1 flex flex-col items-center justify-center p-6 relative">
-        <div className="w-full max-w-5xl">
+      {/* Main Content Body - Scrollable */}
+      <main className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8">
+        <div className="w-full max-w-5xl mx-auto pb-12">
           
-          {/* Header Section - STRICTLY MATCHING TERMS.JSX */}
-          <header className="mb-10 border-b border-[#1f1f1f] pb-8">
-            <h1 className="text-4xl sm:text-5xl font-black tracking-tighter text-white mb-6">
+          {/* Header Section */}
+          <header className="mb-8 sm:mb-10 border-b border-[#1f1f1f] pb-6 sm:pb-8">
+            <h1 className="text-3xl sm:text-4xl lg:text-5xl font-black tracking-tighter text-white mb-4 sm:mb-6">
               Pricing Plans
             </h1>
             
-            {/* Metadata Row matching Terms */}
-            <div className="flex flex-col sm:flex-row sm:items-center gap-4 sm:gap-6">
-              <div className="flex items-center gap-4 text-[10px] font-bold uppercase tracking-[0.2em] text-blue-500">
+            {/* Metadata Row */}
+            <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-6 text-[10px] font-bold uppercase tracking-[0.2em] text-blue-500 mb-4 sm:mb-6">
+              <div className="flex items-center gap-2">
                 <span>Monthly Billing</span>
                 <span className="w-1 h-1 bg-[#2a2a2a] rounded-full" />
                 <span className="text-[#6b6b6b]">Cancel Anytime</span>
               </div>
             </div>
+
+            {/* Description */}
+            <p className="text-sm sm:text-base text-[#a3a3a3] leading-relaxed max-w-xl">
+              Choose the plan that matches your system complexity and governance requirements.
+            </p>
           </header>
 
-          {/* Pricing Cards */}
+          {/* Pricing Cards Grid - Stacks on Mobile */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-stretch">
             
             {/* Core Tier */}
-            <div className="border border-[#2a2a2a] rounded-2xl p-6 bg-[#0f0f0f] flex flex-col hover:border-[#3a3a3a] transition-all duration-300">
+            <div className="border border-[#2a2a2a] rounded-2xl p-5 sm:p-6 bg-[#0f0f0f] flex flex-col hover:border-[#3a3a3a] transition-all duration-300">
               <div className="flex items-start justify-between mb-4">
                 <div>
-                  <h2 className="text-xl font-bold text-white tracking-tight mb-1">Core</h2>
+                  <h2 className="text-lg sm:text-xl font-bold text-white tracking-tight mb-1">Core</h2>
                   <p className="text-xs text-[#a3a3a3]">
                     For individual engineers
                   </p>
@@ -112,7 +81,7 @@ export default function Pricing() {
               </div>
 
               <div className="mb-6 flex-1">
-                <ul className="space-y-2.5">
+                <ul className="space-y-3">
                   {[
                     "Visual system modeling canvas",
                     "Relationship & assumption modeling",
@@ -126,7 +95,7 @@ export default function Pricing() {
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                         </svg>
                       </div>
-                      <span className="text-sm text-[#a3a3a3]">{item}</span>
+                      <span className="text-sm text-[#a3a3a3] leading-tight">{item}</span>
                     </li>
                   ))}
                 </ul>
@@ -141,14 +110,14 @@ export default function Pricing() {
             </div>
 
             {/* Enterprise Tier */}
-            <div className="border-2 border-white rounded-2xl p-6 bg-[#0a0a0a] flex flex-col relative shadow-2xl shadow-white/5">
-              <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-1 bg-white text-black rounded-full text-[10px] font-bold uppercase tracking-wider">
+            <div className="border-2 border-white rounded-2xl p-5 sm:p-6 bg-[#0a0a0a] flex flex-col relative shadow-2xl shadow-white/5 mt-4 lg:mt-0">
+              <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-1 bg-white text-black rounded-full text-[10px] font-bold uppercase tracking-wider whitespace-nowrap">
                 Most Popular
               </div>
 
               <div className="flex items-start justify-between mb-4">
                 <div>
-                  <h2 className="text-xl font-bold text-white tracking-tight mb-1">Enterprise</h2>
+                  <h2 className="text-lg sm:text-xl font-bold text-white tracking-tight mb-1">Enterprise</h2>
                   <p className="text-xs text-[#a3a3a3]">
                     For teams requiring governance
                   </p>
@@ -162,7 +131,7 @@ export default function Pricing() {
               </div>
 
               <div className="mb-6 flex-1">
-                <ul className="space-y-2.5">
+                <ul className="space-y-3">
                   {[
                     "Advanced AI evaluation workflows",
                     "Role-based access control (RBAC)",
@@ -177,7 +146,7 @@ export default function Pricing() {
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                         </svg>
                       </div>
-                      <span className="text-sm text-[#f5f5f5]">{item}</span>
+                      <span className="text-sm text-[#f5f5f5] leading-tight">{item}</span>
                     </li>
                   ))}
                 </ul>
