@@ -33,10 +33,10 @@ export default function WorkspaceHome() {
                 />
                 
                 {/* Sidebar Container */}
-                <div className="absolute left-0 top-0 bottom-0 w-4/5 max-w-xs bg-white border-r border-gray-200 shadow-2xl animate-in slide-in-from-left duration-300 flex flex-col">
-                    {/* Drawer Header */}
-                    <div className="p-4 border-b border-gray-100 flex items-center justify-between flex-none bg-white">
-                        <span className="font-bold text-gray-900 text-sm uppercase tracking-wide">Workspace Menu</span>
+                <div className="absolute left-0 top-0 bottom-0 w-4/5 max-w-xs bg-white shadow-2xl animate-in slide-in-from-left duration-300 flex flex-col">
+                    
+                    {/* Close Button Area - Minimal, Flush with content */}
+                    <div className="flex-none flex justify-end p-2 bg-white">
                         <button 
                             onClick={() => setSidebarOpen(false)} 
                             className="p-2 text-gray-500 hover:bg-gray-100 rounded-lg transition-colors"
@@ -45,7 +45,7 @@ export default function WorkspaceHome() {
                         </button>
                     </div>
                     
-                    {/* Sidebar Content */}
+                    {/* Sidebar Content - Starts immediately below X */}
                     <div className="flex-1 overflow-y-auto">
                         <WorkspaceNavbar />
                     </div>

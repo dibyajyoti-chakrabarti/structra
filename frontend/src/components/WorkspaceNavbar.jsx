@@ -1,62 +1,59 @@
-import { useNavigate, useParams } from 'react-router-dom';
-import { Plus, LayoutGrid, Box, Settings } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { Plus, ChevronRight } from 'lucide-react';
 
 export default function WorkspaceNavbar() {
   const navigate = useNavigate();
-  const { workspaceId } = useParams();
 
-  // Mock data
+  // Mock Workspace Data with member counts
   const workspaces = [
-    { id: 'ws-1', name: 'Core Engineering' },
-    { id: 'ws-2', name: 'Marketing Assets' },
-    { id: 'ws-3', name: 'Personal Projects' }
+    { id: 1, name: "Core Engineering", visibility: "Private", members: 12 },
+    { id: 2, name: "Public Documentation", visibility: "Public", members: 840 },
+    { id: 3, name: "Integration Sandbox", visibility: "Private", members: 5 },
+    { id: 4, name: "Mobile App API", visibility: "Private", members: 3 }
   ];
 
   return (
-    <div className="w-64 bg-gray-50 border-r border-gray-200 flex flex-col h-full">
+    <div className="w-full md:w-64 h-full bg-white flex flex-col border-r border-gray-200">
       
-      {/* Section Header */}
-      <div className="p-4 pt-6 flex items-center justify-between">
-        <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider flex items-center gap-2">
-          <LayoutGrid size={12} />
-          Workspaces
-        </h3>
-        <button className="text-gray-400 hover:text-gray-700">
-           <Settings size={14} />
-        </button>
+      {/* Header */}
+      <div className="p-5 border-b border-gray-100 flex items-center justify-between">
+        <span className="text-xs font-bold text-gray-400 uppercase tracking-widest">
+          Switch Workspace
+        </span>
       </div>
 
-      {/* List Container */}
-      <div className="flex-1 overflow-y-auto px-3 space-y-1">
-        {workspaces.map((ws) => {
-          const isActive = workspaceId === ws.id;
-          return (
-            <button
-              key={ws.id}
-              onClick={() => navigate(`/app/ws/${ws.id}`)}
-              className={`w-full text-left px-3 py-2.5 rounded-lg text-sm transition-all duration-200 flex items-center gap-3 border ${
-                isActive
-                  ? 'bg-white border-gray-200 shadow-sm text-blue-700 font-medium'
-                  : 'border-transparent text-gray-600 hover:bg-gray-200/50 hover:text-gray-900'
-              }`}
-            >
-              <div className={`p-1 rounded-md ${isActive ? 'bg-blue-50 text-blue-600' : 'bg-gray-200 text-gray-500'}`}>
-                <Box size={14} />
-              </div>
-              {ws.name}
-            </button>
-          );
-        })}
+      {/* Workspace List */}
+      <div className="flex-1 overflow-y-auto p-3 space-y-2">
+        {workspaces.map((ws) => (
+          <button
+            key={ws.id}
+            onClick={() => navigate(`/workspace/${ws.id}`)}
+            className="w-full flex items-center justify-between p-3 rounded-xl hover:bg-gray-50 transition-all group border border-transparent hover:border-gray-200"
+          >
+            <div className="flex flex-col items-start gap-1">
+              <span className="font-bold text-gray-800 text-sm group-hover:text-black">
+                {ws.name}
+              </span>
+              
+              {/* Member Count & Visibility Text */}
+              <span className="text-xs text-gray-500 font-medium">
+                {ws.members} members | {ws.visibility}
+              </span>
+            </div>
+
+            <ChevronRight size={16} className="text-gray-300 group-hover:text-gray-500 transition-colors" />
+          </button>
+        ))}
       </div>
 
-      {/* Bottom Action */}
-      <div className="p-4 border-t border-gray-200 bg-gray-50/50">
-        <button
-          onClick={() => navigate('/app/create-workspace')}
-          className="w-full flex items-center justify-center gap-2 px-4 py-2.5 text-xs font-semibold text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 hover:border-gray-400 hover:text-gray-900 hover:shadow-sm transition-all"
+      {/* Footer Action */}
+      <div className="p-4 border-t border-gray-100">
+        <button 
+            onClick={() => navigate('/create-workspace')}
+            className="w-full py-2.5 flex items-center justify-center gap-2 border border-dashed border-gray-300 rounded-lg text-sm font-semibold text-gray-500 hover:border-blue-500 hover:text-blue-600 hover:bg-blue-50/50 transition-all"
         >
-          <Plus size={14} strokeWidth={3} />
-          New Workspace
+          <Plus size={16} />
+          <span>New Workspace</span>
         </button>
       </div>
     </div>
