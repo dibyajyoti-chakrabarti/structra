@@ -1,38 +1,86 @@
+import { useState } from 'react';
 import AuthenticatedNavbar from '../../components/AuthenticatedNavbar';
 import WorkspaceNavbar from '../../components/WorkspaceNavbar';
-import { Info, Lock, Globe } from 'lucide-react';
+import { Info, Lock, Globe, Menu, X } from 'lucide-react';
 
 export default function WorkspaceHome() {
+  // State to control mobile sidebar visibility
+  const [isSidebarOpen, setSidebarOpen] = useState(false);
+
   return (
     <div className="h-screen flex flex-col bg-white text-gray-900 font-sans overflow-hidden">
       
       {/* Top Account Navbar */}
-      <div className="flex-none">
+      <div className="flex-none z-50">
         <AuthenticatedNavbar />
       </div>
 
       {/* Body */}
-      <div className="flex flex-1 overflow-hidden">
+      <div className="flex flex-1 overflow-hidden relative">
         
-        {/* Left Sidebar */}
-        <WorkspaceNavbar />
+        {/* Desktop Sidebar - Hidden on mobile, visible on desktop */}
+        <div className="hidden md:block flex-none h-full overflow-y-auto border-r border-gray-200 bg-white">
+            <WorkspaceNavbar />
+        </div>
+
+        {/* Mobile Sidebar Drawer (Overlay) */}
+        {isSidebarOpen && (
+            <div className="absolute inset-0 z-40 md:hidden">
+                {/* Backdrop */}
+                <div 
+                    className="absolute inset-0 bg-gray-900/50 backdrop-blur-sm transition-opacity" 
+                    onClick={() => setSidebarOpen(false)}
+                />
+                
+                {/* Sidebar Container */}
+                <div className="absolute left-0 top-0 bottom-0 w-4/5 max-w-xs bg-white border-r border-gray-200 shadow-2xl animate-in slide-in-from-left duration-300 flex flex-col">
+                    {/* Drawer Header */}
+                    <div className="p-4 border-b border-gray-100 flex items-center justify-between flex-none bg-white">
+                        <span className="font-bold text-gray-900 text-sm uppercase tracking-wide">Workspace Menu</span>
+                        <button 
+                            onClick={() => setSidebarOpen(false)} 
+                            className="p-2 text-gray-500 hover:bg-gray-100 rounded-lg transition-colors"
+                        >
+                            <X size={20}/>
+                        </button>
+                    </div>
+                    
+                    {/* Sidebar Content */}
+                    <div className="flex-1 overflow-y-auto">
+                        <WorkspaceNavbar />
+                    </div>
+                </div>
+            </div>
+        )}
 
         {/* Main Content Area */}
         <div className="flex-1 overflow-y-auto bg-gray-50/50">
-          <div className="max-w-3xl mx-auto py-8 px-6">
             
-            {/* Header - Reduced margin */}
+            {/* Mobile Toggle Button - Visible only on mobile */}
+            <div className="md:hidden px-4 pt-4">
+                <button 
+                    onClick={() => setSidebarOpen(true)}
+                    className="flex items-center gap-2 px-4 py-2.5 bg-white border border-gray-200 rounded-lg text-sm font-semibold text-gray-700 hover:bg-gray-50 hover:border-gray-300 shadow-sm transition-all w-full sm:w-auto"
+                >
+                    <Menu size={18} />
+                    <span>Open Workspace Menu</span>
+                </button>
+            </div>
+
+          <div className="max-w-3xl mx-auto py-6 px-4 md:py-8 md:px-6">
+            
+            {/* Header */}
             <div className="mb-6">
-              <h1 className="text-2xl font-bold text-gray-900 tracking-tight mb-1">
+              <h1 className="text-2xl md:text-3xl font-bold text-gray-900 tracking-tight mb-2">
                 Create a new workspace
               </h1>
-              <p className="text-gray-500 text-sm">
+              <p className="text-gray-500 text-sm md:text-lg">
                 Set up a collaborative environment for your system architecture.
               </p>
             </div>
 
-            {/* White Form Card - Compact padding */}
-            <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
+            {/* White Form Card */}
+            <div className="bg-white border border-gray-200 rounded-xl p-4 md:p-6 shadow-sm">
               <div className="flex flex-col gap-5">
                 
                 {/* Workspace Name */}
@@ -47,7 +95,7 @@ export default function WorkspaceHome() {
                   />
                 </div>
                 
-                {/* Visibility Selection - Compact Cards */}
+                {/* Visibility Selection */}
                 <div className="space-y-1.5">
                     <label className="block text-sm font-semibold text-gray-700">
                       Visibility Level
@@ -81,7 +129,7 @@ export default function WorkspaceHome() {
                     </div>
                 </div>
 
-                {/* Description - Reduced height */}
+                {/* Description */}
                 <div className="space-y-1.5">
                   <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
                     Description 
@@ -94,8 +142,8 @@ export default function WorkspaceHome() {
                   />
                 </div>
 
-                {/* Footer / CTA - Tighter spacing */}
-                <div className="pt-5 border-t border-gray-100 flex items-center justify-between">
+                {/* Footer / CTA */}
+                <div className="pt-5 border-t border-gray-100 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
                   <div className="flex items-center gap-2 text-xs text-gray-500 bg-gray-50 px-2.5 py-1 rounded-full border border-gray-200">
                     <Info size={14} />
                     <span>Admins can change settings later.</span>
@@ -103,7 +151,7 @@ export default function WorkspaceHome() {
                   
                   {/* Primary Button */}
                   <button
-                    className="px-6 py-2 bg-gray-900 text-white rounded-lg text-sm font-semibold hover:bg-black hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200"
+                    className="w-full md:w-auto px-6 py-2 bg-gray-900 text-white rounded-lg text-sm font-semibold hover:bg-black hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200"
                   >
                     Create Workspace
                   </button>
