@@ -1,188 +1,311 @@
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { 
-  User, 
-  Mail, 
-  Building2, 
-  Briefcase, 
-  Plus, 
-  Globe, 
-  Lock, 
-  Users,
-  Check,
-  X,
-  Camera
-} from 'lucide-react';
+import React, { useState } from 'react';
 import AuthenticatedNavbar from '../../components/AuthenticatedNavbar';
+import { User, Mail, MapPin, Calendar, Building, Globe, Lock, ArrowRight, Settings, Check, X, Camera, Edit2 } from 'lucide-react';
 
 export default function Profile() {
-  const navigate = useNavigate();
-  const [isEditing, setIsEditing] = useState(false);
-
-  // Hardcoded user data
+  // State for user data
   const [user, setUser] = useState({
-    name: 'User Name',
-    email: 'email@id.com',
-    pronouns: 'he/him',
-    bio: 'Strategic systems architect focusing on enterprise AI modeling and decision intelligence.',
-    org: 'Organization',
-    role: 'Work Position',
+    name: "Alex Rivera",
+    email: "alex.rivera@structra.cloud",
+    role: "Senior System Architect",
+    organization: "Structra Inc.",
+    location: "San Francisco, CA",
+    joined: "September 2025",
+    avatar: null
   });
 
-  // Hardcoded workspace data
+  // Edit Mode State
+  const [isEditing, setIsEditing] = useState(false);
+  const [formData, setFormData] = useState(user);
+
   const workspaces = [
-    { id: 'ws-1', name: 'Workspace 1', visibility: 'public', members: 4 },
-    { id: 'ws-2', name: 'Workspace 2', visibility: 'private', members: 11 },
-    { id: 'ws-3', name: 'Workspace 3', visibility: 'public', members: 2 },
-    { id: 'ws-4', name: 'Workspace 4', visibility: 'public', members: 13 },
+    {
+      id: 1,
+      name: "Core Engineering",
+      role: "Owner",
+      visibility: "private",
+      members: 12,
+      lastActive: "2 hours ago",
+      description: "Main architecture workspace for the core platform services and decision engines."
+    },
+    {
+      id: 2,
+      name: "Public Documentation",
+      role: "Admin",
+      visibility: "public",
+      members: 840,
+      lastActive: "1 day ago",
+      description: "Open source system models and architectural patterns for the community."
+    },
+    {
+      id: 3,
+      name: "Integration Sandbox",
+      role: "Editor",
+      visibility: "private",
+      members: 5,
+      lastActive: "5 days ago",
+      description: "Testing environment for third-party API integrations and data flows."
+    }
   ];
 
-  return (
-    <div className="h-screen flex flex-col bg-gray-50/50 text-gray-900 font-sans selection:bg-blue-100">
-      <AuthenticatedNavbar />
+  // Handlers
+  const handleEdit = () => {
+    setFormData(user);
+    setIsEditing(true);
+  };
 
-      <div className="flex-1 p-8 lg:p-12 overflow-y-auto">
-        <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-12">
+  const handleSave = () => {
+    setUser(formData);
+    setIsEditing(false);
+  };
+
+  const handleCancel = () => {
+    setIsEditing(false);
+  };
+
+  const handleChange = (e) => {
+    setFormData({ ...formData, [e.target.name]: e.target.value });
+  };
+
+  return (
+    <div className="h-screen flex flex-col bg-white text-gray-900 font-sans overflow-hidden">
+      
+      {/* 1. Navbar */}
+      <div className="flex-none z-50">
+        <AuthenticatedNavbar />
+      </div>
+
+      {/* Main Layout: Split Screen */}
+      <div className="flex flex-1 overflow-hidden">
+        
+        {/* 2. Left Sidebar - User Details & Edit Form */}
+        <aside className="w-80 bg-white border-r border-gray-200 flex flex-col overflow-y-auto flex-shrink-0 relative group/sidebar">
           
-          {/* Left: Profile Sidecar */}
-          <div className="lg:col-span-4 space-y-6">
-            <div className="bg-white border border-gray-200 rounded-2xl shadow-sm overflow-hidden p-8">
-              {/* Avatar Section */}
-              <div className="relative group w-32 h-32 mx-auto mb-8">
-                <div className="w-full h-full rounded-2xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white shadow-lg">
-                  <User size={48} strokeWidth={1.5} />
+          {/* Edit Trigger (Top Right) - Visible on Hover or if Editing */}
+          {!isEditing && (
+            <button 
+              onClick={handleEdit}
+              className="absolute top-4 right-4 p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-full transition-all opacity-0 group-hover/sidebar:opacity-100"
+              title="Edit Profile"
+            >
+              <Edit2 size={16} />
+            </button>
+          )}
+
+          {/* Profile Header */}
+          <div className="p-8 flex flex-col items-center text-center border-b border-gray-100">
+            
+            {/* Avatar - Interactive */}
+            <div className="relative group cursor-pointer mb-6">
+              <div className="w-24 h-24 rounded-full bg-gray-50 border border-gray-200 flex items-center justify-center overflow-hidden shadow-sm">
+                <User size={40} className="text-gray-400" />
+              </div>
+              {/* Overlay for "Change Photo" */}
+              <div className={`absolute inset-0 bg-black/50 rounded-full flex items-center justify-center transition-opacity ${isEditing ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}>
+                <Camera size={24} className="text-white" />
+              </div>
+            </div>
+            
+            {isEditing ? (
+              <div className="w-full space-y-3 animate-in fade-in zoom-in-95 duration-200">
+                <input
+                  type="text"
+                  name="name"
+                  value={formData.name}
+                  onChange={handleChange}
+                  placeholder="Full Name"
+                  className="w-full px-3 py-2 text-center font-bold text-gray-900 border-b-2 border-blue-500 focus:outline-none bg-blue-50/10"
+                />
+                <input
+                  type="text"
+                  name="role"
+                  value={formData.role}
+                  onChange={handleChange}
+                  placeholder="Role"
+                  className="w-full px-3 py-2 text-center text-sm font-medium text-gray-500 border-b-2 border-blue-500 focus:outline-none bg-blue-50/10"
+                />
+              </div>
+            ) : (
+              <div 
+                onClick={handleEdit}
+                className="w-full space-y-1 p-2 rounded-xl hover:bg-gray-50 cursor-pointer transition-colors group/header"
+              >
+                <div className="flex items-center justify-center gap-2">
+                  <h2 className="text-xl font-bold text-gray-900 tracking-tight">{user.name}</h2>
+                  <Edit2 size={12} className="text-gray-300 opacity-0 group-hover/header:opacity-100 transition-opacity" />
                 </div>
-                <button className="absolute -bottom-2 -right-2 p-2 bg-white border border-gray-200 rounded-lg shadow-md text-gray-500 hover:text-blue-600 transition-all opacity-0 group-hover:opacity-100">
-                  <Camera size={16} />
-                </button>
+                <p className="text-sm text-gray-500 font-medium">{user.role}</p>
+              </div>
+            )}
+          </div>
+
+          {/* Contact / Details */}
+          <div className="p-6 space-y-5 flex-1">
+            <div className="space-y-4">
+              
+              {/* Organization */}
+              <div 
+                className={`flex items-center gap-3 text-sm text-gray-600 p-2 -ml-2 rounded-lg transition-colors ${!isEditing && 'hover:bg-gray-50 cursor-pointer group/field'}`}
+                onClick={!isEditing ? handleEdit : undefined}
+              >
+                <Building size={16} className="text-gray-400 flex-shrink-0" />
+                {isEditing ? (
+                  <input
+                    type="text"
+                    name="organization"
+                    value={formData.organization}
+                    onChange={handleChange}
+                    placeholder="Organization"
+                    className="flex-1 px-2 py-1 border-b border-blue-500 focus:outline-none bg-transparent"
+                    autoFocus
+                  />
+                ) : (
+                  <div className="flex-1 flex items-center justify-between">
+                    <span>{user.organization}</span>
+                    <Edit2 size={12} className="text-gray-300 opacity-0 group-hover/field:opacity-100 transition-opacity" />
+                  </div>
+                )}
               </div>
 
-              {!isEditing ? (
-                /* View Mode */
-                <div className="space-y-4 text-center">
-                  <div>
-                    <h2 className="text-2xl font-black tracking-tight text-gray-900">{user.name}</h2>
-                    <p className="text-sm font-medium text-gray-400 uppercase tracking-widest mt-1">{user.role}</p>
+              {/* Location */}
+              <div 
+                className={`flex items-center gap-3 text-sm text-gray-600 p-2 -ml-2 rounded-lg transition-colors ${!isEditing && 'hover:bg-gray-50 cursor-pointer group/field'}`}
+                onClick={!isEditing ? handleEdit : undefined}
+              >
+                <MapPin size={16} className="text-gray-400 flex-shrink-0" />
+                {isEditing ? (
+                  <input
+                    type="text"
+                    name="location"
+                    value={formData.location}
+                    onChange={handleChange}
+                    placeholder="Location"
+                    className="flex-1 px-2 py-1 border-b border-blue-500 focus:outline-none bg-transparent"
+                  />
+                ) : (
+                  <div className="flex-1 flex items-center justify-between">
+                    <span>{user.location}</span>
+                    <Edit2 size={12} className="text-gray-300 opacity-0 group-hover/field:opacity-100 transition-opacity" />
                   </div>
-                  
-                  <p className="text-gray-600 text-sm leading-relaxed px-2">
-                    {user.bio}
+                )}
+              </div>
+
+              {/* Email (Read-only) */}
+              <div className="flex items-center gap-3 text-sm text-gray-600 p-2 -ml-2">
+                <Mail size={16} className="text-gray-400 flex-shrink-0" />
+                <span className={`flex-1 ${isEditing ? "text-gray-400 cursor-not-allowed" : ""}`}>
+                  {user.email}
+                </span>
+                {isEditing && <Lock size={12} className="text-gray-300" />}
+              </div>
+
+              {/* Joined Date (Read-only) */}
+              <div className="flex items-center gap-3 text-sm text-gray-600 p-2 -ml-2">
+                <Calendar size={16} className="text-gray-400 flex-shrink-0" />
+                <span className={isEditing ? "text-gray-400" : ""}>Joined {user.joined}</span>
+              </div>
+
+            </div>
+          </div>
+
+          {/* Sidebar Footer: Action Buttons */}
+          <div className="p-6 border-t border-gray-100 bg-white z-10">
+            {isEditing ? (
+              <div className="flex gap-2 animate-in slide-in-from-bottom-2 duration-200">
+                <button 
+                  onClick={handleSave}
+                  className="flex-1 py-2.5 flex items-center justify-center gap-2 bg-gray-900 text-white rounded-lg text-sm font-bold hover:bg-black transition-all shadow-lg shadow-gray-200"
+                >
+                  <Check size={16} />
+                  Save Changes
+                </button>
+                <button 
+                  onClick={handleCancel}
+                  className="px-4 py-2.5 flex items-center justify-center gap-2 border border-gray-200 rounded-lg text-sm font-semibold text-gray-600 hover:bg-gray-50 transition-colors"
+                >
+                  <X size={16} />
+                </button>
+              </div>
+            ) : (
+              <button 
+                onClick={handleEdit}
+                className="w-full py-2.5 flex items-center justify-center gap-2 border border-gray-200 rounded-lg text-sm font-semibold text-gray-700 hover:bg-gray-50 hover:text-gray-900 transition-colors group"
+              >
+                <Settings size={16} className="group-hover:rotate-45 transition-transform" />
+                Edit Profile
+              </button>
+            )}
+          </div>
+        </aside>
+
+        {/* 3. Right Content */}
+        <main className="flex-1 overflow-y-auto bg-gray-50/50 p-8 sm:p-12">
+          <div className="max-w-4xl">
+            
+            <div className="flex items-center justify-between mb-8">
+              <h1 className="text-2xl font-bold text-gray-900 tracking-tight">Workspaces</h1>
+              <span className="text-sm text-gray-500 bg-white px-3 py-1 rounded-full border border-gray-200 shadow-sm">
+                {workspaces.length} Active
+              </span>
+            </div>
+
+            <div className="grid grid-cols-1 gap-4">
+              {workspaces.map((workspace) => (
+                <div 
+                  key={workspace.id}
+                  className="group bg-white border border-gray-200 rounded-xl p-6 hover:border-blue-500 hover:shadow-md transition-all duration-200 cursor-pointer"
+                >
+                  <div className="flex items-start justify-between mb-3">
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 bg-gray-100 rounded-lg text-gray-600 group-hover:bg-blue-50 group-hover:text-blue-600 transition-colors">
+                        <Building size={20} />
+                      </div>
+                      <div>
+                        <h3 className="font-bold text-gray-900 group-hover:text-blue-600 transition-colors">
+                          {workspace.name}
+                        </h3>
+                        <p className="text-xs text-gray-500">
+                          Updated {workspace.lastActive}
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* 4. Tags: Fixed Dimensions, No Rounded Edges */}
+                    {workspace.visibility === 'public' ? (
+                      <span className="flex items-center justify-center gap-1.5 w-22 py-1 bg-blue-50 text-blue-700 border-2 border-blue-700 text-[10px] font-bold uppercase tracking-wide rounded-xl">
+                        <Globe size={12} />
+                        Public
+                      </span>
+                    ) : (
+                      <span className="flex items-center justify-center gap-1.5 w-22 py-1 bg-black text-white border border-gray-800 text-[10px] font-bold uppercase tracking-wide rounded-xl">
+                        <Lock size={12} />
+                        Private
+                      </span>
+                    )}
+                  </div>
+
+                  <p className="text-sm text-gray-600 mb-5 leading-relaxed">
+                    {workspace.description}
                   </p>
 
-                  <div className="pt-6 space-y-3 border-t border-gray-100 text-left">
-                    <div className="flex items-center gap-3 text-sm text-gray-600">
-                      <Mail size={16} className="text-gray-400" />
-                      <span>{user.email}</span>
+                  <div className="flex items-center justify-between pt-4 border-t border-gray-100">
+                    <div className="flex items-center gap-4 text-xs font-medium text-gray-500">
+                      <span>{workspace.role}</span>
+                      <span className="w-1 h-1 bg-gray-300 rounded-full" />
+                      <span>{workspace.members} members</span>
                     </div>
-                    <div className="flex items-center gap-3 text-sm text-gray-600">
-                      <Building2 size={16} className="text-gray-400" />
-                      <span>{user.org}</span>
+                    
+                    <div className="text-gray-400 group-hover:text-blue-600 group-hover:translate-x-1 transition-all">
+                      <ArrowRight size={18} />
                     </div>
-                  </div>
-
-                  <button
-                    onClick={() => setIsEditing(true)}
-                    className="w-full mt-6 px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm font-bold text-gray-700 hover:bg-white hover:border-gray-400 hover:shadow-sm transition-all"
-                  >
-                    Edit Profile
-                  </button>
-                </div>
-              ) : (
-                /* Edit Mode (GitHub style inline editing) */
-                <div className="space-y-4">
-                  <div>
-                    <label className="text-[10px] font-bold uppercase text-gray-400">Full Name</label>
-                    <input 
-                      type="text" 
-                      defaultValue={user.name} 
-                      className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500/10 focus:border-blue-500 outline-none transition-all"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-[10px] font-bold uppercase text-gray-400">Bio</label>
-                    <textarea 
-                      rows={3}
-                      defaultValue={user.bio} 
-                      className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500/10 focus:border-blue-500 outline-none transition-all resize-none"
-                    />
-                  </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <button
-                      onClick={() => setIsEditing(false)}
-                      className="flex items-center justify-center gap-2 px-4 py-2 bg-white border border-gray-200 rounded-lg text-sm font-bold text-gray-500 hover:bg-gray-50 transition-all"
-                    >
-                      <X size={16} /> Cancel
-                    </button>
-                    <button
-                      onClick={() => setIsEditing(false)}
-                      className="flex items-center justify-center gap-2 px-4 py-2 bg-gray-900 text-white rounded-lg text-sm font-bold hover:bg-black shadow-md transition-all"
-                    >
-                      <Check size={16} /> Save
-                    </button>
                   </div>
                 </div>
-              )}
-            </div>
-          </div>
-
-          {/* Right: Workspaces Section */}
-          <div className="lg:col-span-8">
-            <div className="flex items-center justify-between mb-8">
-              <div>
-                <h1 className="text-3xl font-black text-gray-900 tracking-tight">Workspaces</h1>
-                <p className="text-gray-500 mt-1">Manage your active modeling environments.</p>
-              </div>
-
-              <button
-                onClick={() => navigate('/app/create-workspace')}
-                className="flex items-center gap-2 px-5 py-2.5 bg-gray-900 text-white rounded-xl font-bold hover:bg-black hover:shadow-lg hover:-translate-y-0.5 transition-all text-sm"
-              >
-                <Plus size={18} strokeWidth={3} />
-                New Workspace
-              </button>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {workspaces.map((ws) => (
-                <button
-                  key={ws.id}
-                  onClick={() => navigate(`/app/ws/${ws.id}`)}
-                  className="group text-left border border-gray-200 rounded-2xl bg-white p-6 hover:border-blue-500 hover:shadow-xl hover:shadow-blue-500/5 transition-all duration-300 relative overflow-hidden"
-                >
-                  <div className="absolute top-0 left-0 w-1 h-full bg-blue-500 opacity-0 group-hover:opacity-100 transition-all" />
-                  
-                  <div className="flex items-start justify-between mb-4">
-                    <div className="p-2.5 bg-gray-50 rounded-xl group-hover:bg-blue-50 transition-colors">
-                      {ws.visibility === 'public' ? (
-                        <Globe size={20} className="text-gray-400 group-hover:text-blue-600" />
-                      ) : (
-                        <Lock size={20} className="text-gray-400 group-hover:text-blue-600" />
-                      )}
-                    </div>
-                    <span className={`text-[10px] font-black uppercase tracking-widest px-2.5 py-1 rounded-full border ${
-                      ws.visibility === 'public' 
-                        ? 'bg-green-50 text-green-600 border-green-100' 
-                        : 'bg-amber-50 text-amber-600 border-amber-100'
-                    }`}>
-                      {ws.visibility}
-                    </span>
-                  </div>
-
-                  <h3 className="text-lg font-bold text-gray-900 mb-1 group-hover:text-blue-600 transition-colors">
-                    {ws.name}
-                  </h3>
-
-                  <div className="flex items-center gap-4 mt-4 pt-4 border-t border-gray-50">
-                    <div className="flex items-center gap-1.5 text-xs font-medium text-gray-500">
-                      <Users size={14} />
-                      {ws.members} members
-                    </div>
-                  </div>
-                </button>
               ))}
             </div>
+
           </div>
-        </div>
+        </main>
+
       </div>
     </div>
   );
