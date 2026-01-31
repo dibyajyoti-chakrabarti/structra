@@ -5,9 +5,9 @@ export default function Pricing() {
   const navigate = useNavigate();
 
   return (
-    <div className="min-h-screen bg-[#0a0a0a] text-[#f5f5f5]">
+    <div className="h-screen bg-[#0a0a0a] text-[#f5f5f5] font-sans selection:bg-blue-500/30 flex flex-col overflow-hidden">
       {/* Top Navigation Bar */}
-      <nav className="border-b border-[#1f1f1f] bg-[#0a0a0a] sticky top-0 z-50">
+      <nav className="border-b border-[#1f1f1f] bg-[#0a0a0a] flex-none z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 sm:h-20 flex items-center justify-between">
           <div className="flex items-center gap-4 sm:gap-8">
             {/* Back Button */}
@@ -31,6 +31,7 @@ export default function Pricing() {
               <span className="text-sm font-medium hidden sm:inline">Back</span>
             </button>
 
+            {/* Vertical Divider */}
             <div className="h-6 w-px bg-[#2a2a2a] hidden sm:block" />
 
             {/* Brand Logo & Name */}
@@ -66,490 +67,132 @@ export default function Pricing() {
         </div>
       </nav>
 
-      {/* Header Section */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-12 sm:pt-16 lg:pt-20 pb-8 sm:pb-12">
-        <div className="max-w-3xl">
-          <h1 className="text-4xl sm:text-5xl lg:text-6xl font-light tracking-tight leading-tight">
-            Simple, Transparent Pricing
-          </h1>
-          <p className="mt-4 sm:mt-6 text-base sm:text-lg text-[#a3a3a3] leading-relaxed">
-            Choose the plan that matches your system complexity, collaboration
-            needs, and governance requirements. Scale as you grow.
-          </p>
-        </div>
-      </div>
-
-      {/* Pricing Cards */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12 lg:py-16">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 sm:gap-8 lg:gap-10 max-w-6xl mx-auto">
-          {/* Core Tier */}
-          <div className="border border-[#2a2a2a] rounded-2xl p-6 sm:p-8 lg:p-10 bg-[#0f0f0f] flex flex-col hover:border-[#3a3a3a] transition-all duration-300">
-            <div className="flex items-start justify-between mb-6">
-              <div>
-                <h2 className="text-2xl sm:text-3xl font-medium mb-2">Core</h2>
-                <p className="text-sm sm:text-base text-[#a3a3a3]">
-                  For individual engineers and early-stage system modeling
-                </p>
-              </div>
-              <div className="px-3 py-1 bg-[#1f1f1f] rounded-full text-xs font-medium text-[#a3a3a3]">
-                Current
+      {/* Main Content Body */}
+      <main className="flex-1 flex flex-col items-center justify-center p-6 relative">
+        <div className="w-full max-w-5xl">
+          
+          {/* Header Section - STRICTLY MATCHING TERMS.JSX */}
+          <header className="mb-10 border-b border-[#1f1f1f] pb-8">
+            <h1 className="text-4xl sm:text-5xl font-black tracking-tighter text-white mb-6">
+              Pricing Plans
+            </h1>
+            
+            {/* Metadata Row matching Terms */}
+            <div className="flex flex-col sm:flex-row sm:items-center gap-4 sm:gap-6">
+              <div className="flex items-center gap-4 text-[10px] font-bold uppercase tracking-[0.2em] text-blue-500">
+                <span>Monthly Billing</span>
+                <span className="w-1 h-1 bg-[#2a2a2a] rounded-full" />
+                <span className="text-[#6b6b6b]">Cancel Anytime</span>
               </div>
             </div>
+          </header>
 
-            <div className="mb-8">
-              <div className="flex items-baseline gap-2">
-                <span className="text-4xl sm:text-5xl font-light">$0</span>
-                <span className="text-[#6b6b6b] text-sm">/month</span>
+          {/* Pricing Cards */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-stretch">
+            
+            {/* Core Tier */}
+            <div className="border border-[#2a2a2a] rounded-2xl p-6 bg-[#0f0f0f] flex flex-col hover:border-[#3a3a3a] transition-all duration-300">
+              <div className="flex items-start justify-between mb-4">
+                <div>
+                  <h2 className="text-xl font-bold text-white tracking-tight mb-1">Core</h2>
+                  <p className="text-xs text-[#a3a3a3]">
+                    For individual engineers
+                  </p>
+                </div>
+                <div className="px-2 py-1 bg-[#1f1f1f] rounded-full text-[10px] font-bold uppercase tracking-wider text-[#a3a3a3]">
+                  Free
+                </div>
               </div>
-              <p className="text-xs text-[#6b6b6b] mt-2">
-                Free forever for core features
-              </p>
-            </div>
 
-            <div className="mb-8">
-              <h3 className="text-sm font-medium text-[#f5f5f5] mb-4">
-                What's included:
-              </h3>
-              <ul className="space-y-3">
-                <li className="flex items-start gap-3">
-                  <div className="w-5 h-5 rounded-full bg-[#1f1f1f] flex items-center justify-center flex-shrink-0 mt-0.5">
-                    <svg
-                      className="w-3 h-3 text-[#a3a3a3]"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M5 13l4 4L19 7"
-                      />
-                    </svg>
-                  </div>
-                  <span className="text-sm text-[#a3a3a3]">
-                    Visual system modeling canvas
-                  </span>
-                </li>
-                <li className="flex items-start gap-3">
-                  <div className="w-5 h-5 rounded-full bg-[#1f1f1f] flex items-center justify-center flex-shrink-0 mt-0.5">
-                    <svg
-                      className="w-3 h-3 text-[#a3a3a3]"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M5 13l4 4L19 7"
-                      />
-                    </svg>
-                  </div>
-                  <span className="text-sm text-[#a3a3a3]">
-                    Relationship & assumption modeling
-                  </span>
-                </li>
-                <li className="flex items-start gap-3">
-                  <div className="w-5 h-5 rounded-full bg-[#1f1f1f] flex items-center justify-center flex-shrink-0 mt-0.5">
-                    <svg
-                      className="w-3 h-3 text-[#a3a3a3]"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M5 13l4 4L19 7"
-                      />
-                    </svg>
-                  </div>
-                  <span className="text-sm text-[#a3a3a3]">
-                    AI-assisted evaluation (limited)
-                  </span>
-                </li>
-                <li className="flex items-start gap-3">
-                  <div className="w-5 h-5 rounded-full bg-[#1f1f1f] flex items-center justify-center flex-shrink-0 mt-0.5">
-                    <svg
-                      className="w-3 h-3 text-[#a3a3a3]"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M5 13l4 4L19 7"
-                      />
-                    </svg>
-                  </div>
-                  <span className="text-sm text-[#a3a3a3]">
-                    Single workspace
-                  </span>
-                </li>
-                <li className="flex items-start gap-3">
-                  <div className="w-5 h-5 rounded-full bg-[#1f1f1f] flex items-center justify-center flex-shrink-0 mt-0.5">
-                    <svg
-                      className="w-3 h-3 text-[#a3a3a3]"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M5 13l4 4L19 7"
-                      />
-                    </svg>
-                  </div>
-                  <span className="text-sm text-[#a3a3a3]">
-                    Standard documentation
-                  </span>
-                </li>
-                <li className="flex items-start gap-3">
-                  <div className="w-5 h-5 rounded-full bg-[#1f1f1f] flex items-center justify-center flex-shrink-0 mt-0.5">
-                    <svg
-                      className="w-3 h-3 text-[#a3a3a3]"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M5 13l4 4L19 7"
-                      />
-                    </svg>
-                  </div>
-                  <span className="text-sm text-[#a3a3a3]">
-                    Community support
-                  </span>
-                </li>
-              </ul>
-            </div>
+              <div className="mb-6">
+                <div className="flex items-baseline gap-1">
+                  <span className="text-3xl font-black tracking-tighter">$0</span>
+                  <span className="text-[#6b6b6b] text-xs font-medium">/month</span>
+                </div>
+              </div>
 
-            <div className="mt-auto">
+              <div className="mb-6 flex-1">
+                <ul className="space-y-2.5">
+                  {[
+                    "Visual system modeling canvas",
+                    "Relationship & assumption modeling",
+                    "AI-assisted evaluation (limited)",
+                    "Single workspace",
+                    "Community support"
+                  ].map((item, i) => (
+                    <li key={i} className="flex items-start gap-3">
+                      <div className="w-4 h-4 rounded-full bg-[#1f1f1f] flex items-center justify-center flex-shrink-0 mt-0.5">
+                        <svg className="w-2.5 h-2.5 text-[#a3a3a3]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                        </svg>
+                      </div>
+                      <span className="text-sm text-[#a3a3a3]">{item}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+
               <button
                 disabled
-                className="w-full px-4 py-3 border border-[#2a2a2a] text-[#6b6b6b] rounded-lg cursor-not-allowed text-sm font-medium"
+                className="w-full py-2.5 border border-[#2a2a2a] text-[#6b6b6b] rounded-lg cursor-not-allowed text-xs font-bold uppercase tracking-wider"
               >
                 Current Plan
               </button>
             </div>
-          </div>
 
-          {/* Enterprise Tier */}
-          <div className="border-2 border-white rounded-2xl p-6 sm:p-8 lg:p-10 bg-[#0a0a0a] flex flex-col relative hover:border-neutral-200 transition-all duration-300 shadow-lg shadow-white/5">
-            <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-4 py-1 bg-white text-black rounded-full text-xs font-medium">
-              Popular
-            </div>
-
-            <div className="flex items-start justify-between mb-6">
-              <div>
-                <h2 className="text-2xl sm:text-3xl font-medium mb-2">
-                  Enterprise
-                </h2>
-                <p className="text-sm sm:text-base text-[#a3a3a3]">
-                  For teams requiring governance and advanced analysis
-                </p>
+            {/* Enterprise Tier */}
+            <div className="border-2 border-white rounded-2xl p-6 bg-[#0a0a0a] flex flex-col relative shadow-2xl shadow-white/5">
+              <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-1 bg-white text-black rounded-full text-[10px] font-bold uppercase tracking-wider">
+                Most Popular
               </div>
-            </div>
 
-            <div className="mb-8">
-              <div className="flex items-baseline gap-2">
-                <span className="text-4xl sm:text-5xl font-light">Custom</span>
+              <div className="flex items-start justify-between mb-4">
+                <div>
+                  <h2 className="text-xl font-bold text-white tracking-tight mb-1">Enterprise</h2>
+                  <p className="text-xs text-[#a3a3a3]">
+                    For teams requiring governance
+                  </p>
+                </div>
               </div>
-              <p className="text-xs text-[#6b6b6b] mt-2">
-                Contact us for pricing tailored to your needs
-              </p>
-            </div>
 
-            <div className="mb-8">
-              <h3 className="text-sm font-medium text-[#f5f5f5] mb-4">
-                Everything in Core, plus:
-              </h3>
-              <ul className="space-y-3">
-                <li className="flex items-start gap-3">
-                  <div className="w-5 h-5 rounded-full bg-green-500/20 flex items-center justify-center flex-shrink-0 mt-0.5">
-                    <svg
-                      className="w-3 h-3 text-green-500"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M5 13l4 4L19 7"
-                      />
-                    </svg>
-                  </div>
-                  <span className="text-sm text-[#f5f5f5]">
-                    Advanced AI evaluation workflows
-                  </span>
-                </li>
-                <li className="flex items-start gap-3">
-                  <div className="w-5 h-5 rounded-full bg-green-500/20 flex items-center justify-center flex-shrink-0 mt-0.5">
-                    <svg
-                      className="w-3 h-3 text-green-500"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M5 13l4 4L19 7"
-                      />
-                    </svg>
-                  </div>
-                  <span className="text-sm text-[#f5f5f5]">
-                    Risk & trade-off analysis
-                  </span>
-                </li>
-                <li className="flex items-start gap-3">
-                  <div className="w-5 h-5 rounded-full bg-green-500/20 flex items-center justify-center flex-shrink-0 mt-0.5">
-                    <svg
-                      className="w-3 h-3 text-green-500"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M5 13l4 4L19 7"
-                      />
-                    </svg>
-                  </div>
-                  <span className="text-sm text-[#f5f5f5]">
-                    Role-based access control (RBAC)
-                  </span>
-                </li>
-                <li className="flex items-start gap-3">
-                  <div className="w-5 h-5 rounded-full bg-green-500/20 flex items-center justify-center flex-shrink-0 mt-0.5">
-                    <svg
-                      className="w-3 h-3 text-green-500"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M5 13l4 4L19 7"
-                      />
-                    </svg>
-                  </div>
-                  <span className="text-sm text-[#f5f5f5]">
-                    Audit logs & activity history
-                  </span>
-                </li>
-                <li className="flex items-start gap-3">
-                  <div className="w-5 h-5 rounded-full bg-green-500/20 flex items-center justify-center flex-shrink-0 mt-0.5">
-                    <svg
-                      className="w-3 h-3 text-green-500"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M5 13l4 4L19 7"
-                      />
-                    </svg>
-                  </div>
-                  <span className="text-sm text-[#f5f5f5]">
-                    Multiple workspaces
-                  </span>
-                </li>
-                <li className="flex items-start gap-3">
-                  <div className="w-5 h-5 rounded-full bg-green-500/20 flex items-center justify-center flex-shrink-0 mt-0.5">
-                    <svg
-                      className="w-3 h-3 text-green-500"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M5 13l4 4L19 7"
-                      />
-                    </svg>
-                  </div>
-                  <span className="text-sm text-[#f5f5f5]">
-                    Visibility & governance policies
-                  </span>
-                </li>
-                <li className="flex items-start gap-3">
-                  <div className="w-5 h-5 rounded-full bg-green-500/20 flex items-center justify-center flex-shrink-0 mt-0.5">
-                    <svg
-                      className="w-3 h-3 text-green-500"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M5 13l4 4L19 7"
-                      />
-                    </svg>
-                  </div>
-                  <span className="text-sm text-[#f5f5f5]">
-                    Executive presentation mode
-                  </span>
-                </li>
-                <li className="flex items-start gap-3">
-                  <div className="w-5 h-5 rounded-full bg-green-500/20 flex items-center justify-center flex-shrink-0 mt-0.5">
-                    <svg
-                      className="w-3 h-3 text-green-500"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M5 13l4 4L19 7"
-                      />
-                    </svg>
-                  </div>
-                  <span className="text-sm text-[#f5f5f5]">
-                    Priority support & dedicated success manager
-                  </span>
-                </li>
-                <li className="flex items-start gap-3">
-                  <div className="w-5 h-5 rounded-full bg-green-500/20 flex items-center justify-center flex-shrink-0 mt-0.5">
-                    <svg
-                      className="w-3 h-3 text-green-500"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M5 13l4 4L19 7"
-                      />
-                    </svg>
-                  </div>
-                  <span className="text-sm text-[#f5f5f5]">
-                    SSO & advanced security
-                  </span>
-                </li>
-              </ul>
-            </div>
+              <div className="mb-6">
+                <div className="flex items-baseline gap-1">
+                  <span className="text-3xl font-black tracking-tighter">Custom</span>
+                </div>
+              </div>
 
-            <div className="mt-auto">
+              <div className="mb-6 flex-1">
+                <ul className="space-y-2.5">
+                  {[
+                    "Advanced AI evaluation workflows",
+                    "Role-based access control (RBAC)",
+                    "Audit logs & activity history",
+                    "Multiple workspaces",
+                    "SSO & advanced security",
+                    "Dedicated success manager"
+                  ].map((item, i) => (
+                    <li key={i} className="flex items-start gap-3">
+                      <div className="w-4 h-4 rounded-full bg-green-500/20 flex items-center justify-center flex-shrink-0 mt-0.5">
+                        <svg className="w-2.5 h-2.5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                        </svg>
+                      </div>
+                      <span className="text-sm text-[#f5f5f5]">{item}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+
               <button
                 onClick={() => navigate("/signup")}
-                className="w-full px-4 py-3 bg-white text-black rounded-lg font-medium hover:bg-neutral-200 transition-all duration-200 shadow-lg text-sm"
+                className="w-full py-2.5 bg-white text-black rounded-lg font-bold hover:bg-neutral-200 transition-all duration-200 text-xs uppercase tracking-wider"
               >
                 Contact Sales
               </button>
             </div>
           </div>
         </div>
-      </div>
-
-      {/* FAQ Section */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 sm:py-20 lg:py-24 border-t border-[#1f1f1f]">
-        <div className="max-w-3xl mx-auto">
-          <h2 className="text-3xl sm:text-4xl font-light mb-12 text-center">
-            Frequently Asked Questions
-          </h2>
-
-          <div className="space-y-8">
-            <div>
-              <h3 className="text-lg font-medium mb-3">
-                Can I upgrade or downgrade my plan?
-              </h3>
-              <p className="text-[#a3a3a3] text-sm leading-relaxed">
-                Yes, you can upgrade to Enterprise at any time. Contact our
-                sales team to discuss your needs and we'll help you transition
-                smoothly.
-              </p>
-            </div>
-
-            <div>
-              <h3 className="text-lg font-medium mb-3">
-                What payment methods do you accept?
-              </h3>
-              <p className="text-[#a3a3a3] text-sm leading-relaxed">
-                We accept all major credit cards, ACH transfers, and can arrange
-                custom invoicing for Enterprise customers with annual contracts.
-              </p>
-            </div>
-
-            <div>
-              <h3 className="text-lg font-medium mb-3">
-                Is there a free trial for Enterprise?
-              </h3>
-              <p className="text-[#a3a3a3] text-sm leading-relaxed">
-                Yes, we offer a 14-day free trial of Enterprise features.
-                Contact our sales team to get started with a demo and trial
-                access.
-              </p>
-            </div>
-
-            <div>
-              <h3 className="text-lg font-medium mb-3">
-                What kind of support do you offer?
-              </h3>
-              <p className="text-[#a3a3a3] text-sm leading-relaxed">
-                Core users have access to community support and documentation.
-                Enterprise customers receive priority email and chat support,
-                plus a dedicated customer success manager.
-              </p>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* CTA Section */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 sm:py-20 lg:py-24 border-t border-[#1f1f1f]">
-        <div className="max-w-4xl mx-auto text-center">
-          <h2 className="text-3xl sm:text-4xl font-light mb-6">
-            Ready to Get Started?
-          </h2>
-          <p className="text-base sm:text-lg text-[#a3a3a3] mb-8">
-            Join enterprise teams using Structra.cloud to model, evaluate, and
-            govern complex systems.
-          </p>
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-            <button
-              onClick={() => navigate("/signup")}
-              className="w-full sm:w-auto px-8 py-4 bg-white text-black font-medium rounded-lg hover:bg-neutral-200 transition-all duration-200 shadow-lg text-sm"
-            >
-              Start Free
-            </button>
-            <button
-              onClick={() => navigate("/contact")}
-              className="w-full sm:w-auto px-8 py-4 border-2 border-[#2a2a2a] text-white rounded-lg hover:bg-[#111111] transition-all duration-200 text-sm"
-            >
-              Talk to Sales
-            </button>
-          </div>
-        </div>
-      </div>
+      </main>
     </div>
   );
 }
