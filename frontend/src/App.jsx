@@ -1,18 +1,15 @@
-// App.jsx
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+// src/App.jsx
+import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import PrivateRoute from './components/PrivateRoute'; // <--- Import the new component
+
+// ... (Keep your existing page imports here: Lander, Login, WorkspaceHome, etc.) ...
 import Lander from './pages/public/Lander';
-import Pricing from './pages/public/Pricing';
-import Faqs from './pages/public/Faqs';
-import Support from './pages/public/Support';
-import Terms from './pages/public/Terms';
-import Privacy from './pages/public/Privacy';
 import Login from './pages/auth/Login';
 import Signup from './pages/auth/Signup';
-import AllWorkspaces from './pages/account/AllWorkspaces';
+import WorkspaceHome from './pages/workspace/WorkspaceHome';
 import Profile from './pages/account/Profile';
 import Notification from './pages/account/Notification';
 import CreateWorkspace from './pages/workspace/CreateWorkspace';
-import WorkspaceHome from './pages/workspace/WorkspaceHome';
 import CreateSystem from './pages/workspace/CreateSystem';
 import WorkspaceSettings from './pages/workspace/settings/WorkspaceSettings';
 import GeneralSettings from './pages/workspace/settings/GeneralSettings';
@@ -26,15 +23,21 @@ import Evaluation from './pages/system/Evaluation';
 import PresentCanvas from './pages/system/PresentCanvas';
 import InvitationRedirect from './pages/invitations/InvitationRedirect';
 import InvitationAcceptReject from './pages/invitations/InvitationAcceptReject';
-import Documentation from './pages/documentation/Documentation';
-import NotFound from './pages/infrastructure/NotFound';
 import Unauthorized from './pages/infrastructure/Unauthorized';
+import NotFound from './pages/infrastructure/NotFound';
+import Pricing from './pages/public/Pricing';
+import Faqs from './pages/public/Faqs';
+import Support from './pages/public/Support';
+import Terms from './pages/public/Terms';
+import Privacy from './pages/public/Privacy';
+import Documentation from './pages/documentation/Documentation';
+
 
 function App() {
   return (
     <BrowserRouter>
       <Routes>
-        {/* Public Routes */}
+        {/* Public Routes (Accessible to everyone) */}
         <Route path="/" element={<Lander />} />
         <Route path="/pricing" element={<Pricing />} />
         <Route path="/faqs" element={<Faqs />} />
@@ -43,34 +46,38 @@ function App() {
         <Route path="/privacy" element={<Privacy />} />
         <Route path="/login" element={<Login />} />
         <Route path="/signup" element={<Signup />} />
-        
-        {/* Documentation */}
         <Route path="/docs" element={<Documentation />} />
         
-        {/* Authenticated App Routes */}
-        <Route path="/app" element={<WorkspaceHome />} />
-        <Route path="/app/profile" element={<Profile />} />
-        <Route path="/app/notifications" element={<Notification />} />
-        <Route path="/app/create-workspace" element={<CreateWorkspace />} />
-        
-        {/* Workspace Routes */}
-        <Route path="/app/ws/:workspaceId" element={<WorkspaceHome />} />
-        <Route path="/app/ws/:workspaceId/create-system" element={<CreateSystem />} />
-        
-        {/* Workspace Settings Routes */}
-        <Route path="/app/ws/:workspaceId/settings" element={<WorkspaceSettings />}>
-          <Route path="general" element={<GeneralSettings />} />
-          <Route path="team" element={<TeamSettings />} />
-          <Route path="security" element={<SecuritySettings />} />
-          <Route path="iam" element={<IamSettings />} />
-          <Route path="visibility" element={<WorkspaceVisibility />} />
-          <Route path="logs" element={<LogSettings />} />
+        {/* PROTECTED ROUTES STARTS HERE */}
+        <Route element={<PrivateRoute />}>
+            
+            {/* Authenticated App Routes */}
+            <Route path="/app" element={<WorkspaceHome />} />
+            <Route path="/app/profile" element={<Profile />} />
+            <Route path="/app/notifications" element={<Notification />} />
+            <Route path="/app/create-workspace" element={<CreateWorkspace />} />
+            
+            {/* Workspace Routes */}
+            <Route path="/app/ws/:workspaceId" element={<WorkspaceHome />} />
+            <Route path="/app/ws/:workspaceId/create-system" element={<CreateSystem />} />
+            
+            {/* Workspace Settings Routes */}
+            <Route path="/app/ws/:workspaceId/settings" element={<WorkspaceSettings />}>
+              <Route path="general" element={<GeneralSettings />} />
+              <Route path="team" element={<TeamSettings />} />
+              <Route path="security" element={<SecuritySettings />} />
+              <Route path="iam" element={<IamSettings />} />
+              <Route path="visibility" element={<WorkspaceVisibility />} />
+              <Route path="logs" element={<LogSettings />} />
+            </Route>
+            
+            {/* System Routes */}
+            <Route path="/app/ws/:workspaceId/system/:systemId" element={<Canvas />} />
+            <Route path="/app/ws/:workspaceId/system/:systemId/evaluate" element={<Evaluation />} />
+            <Route path="/app/ws/:workspaceId/system/:systemId/present" element={<PresentCanvas />} />
+
         </Route>
-        
-        {/* System Routes */}
-        <Route path="/app/ws/:workspaceId/system/:systemId" element={<Canvas />} />
-        <Route path="/app/ws/:workspaceId/system/:systemId/evaluate" element={<Evaluation />} />
-        <Route path="/app/ws/:workspaceId/system/:systemId/present" element={<PresentCanvas />} />
+        {/* PROTECTED ROUTES ENDS HERE */}
         
         {/* Invitation Routes */}
         <Route path="/invite/:token" element={<InvitationRedirect />} />
