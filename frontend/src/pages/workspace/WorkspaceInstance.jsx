@@ -8,11 +8,11 @@ const WorkspaceInstance = () => {
     <div className="flex flex-col h-screen bg-white overflow-hidden">
       <AuthenticatedNavbar />
       <div className="flex flex-1 overflow-hidden">
-        {/* WorkspaceNavbar already has a border-r, but we ensure it feels integrated */}
         <WorkspaceNavbar />
         
-        <main className="flex-1 overflow-y-auto p-8 border-l border-gray-50">
-          <div className="max-w-7xl mx-auto">
+        {/* Main Content Area */}
+        <main className="flex-1 overflow-hidden bg-white border-l border-gray-100">
+          <div className="h-full w-full max-w-[1600px] mx-auto p-10 overflow-y-auto">
             <Outlet /> 
           </div>
         </main>
