@@ -47,21 +47,15 @@ function App() {
                WorkspaceInstance provides the Navbars and the <Outlet />
             */}
             <Route path="/app/ws/:workspaceId" element={<WorkspaceInstance />}>
-                {/* Shows the Stats/Systems Grid by default */}
                 <Route index element={<WorkspaceOverview />} />
-                
-                {/* Shows the Create Form inside the workspace view */}
                 <Route path="create-system" element={<CreateSystem />} />
-            </Route>
-            
-            {/* Workspace Settings */}
-            <Route path="/app/ws/:workspaceId/settings" element={<WorkspaceSettings />}>
-              <Route path="general" element={<GeneralSettings />} />
-              <Route path="team" element={<TeamSettings />} />
-              <Route path="security" element={<SecuritySettings />} />
-              <Route path="iam" element={<IamSettings />} />
-              <Route path="visibility" element={<WorkspaceVisibility />} />
-              <Route path="logs" element={<LogSettings />} />
+
+                <Route path="settings" element={<WorkspaceSettings />}>
+                  <Route index element={<GeneralSettings />} /> {/* Default to general */}
+                  <Route path="team" element={<TeamSettings />} />
+                  <Route path="security" element={<SecuritySettings />} />
+                  <Route path="logs" element={<LogSettings />} />
+                </Route>
             </Route>
             
             {/* System/Canvas Routes */}
