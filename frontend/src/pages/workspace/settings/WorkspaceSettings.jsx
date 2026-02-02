@@ -1,27 +1,43 @@
-import { useNavigate, useParams, Outlet } from 'react-router-dom';
+import { NavLink, Outlet, useParams } from 'react-router-dom';
 
-export default function WorkspaceSettings() {
-  const navigate = useNavigate();
-  const { workspaceId } = useParams();
+const WorkspaceSettings = () => {
+  const { id } = useParams();
   
+  const navItems = [
+    { name: 'General', path: `/workspace/${id}/settings` },
+    { name: 'Team', path: `/workspace/${id}/settings/team` },
+    { name: 'Security', path: `/workspace/${id}/settings/security` },
+    { name: 'Logs', path: `/workspace/${id}/settings/logs` },
+  ];
+
   return (
-    <div className="min-h-screen flex flex-col p-8">
-      <div className="flex flex-col items-center justify-center gap-4 mb-8">
-        <h1 className="text-4xl font-bold">Hello from WorkspaceSettings.jsx</h1>
-        <p className="text-gray-600">Workspace ID: {workspaceId}</p>
-        <div className="flex gap-2">
-          <button onClick={() => navigate(`/app/ws/${workspaceId}/settings/general`)} className="px-3 py-1 bg-gray-200 rounded">General</button>
-          <button onClick={() => navigate(`/app/ws/${workspaceId}/settings/team`)} className="px-3 py-1 bg-gray-200 rounded">Team</button>
-          <button onClick={() => navigate(`/app/ws/${workspaceId}/settings/security`)} className="px-3 py-1 bg-gray-200 rounded">Security</button>
-          <button onClick={() => navigate(`/app/ws/${workspaceId}/settings/iam`)} className="px-3 py-1 bg-gray-200 rounded">IAM</button>
-          <button onClick={() => navigate(`/app/ws/${workspaceId}/settings/visibility`)} className="px-3 py-1 bg-gray-200 rounded">Visibility</button>
-          <button onClick={() => navigate(`/app/ws/${workspaceId}/settings/logs`)} className="px-3 py-1 bg-gray-200 rounded">Logs</button>
-        </div>
-        <button onClick={() => navigate(`/app/ws/${workspaceId}`)} className="px-4 py-2 bg-blue-500 text-white rounded">Back to Workspace</button>
-      </div>
-      <div className="border-t pt-8">
+    <div className="flex h-full bg-white">
+      {/* Sidebar */}
+      <aside className="w-64 border-r border-gray-200 p-4">
+        <nav className="space-y-1">
+          {navItems.map((item) => (
+            <NavLink
+              key={item.name}
+              to={item.path}
+              end={item.name === 'General'}
+              className={({ isActive }) =>
+                `block px-3 py-2 rounded-md text-sm font-medium ${
+                  isActive ? 'bg-black text-white' : 'text-gray-600 hover:bg-gray-100'
+                }`
+              }
+            >
+              {item.name}
+            </NavLink>
+          ))}
+        </nav>
+      </aside>
+
+      {/* Content Area */}
+      <main className="flex-1 p-8 overflow-y-auto">
         <Outlet />
-      </div>
+      </main>
     </div>
   );
-}
+};
+
+export default WorkspaceSettings;
