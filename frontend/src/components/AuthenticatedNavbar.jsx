@@ -1,12 +1,21 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { User, Bell, Zap, Search, Menu, X } from 'lucide-react';
+import { User, Bell, Zap, Search, Menu, X, LogOut } from 'lucide-react';
 // Import the logo from your assets folder
 import logo from '../assets/logo.png'; 
 
 export default function AuthenticatedNavbar() {
   const navigate = useNavigate();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+
+  // Logout Logic
+  const handleLogout = () => {
+    // 1. Clear tokens
+    localStorage.removeItem('access');
+    localStorage.removeItem('refresh');
+    // 2. Redirect to login
+    navigate('/login');
+  };
 
   return (
     <nav className="bg-white border-b border-gray-200 sticky top-0 z-50">
@@ -60,8 +69,18 @@ export default function AuthenticatedNavbar() {
             <button
               onClick={() => navigate('/app/notifications')}
               className="p-2 text-gray-400 hover:text-black hover:bg-gray-100 rounded-lg transition-all"
+              title="Notifications"
             >
               <Bell size={20} />
+            </button>
+
+            {/* Logout Button (Desktop) */}
+            <button
+              onClick={handleLogout}
+              className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all"
+              title="Logout"
+            >
+              <LogOut size={20} />
             </button>
 
             {/* User Profile */}
@@ -119,6 +138,15 @@ export default function AuthenticatedNavbar() {
                 <User size={12} />
               </div>
               Profile
+            </button>
+            
+            {/* Logout Button (Mobile) */}
+            <button 
+              onClick={handleLogout} 
+              className="flex items-center gap-3 px-2 py-2 text-red-600 hover:bg-red-50 rounded-lg"
+            >
+              <LogOut size={18} />
+              Logout
             </button>
           </div>
         </div>

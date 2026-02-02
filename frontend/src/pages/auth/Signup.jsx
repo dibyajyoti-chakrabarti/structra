@@ -1,14 +1,37 @@
 import { useNavigate } from 'react-router-dom';
+import { useState } from 'react';
 import { ArrowLeft, User, Mail, Lock, Github, Chrome } from 'lucide-react';
 import logo from '../../assets/logo.png';
+import api from '../../api';
 
 export default function Signup() {
   const navigate = useNavigate();
+  const [formData, setFormData] = useState({ full_name: '', email: '', password: '' });
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+
+  const handleChange = (e) => {
+    setFormData({ ...formData, [e.target.name]: e.target.value });
+  };
+
+  const handleSubmit = async () => {
+    setError('');
+    setLoading(true);
+    try {
+      // payload matches your Django UserRegistrationSerializer fields
+      await api.post('register/', formData);
+      alert('Account created! Please log in.');
+      navigate('/login');
+    } catch (err) {
+      console.error(err);
+      setError(err.response?.data?.detail || 'Registration failed. Try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-black text-white font-sans flex flex-col">
-      
-      {/* Top Bar with Back Button */}
       <div className="p-8">
         <button
           onClick={() => navigate('/')}
@@ -21,7 +44,6 @@ export default function Signup() {
 
       <div className="flex-1 flex items-center justify-center px-6 pb-20">
         <div className="w-full max-w-md">
-          {/* Brand Header */}
           <div className="text-center mb-10 flex flex-col items-center">
             <img src={logo} alt="Logo" className="h-10 w-auto mb-4 object-contain" />
             <h1 className="text-3xl font-black tracking-tighter mb-2">
@@ -32,6 +54,7 @@ export default function Signup() {
 
           <div className="bg-zinc-900/40 border border-white/10 rounded-2xl p-8 backdrop-blur-xl">
             <div className="space-y-6">
+              {/* Keeping social buttons for UI, but they are non-functional for now */}
               <div className="grid grid-cols-2 gap-4">
                 <button className="flex items-center justify-center gap-2 py-2.5 bg-white text-black rounded-lg font-bold text-xs hover:bg-neutral-200 transition">
                   <Chrome size={14} /> Google
@@ -51,6 +74,9 @@ export default function Signup() {
                 <div className="relative group">
                   <User className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-600 group-focus-within:text-blue-500 transition-colors" size={16} />
                   <input
+                    name="full_name"
+                    value={formData.full_name}
+                    onChange={handleChange}
                     type="text"
                     placeholder="Full name"
                     className="w-full pl-10 pr-4 py-3 bg-black/50 border border-white/10 rounded-xl text-sm focus:outline-none focus:border-blue-500 transition-all"
@@ -59,6 +85,9 @@ export default function Signup() {
                 <div className="relative group">
                   <Mail className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-600 group-focus-within:text-blue-500 transition-colors" size={16} />
                   <input
+                    name="email"
+                    value={formData.email}
+                    onChange={handleChange}
                     type="email"
                     placeholder="Work email"
                     className="w-full pl-10 pr-4 py-3 bg-black/50 border border-white/10 rounded-xl text-sm focus:outline-none focus:border-blue-500 transition-all"
@@ -67,6 +96,9 @@ export default function Signup() {
                 <div className="relative group">
                   <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-600 group-focus-within:text-blue-500 transition-colors" size={16} />
                   <input
+                    name="password"
+                    value={formData.password}
+                    onChange={handleChange}
                     type="password"
                     placeholder="Password"
                     className="w-full pl-10 pr-4 py-3 bg-black/50 border border-white/10 rounded-xl text-sm focus:outline-none focus:border-blue-500 transition-all"
@@ -74,11 +106,14 @@ export default function Signup() {
                 </div>
               </div>
 
+              {error && <p className="text-red-500 text-xs text-center">{error}</p>}
+
               <button
-                onClick={() => navigate('/app')}
-                className="w-full py-3 bg-blue-600 text-white rounded-xl font-bold text-sm hover:bg-blue-500 transition shadow-lg shadow-blue-500/10"
+                onClick={handleSubmit}
+                disabled={loading}
+                className="w-full py-3 bg-blue-600 text-white rounded-xl font-bold text-sm hover:bg-blue-500 transition shadow-lg shadow-blue-500/10 disabled:opacity-50"
               >
-                Get Started Free
+                {loading ? 'Creating Account...' : 'Get Started Free'}
               </button>
 
               <div className="mt-8 text-center">
