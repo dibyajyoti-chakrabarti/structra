@@ -1,15 +1,16 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import PrivateRoute from './components/PrivateRoute';
 
+// Page Imports
 import Lander from './pages/public/Lander';
 import Login from './pages/auth/Login';
 import Signup from './pages/auth/Signup';
 import WorkspaceHome from './pages/workspace/WorkspaceHome';
-import WorkspaceInstance from './pages/workspace/WorkspaceInstance'; // Clean import
+import WorkspaceInstance, { WorkspaceOverview } from './pages/workspace/WorkspaceInstance'; 
+import CreateSystem from './pages/workspace/CreateSystem';
 import Profile from './pages/account/Profile';
 import Notification from './pages/account/Notification';
 import CreateWorkspace from './pages/workspace/CreateWorkspace';
-import CreateSystem from './pages/workspace/CreateSystem';
 import WorkspaceSettings from './pages/workspace/settings/WorkspaceSettings';
 import GeneralSettings from './pages/workspace/settings/GeneralSettings';
 import TeamSettings from './pages/workspace/settings/TeamSettings';
@@ -40,14 +41,20 @@ function App() {
             <Route path="/app/profile" element={<Profile />} />
             <Route path="/app/notifications" element={<Notification />} />
             <Route path="/app/create-workspace" element={<CreateWorkspace />} />
-            
             <Route path="/app/home" element={<WorkspaceHome />} />
-            {/* Added Workspace Instance Route */}
-            <Route path="/app/ws/:workspaceId" element={<WorkspaceInstance />} />
             
-            <Route path="/app/ws/:workspaceId/create-system" element={<CreateSystem />} />
+            {/* NESTED WORKSPACE ROUTES 
+               WorkspaceInstance provides the Navbars and the <Outlet />
+            */}
+            <Route path="/app/ws/:workspaceId" element={<WorkspaceInstance />}>
+                {/* Shows the Stats/Systems Grid by default */}
+                <Route index element={<WorkspaceOverview />} />
+                
+                {/* Shows the Create Form inside the workspace view */}
+                <Route path="create-system" element={<CreateSystem />} />
+            </Route>
             
-            {/* Workspace Settings Routes */}
+            {/* Workspace Settings */}
             <Route path="/app/ws/:workspaceId/settings" element={<WorkspaceSettings />}>
               <Route path="general" element={<GeneralSettings />} />
               <Route path="team" element={<TeamSettings />} />
@@ -57,7 +64,7 @@ function App() {
               <Route path="logs" element={<LogSettings />} />
             </Route>
             
-            {/* System Routes */}
+            {/* System/Canvas Routes */}
             <Route path="/app/ws/:workspaceId/system/:systemId" element={<Canvas />} />
             <Route path="/app/ws/:workspaceId/system/:systemId/evaluate" element={<Evaluation />} />
             <Route path="/app/ws/:workspaceId/system/:systemId/present" element={<PresentCanvas />} />
