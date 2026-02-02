@@ -15,14 +15,12 @@ const CreateWorkspace = () => {
   const [visibility, setVisibility] = useState('private');
 
   const handleFinish = () => {
-    // In a real app, you'd POST data here.
-    // For now, redirect to the new workspace (simulated ID 99)
+    //To be fixed later
     navigate('/app/ws/99');
   };
 
   const handleAddMember = (e) => {
     e.preventDefault();
-    // Simulate searching/adding a random mock email
     const randomSuffix = Math.floor(Math.random() * 10000);
     const mockEmail = inviteEmail || `user.${randomSuffix}@structra.cloud`;
     
@@ -33,17 +31,17 @@ const CreateWorkspace = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col">
+    <div className="min-h-screen bg-white flex flex-col">
       <AuthenticatedNavbar />
 
-      {/* Main Content Wrapper - Centered with Padding like WorkspaceHome */}
+      {/* Main Content Wrapper */}
       <main className="flex-1 w-full max-w-7xl mx-auto p-4 md:p-8">
         
-        {/* White Card Container */}
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden flex flex-col lg:flex-row min-h-[600px]">
+        {/* Container: White background, Border for structure */}
+        <div className="bg-white overflow-hidden flex flex-col lg:flex-row min-h-[600px]">
           
           {/* LEFT SECTION: Main Form */}
-          <div className="w-full lg:flex-[2] flex flex-col p-8 lg:p-12 border-b lg:border-b-0 lg:border-r border-gray-100">
+          <div className="w-full lg:flex-[2] flex flex-col p-6 md:p-12 border-b lg:border-b-0 lg:border-r border-gray-100">
             <div className="mb-8">
               <h1 className="text-2xl lg:text-3xl font-extrabold text-gray-900 tracking-tight">Create New Workspace</h1>
               <p className="text-gray-500 mt-2">Establish a secure environment for your team and projects.</p>
@@ -70,7 +68,7 @@ const CreateWorkspace = () => {
                     onClick={() => setVisibility('private')}
                     className={`p-4 rounded-xl border-2 text-left transition-all ${
                       visibility === 'private' 
-                        ? 'border-blue-600 bg-blue-50/50 ring-1 ring-blue-600' 
+                        ? 'border-blue-600 bg-blue-50 ring-1 ring-blue-600' 
                         : 'border-gray-100 hover:border-gray-200'
                     }`}
                   >
@@ -88,7 +86,7 @@ const CreateWorkspace = () => {
                     onClick={() => setVisibility('public')}
                     className={`p-4 rounded-xl border-2 text-left transition-all ${
                       visibility === 'public' 
-                        ? 'border-blue-600 bg-blue-50/50 ring-1 ring-blue-600' 
+                        ? 'border-blue-600 bg-blue-50 ring-1 ring-blue-600' 
                         : 'border-gray-100 hover:border-gray-200'
                     }`}
                   >
@@ -98,7 +96,7 @@ const CreateWorkspace = () => {
                       </div>
                       <span className={`font-bold ${visibility === 'public' ? 'text-blue-900' : 'text-gray-900'}`}>Public</span>
                     </div>
-                    <p className="text-xs text-gray-500 leading-relaxed">Visible to the entire organization.</p>
+                    <p className="text-xs text-gray-500 leading-relaxed">Visible to the entire world.</p>
                   </button>
                 </div>
               </div>
@@ -127,14 +125,15 @@ const CreateWorkspace = () => {
                 className="bg-blue-600 text-white px-8 py-3 rounded-xl font-bold hover:bg-blue-700 flex items-center gap-2 shadow-lg shadow-blue-100 transition-all"
               >
                 <Save size={20} />
-                Create Workspace
+                Create
               </button>
             </div>
           </div>
 
           {/* RIGHT SECTION: Initial Team Invite */}
-          <div className="w-full lg:flex-1 flex flex-col bg-gray-50/50">
-            <div className="p-8 lg:p-12 pb-4">
+          {/* Changed bg-gray-50/50 to bg-white and ensured border separates it */}
+          <div className="w-full lg:flex-1 flex flex-col bg-white">
+            <div className="p-6 md:p-12 pb-4">
               <h3 className="text-xl font-extrabold text-gray-900 flex items-center gap-2">
                 <UserPlus size={20} className="text-blue-600" /> 
                 Invite Members
@@ -143,14 +142,14 @@ const CreateWorkspace = () => {
             </div>
 
             {/* Add Input */}
-            <div className="px-8 lg:px-12 mb-6">
+            <div className="px-6 md:px-12 mb-6">
               <form onSubmit={handleAddMember} className="relative group">
                 <input 
                   type="text" 
                   value={inviteEmail}
                   onChange={(e) => setInviteEmail(e.target.value)}
-                  placeholder="Search to add random user..."
-                  className="w-full pl-4 pr-12 py-3 bg-white rounded-xl border border-gray-200 group-focus-within:border-blue-500 outline-none transition-all shadow-sm"
+                  placeholder="Email to add..."
+                  className="w-full pl-4 pr-12 py-3 bg-white rounded-xl border-2 border-gray-100 group-focus-within:border-blue-500 outline-none transition-all"
                 />
                 <button type="submit" className="absolute right-2 top-1.5 p-1.5 bg-gray-900 text-white rounded-lg hover:bg-black transition-colors">
                   <ChevronRight size={18} />
@@ -159,15 +158,15 @@ const CreateWorkspace = () => {
             </div>
 
             {/* Member List */}
-            <div className="flex-1 overflow-y-auto px-8 lg:px-12 pb-8 space-y-3 custom-scrollbar">
-              <div className="flex items-center justify-between pb-2 border-b border-gray-200/50 mb-2">
+            <div className="flex-1 overflow-y-auto px-6 md:px-12 pb-8 space-y-3 custom-scrollbar">
+              <div className="flex items-center justify-between pb-2 border-b border-gray-100 mb-2">
                  <span className="text-xs font-bold text-gray-400 uppercase tracking-widest">Added ({members.length})</span>
               </div>
               
               {members.map((user, i) => (
                 <div 
                   key={i} 
-                  className="flex items-center justify-between p-3 bg-white rounded-xl border border-gray-200 shadow-sm animate-in fade-in slide-in-from-right-4"
+                  className="flex items-center justify-between p-3 bg-white rounded-xl border border-gray-100 shadow-sm animate-in fade-in slide-in-from-right-4 hover:border-blue-200 transition-colors"
                 >
                   <div className="flex items-center gap-3 overflow-hidden">
                      <div className="w-8 h-8 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center text-xs font-bold flex-shrink-0">
