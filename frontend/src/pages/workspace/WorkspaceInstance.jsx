@@ -5,13 +5,14 @@ import WorkspaceNavbar from '../../components/WorkspaceNavbar';
 
 const WorkspaceInstance = () => {
   return (
-    <div className="flex flex-col h-screen bg-gray-50 overflow-hidden">
+    <div className="flex flex-col h-screen bg-white overflow-hidden">
       <AuthenticatedNavbar />
       <div className="flex flex-1 overflow-hidden">
+        {/* WorkspaceNavbar already has a border-r, but we ensure it feels integrated */}
         <WorkspaceNavbar />
-        <main className="flex-1 overflow-y-auto p-8">
-          <div className="max-w-6xl mx-auto">
-            {/* This is the magic spot where the content swaps */}
+        
+        <main className="flex-1 overflow-y-auto p-8 border-l border-gray-50">
+          <div className="max-w-7xl mx-auto">
             <Outlet /> 
           </div>
         </main>
