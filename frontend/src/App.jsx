@@ -1,12 +1,11 @@
-// src/App.jsx
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
-import PrivateRoute from './components/PrivateRoute'; // <--- Import the new component
+import PrivateRoute from './components/PrivateRoute';
 
-// ... (Keep your existing page imports here: Lander, Login, WorkspaceHome, etc.) ...
 import Lander from './pages/public/Lander';
 import Login from './pages/auth/Login';
 import Signup from './pages/auth/Signup';
 import WorkspaceHome from './pages/workspace/WorkspaceHome';
+import WorkspaceInstance from './pages/workspace/WorkspaceInstance'; // Clean import
 import Profile from './pages/account/Profile';
 import Notification from './pages/account/Notification';
 import CreateWorkspace from './pages/workspace/CreateWorkspace';
@@ -25,40 +24,27 @@ import InvitationRedirect from './pages/invitations/InvitationRedirect';
 import InvitationAcceptReject from './pages/invitations/InvitationAcceptReject';
 import Unauthorized from './pages/infrastructure/Unauthorized';
 import NotFound from './pages/infrastructure/NotFound';
-import Pricing from './pages/public/Pricing';
-import Faqs from './pages/public/Faqs';
-import Support from './pages/public/Support';
-import Terms from './pages/public/Terms';
-import Privacy from './pages/public/Privacy';
-import Documentation from './pages/documentation/Documentation';
-
 
 function App() {
   return (
     <BrowserRouter>
       <Routes>
-        {/* Public Routes (Accessible to everyone) */}
+        {/* PUBLIC ROUTES */}
         <Route path="/" element={<Lander />} />
-        <Route path="/pricing" element={<Pricing />} />
-        <Route path="/faqs" element={<Faqs />} />
-        <Route path="/support" element={<Support />} />
-        <Route path="/terms" element={<Terms />} />
-        <Route path="/privacy" element={<Privacy />} />
         <Route path="/login" element={<Login />} />
         <Route path="/signup" element={<Signup />} />
-        <Route path="/docs" element={<Documentation />} />
         
-        {/* PROTECTED ROUTES STARTS HERE */}
+        {/* PROTECTED ROUTES */}
         <Route element={<PrivateRoute />}>
-            
-            {/* Authenticated App Routes */}
             <Route path="/app" element={<WorkspaceHome />} />
             <Route path="/app/profile" element={<Profile />} />
             <Route path="/app/notifications" element={<Notification />} />
             <Route path="/app/create-workspace" element={<CreateWorkspace />} />
             
-            {/* Workspace Routes */}
-            <Route path="/app/ws/:workspaceId" element={<WorkspaceHome />} />
+            <Route path="/app/home" element={<WorkspaceHome />} />
+            {/* Added Workspace Instance Route */}
+            <Route path="/app/ws/:workspaceId" element={<WorkspaceInstance />} />
+            
             <Route path="/app/ws/:workspaceId/create-system" element={<CreateSystem />} />
             
             {/* Workspace Settings Routes */}
@@ -75,9 +61,7 @@ function App() {
             <Route path="/app/ws/:workspaceId/system/:systemId" element={<Canvas />} />
             <Route path="/app/ws/:workspaceId/system/:systemId/evaluate" element={<Evaluation />} />
             <Route path="/app/ws/:workspaceId/system/:systemId/present" element={<PresentCanvas />} />
-
         </Route>
-        {/* PROTECTED ROUTES ENDS HERE */}
         
         {/* Invitation Routes */}
         <Route path="/invite/:token" element={<InvitationRedirect />} />
