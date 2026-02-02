@@ -7,7 +7,7 @@ import api from '../../api';
 export default function Login() {
   const navigate = useNavigate();
   const [formData, setFormData] = useState({ email: '', password: '' });
-  const [otpMode, setOtpMode] = useState(false); // Kept state but logic is only for password for now
+  const [otpMode, setOtpMode] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -15,15 +15,16 @@ export default function Login() {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
-  const handleLogin = async () => {
+  // 1. Updated: Accept the event object (e)
+  const handleLogin = async (e) => {
+    e.preventDefault(); // 2. Updated: Prevent default form reload
+    
     setError('');
     setLoading(true);
     try {
       const response = await api.post('login/', formData);
-      // Store tokens
       localStorage.setItem('access', response.data.access);
       localStorage.setItem('refresh', response.data.refresh);
-      // Navigate to app
       navigate('/app');
     } catch (err) {
       console.error(err);
@@ -35,7 +36,6 @@ export default function Login() {
 
   return (
     <div className="min-h-screen bg-black text-white font-sans selection:bg-blue-500/30 flex flex-col">
-      
       <div className="p-8">
         <button
           onClick={() => navigate('/')}
@@ -61,10 +61,10 @@ export default function Login() {
           <div className="bg-zinc-900/40 border border-white/10 rounded-2xl p-8 backdrop-blur-xl shadow-2xl">
             <div className="space-y-6">
               <div className="grid grid-cols-2 gap-4">
-                <button className="flex items-center justify-center gap-2 py-2.5 bg-white text-black rounded-lg font-bold text-xs hover:bg-neutral-200 transition">
+                <button type="button" className="flex items-center justify-center gap-2 py-2.5 bg-white text-black rounded-lg font-bold text-xs hover:bg-neutral-200 transition">
                   <Chrome size={14} /> Google
                 </button>
-                <button className="flex items-center justify-center gap-2 py-2.5 bg-zinc-800 text-white border border-white/10 rounded-lg font-bold text-xs hover:bg-zinc-700 transition">
+                <button type="button" className="flex items-center justify-center gap-2 py-2.5 bg-zinc-800 text-white border border-white/10 rounded-lg font-bold text-xs hover:bg-zinc-700 transition">
                   <Github size={14} /> GitHub
                 </button>
               </div>
@@ -75,7 +75,8 @@ export default function Login() {
                 <div className="flex-grow border-t border-white/5"></div>
               </div>
 
-              <div className="space-y-4">
+              {/* 3. Updated: Added <form> wrapper */}
+              <form onSubmit={handleLogin} className="space-y-4">
                 <div className="relative group">
                   <Mail className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-600 group-focus-within:text-blue-500 transition-colors" size={16} />
                   <input
@@ -88,7 +89,6 @@ export default function Login() {
                   />
                 </div>
                 
-                {/* Simplified Logic: Only showing password field unless specific OTP requirement comes later */}
                 {!otpMode && (
                   <div className="relative group">
                     <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-600 group-focus-within:text-blue-500 transition-colors" size={16} />
@@ -102,26 +102,28 @@ export default function Login() {
                     />
                   </div>
                 )}
-              </div>
-              
-              {error && <p className="text-red-500 text-xs text-center">{error}</p>}
 
-              <button
-                onClick={handleLogin}
-                disabled={loading}
-                className="w-full py-3 bg-blue-600 text-white rounded-xl font-bold text-sm hover:bg-blue-500 shadow-[0_0_20px_rgba(37,99,235,0.2)] transition disabled:opacity-50"
-              >
-                {loading ? 'Signing In...' : 'Sign In'}
-              </button>
+                {error && <p className="text-red-500 text-xs text-center">{error}</p>}
+
+                {/* 4. Updated: Button type="submit" and removed onClick */}
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="w-full py-3 bg-blue-600 text-white rounded-xl font-bold text-sm hover:bg-blue-500 shadow-[0_0_20px_rgba(37,99,235,0.2)] transition disabled:opacity-50"
+                >
+                  {loading ? 'Signing In...' : 'Sign In'}
+                </button>
+              </form>
 
               <div className="flex items-center justify-between mt-4">
                 <button 
+                  type="button"
                   onClick={() => setOtpMode(!otpMode)}
                   className="text-[11px] font-bold text-neutral-500 hover:text-white transition uppercase tracking-tighter"
                 >
                   {otpMode ? 'Use Password' : 'Login via Code'}
                 </button>
-                <button onClick={() => navigate('/signup')} className="text-[11px] font-bold text-blue-500 hover:text-blue-400 transition uppercase tracking-tighter">
+                <button type="button" onClick={() => navigate('/signup')} className="text-[11px] font-bold text-blue-500 hover:text-blue-400 transition uppercase tracking-tighter">
                   Create Account
                 </button>
               </div>

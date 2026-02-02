@@ -14,11 +14,11 @@ export default function Signup() {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
-  const handleSubmit = async () => {
+  const handleSubmit = async (e) => {
+    e.preventDefault(); // Prevent reload
     setError('');
     setLoading(true);
     try {
-      // payload matches your Django UserRegistrationSerializer fields
       await api.post('register/', formData);
       alert('Account created! Please log in.');
       navigate('/login');
@@ -54,12 +54,11 @@ export default function Signup() {
 
           <div className="bg-zinc-900/40 border border-white/10 rounded-2xl p-8 backdrop-blur-xl">
             <div className="space-y-6">
-              {/* Keeping social buttons for UI, but they are non-functional for now */}
               <div className="grid grid-cols-2 gap-4">
-                <button className="flex items-center justify-center gap-2 py-2.5 bg-white text-black rounded-lg font-bold text-xs hover:bg-neutral-200 transition">
+                <button type="button" className="flex items-center justify-center gap-2 py-2.5 bg-white text-black rounded-lg font-bold text-xs hover:bg-neutral-200 transition">
                   <Chrome size={14} /> Google
                 </button>
-                <button className="flex items-center justify-center gap-2 py-2.5 bg-zinc-800 text-white border border-white/10 rounded-lg font-bold text-xs hover:bg-zinc-700 transition">
+                <button type="button" className="flex items-center justify-center gap-2 py-2.5 bg-zinc-800 text-white border border-white/10 rounded-lg font-bold text-xs hover:bg-zinc-700 transition">
                   <Github size={14} /> GitHub
                 </button>
               </div>
@@ -70,7 +69,8 @@ export default function Signup() {
                 <div className="flex-grow border-t border-white/5"></div>
               </div>
 
-              <div className="space-y-4">
+              {/* Added Form Wrapper */}
+              <form onSubmit={handleSubmit} className="space-y-4">
                 <div className="relative group">
                   <User className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-600 group-focus-within:text-blue-500 transition-colors" size={16} />
                   <input
@@ -104,20 +104,21 @@ export default function Signup() {
                     className="w-full pl-10 pr-4 py-3 bg-black/50 border border-white/10 rounded-xl text-sm focus:outline-none focus:border-blue-500 transition-all"
                   />
                 </div>
-              </div>
 
-              {error && <p className="text-red-500 text-xs text-center">{error}</p>}
+                {error && <p className="text-red-500 text-xs text-center">{error}</p>}
 
-              <button
-                onClick={handleSubmit}
-                disabled={loading}
-                className="w-full py-3 bg-blue-600 text-white rounded-xl font-bold text-sm hover:bg-blue-500 transition shadow-lg shadow-blue-500/10 disabled:opacity-50"
-              >
-                {loading ? 'Creating Account...' : 'Get Started Free'}
-              </button>
+                {/* Updated Button */}
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="w-full py-3 bg-blue-600 text-white rounded-xl font-bold text-sm hover:bg-blue-500 transition shadow-lg shadow-blue-500/10 disabled:opacity-50"
+                >
+                  {loading ? 'Creating Account...' : 'Get Started Free'}
+                </button>
+              </form>
 
               <div className="mt-8 text-center">
-                 <button onClick={() => navigate('/login')} className="text-xs font-bold text-neutral-500 hover:text-white transition">
+                 <button type="button" onClick={() => navigate('/login')} className="text-xs font-bold text-neutral-500 hover:text-white transition">
                    Already have an account? <span className="text-blue-500 ml-1">Log in</span>
                  </button>
               </div>
