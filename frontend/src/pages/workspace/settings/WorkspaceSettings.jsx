@@ -1,9 +1,9 @@
-import { NavLink, Outlet, useParams } from 'react-router-dom';
-import { Settings, Users, Shield, FileText } from 'lucide-react';
+import { NavLink, Outlet, useParams, useNavigate } from 'react-router-dom';
+import { Settings, Users, Shield, FileText, ArrowLeft } from 'lucide-react';
 
 const WorkspaceSettings = () => {
-  // Use 'workspaceId' to match the parameter in your App.jsx route
   const { workspaceId } = useParams();
+  const navigate = useNavigate();
   
   const navItems = [
     { name: 'General', path: `/app/ws/${workspaceId}/settings`, icon: Settings },
@@ -14,8 +14,17 @@ const WorkspaceSettings = () => {
 
   return (
     <div className="flex flex-col lg:flex-row h-full bg-white">
-      {/* Sidebar: Wider, bolder, matches CreateSystem style */}
+      {/* Sidebar */}
       <aside className="w-full lg:w-80 border-r border-gray-100 p-6 lg:p-8 flex-shrink-0">
+        {/* Back Button */}
+        <button 
+            onClick={() => navigate(`/app/ws/${workspaceId}`)}
+            className="mb-6 flex items-center gap-2 text-gray-500 hover:text-gray-900 hover:bg-gray-100 px-3 py-2 -ml-3 rounded-lg transition-all font-bold text-sm"
+        >
+            <ArrowLeft size={18} />
+            Back to Systems
+        </button>
+
         <div className="mb-8">
             <h1 className="text-xl lg:text-2xl font-extrabold text-gray-900 tracking-tight">
               Settings
@@ -37,7 +46,6 @@ const WorkspaceSettings = () => {
                 }`
               }
             >
-              {/* We use a render prop here to access 'isActive' for the icon safely */}
               {({ isActive }) => (
                 <>
                   <item.icon 
@@ -52,7 +60,7 @@ const WorkspaceSettings = () => {
         </nav>
       </aside>
 
-      {/* Content Area - Max width added to prevent stretching */}
+      {/* Content Area */}
       <main className="flex-1 p-6 lg:p-10 overflow-y-auto">
         <div className="max-w-4xl h-full flex flex-col">
            <Outlet />
