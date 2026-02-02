@@ -24,7 +24,7 @@ export default function AuthenticatedNavbar() {
         {/* Left: Brand Emphasized with Logo */}
         <div 
           className="flex items-center gap-3 cursor-pointer group" 
-          onClick={() => navigate('/')}
+          onClick={() => navigate('/app')}
         >
           <img 
             src={logo} 
