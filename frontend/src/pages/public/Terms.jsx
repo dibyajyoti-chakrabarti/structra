@@ -36,10 +36,18 @@ export default function Terms() {
 
             {/* Brand Logo & Name */}
             <button
-              onClick={() => navigate("/")}
+              onClick={() => {
+                // Check if user is authenticated (adjust 'token' if your key is named differently)
+                const isAuthenticated = localStorage.getItem("token");
+                navigate(isAuthenticated ? "/app" : "/");
+              }}
               className="flex items-center gap-3 transition-transform active:scale-95"
             >
-              <img src={logo} alt="Logo" className="h-7 w-auto object-contain" />
+              <img
+                src={logo}
+                alt="Logo"
+                className="h-7 w-auto object-contain"
+              />
               <span className="text-xl font-extrabold tracking-tighter text-white">
                 structra<span className="text-blue-500">.cloud</span>
               </span>
@@ -71,9 +79,11 @@ export default function Terms() {
             </h2>
             <div className="text-[#a3a3a3] text-base leading-loose">
               <p>
-                By accessing or using Structra.cloud, you agree to be bound by these Terms of Service. 
-                Our platform provides enterprise-grade system modeling and decision intelligence tools. 
-                If you do not agree to these terms, please discontinue use of the platform immediately.
+                By accessing or using Structra.cloud, you agree to be bound by
+                these Terms of Service. Our platform provides enterprise-grade
+                system modeling and decision intelligence tools. If you do not
+                agree to these terms, please discontinue use of the platform
+                immediately.
               </p>
             </div>
           </section>
@@ -85,10 +95,11 @@ export default function Terms() {
             </h2>
             <div className="text-[#a3a3a3] text-base leading-loose">
               <p>
-                Users must provide accurate information when creating an account. You are responsible 
-                for maintaining the security of your workspace, API keys, and password. Structra Cloud 
-                cannot be held liable for any loss or damage from your failure to comply with this 
-                security obligation.
+                Users must provide accurate information when creating an
+                account. You are responsible for maintaining the security of
+                your workspace, API keys, and password. Structra Cloud cannot be
+                held liable for any loss or damage from your failure to comply
+                with this security obligation.
               </p>
             </div>
           </section>
@@ -97,12 +108,15 @@ export default function Terms() {
 
           <section className="pt-10 border-t border-[#1f1f1f]">
             <div className="bg-[#0f0f0f] border border-[#1f1f1f] rounded-2xl p-8">
-              <h3 className="text-lg font-bold text-white mb-2">Legal Inquiry?</h3>
+              <h3 className="text-lg font-bold text-white mb-2">
+                Legal Inquiry?
+              </h3>
               <p className="text-sm text-[#6b6b6b] mb-6">
-                Reach out to our compliance department for specific regulatory or enterprise agreement questions.
+                Reach out to our compliance department for specific regulatory
+                or enterprise agreement questions.
               </p>
-              <a 
-                href="mailto:support@structra.cloud" 
+              <a
+                href="mailto:support@structra.cloud"
                 className="inline-flex items-center justify-center px-6 py-3 bg-white text-black text-sm font-bold rounded-xl hover:bg-neutral-200 transition-all"
               >
                 Contact Legal Team

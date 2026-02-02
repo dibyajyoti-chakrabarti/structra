@@ -25,6 +25,9 @@ import InvitationRedirect from './pages/invitations/InvitationRedirect';
 import InvitationAcceptReject from './pages/invitations/InvitationAcceptReject';
 import Unauthorized from './pages/infrastructure/Unauthorized';
 import NotFound from './pages/infrastructure/NotFound';
+import Pricing from './pages/public/Pricing'
+import Privacy from './pages/public/Privacy'
+import Terms from './pages/public/Terms'
 
 function App() {
   return (
@@ -34,6 +37,9 @@ function App() {
         <Route path="/" element={<Lander />} />
         <Route path="/login" element={<Login />} />
         <Route path="/signup" element={<Signup />} />
+        <Route path="/pricing" element={<Pricing />} />
+        <Route path="/privacy" element={<Privacy />} />
+        <Route path="/terms" element={<Terms />} />
         
         {/* PROTECTED ROUTES */}
         <Route element={<PrivateRoute />}>
