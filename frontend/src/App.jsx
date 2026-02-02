@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'; // 1. Import Navigate
 import PrivateRoute from './components/PrivateRoute';
 
 // Page Imports
@@ -29,14 +29,38 @@ import Pricing from './pages/public/Pricing'
 import Privacy from './pages/public/Privacy'
 import Terms from './pages/public/Terms'
 
+// 2. Create a helper component to handle the redirection
+const PublicRoute = ({ children }) => {
+  const isAuthenticated = localStorage.getItem('token'); // Ensure this key matches your auth logic
+
+  if (isAuthenticated) {
+    return <Navigate to="/app" replace />;
+  }
+
+  return children;
+};
+
 function App() {
   return (
     <BrowserRouter>
       <Routes>
-        {/* PUBLIC ROUTES */}
-        <Route path="/" element={<Lander />} />
-        <Route path="/login" element={<Login />} />
-        <Route path="/signup" element={<Signup />} />
+        {/* PUBLIC ROUTES - Wrapped to redirect authenticated users */}
+        <Route path="/" element={
+          <PublicRoute>
+            <Lander />
+          </PublicRoute>
+        } />
+        <Route path="/login" element={
+          <PublicRoute>
+            <Login />
+          </PublicRoute>
+        } />
+        <Route path="/signup" element={
+          <PublicRoute>
+            <Signup />
+          </PublicRoute>
+        } />
+
         <Route path="/pricing" element={<Pricing />} />
         <Route path="/privacy" element={<Privacy />} />
         <Route path="/terms" element={<Terms />} />
@@ -49,15 +73,13 @@ function App() {
             <Route path="/app/create-workspace" element={<CreateWorkspace />} />
             <Route path="/app/home" element={<WorkspaceHome />} />
             
-            {/* NESTED WORKSPACE ROUTES 
-               WorkspaceInstance provides the Navbars and the <Outlet />
-            */}
+            {/* NESTED WORKSPACE ROUTES */}
             <Route path="/app/ws/:workspaceId" element={<WorkspaceInstance />}>
                 <Route index element={<WorkspaceOverview />} />
                 <Route path="create-system" element={<CreateSystem />} />
 
                 <Route path="settings" element={<WorkspaceSettings />}>
-                  <Route index element={<GeneralSettings />} /> {/* Default to general */}
+                  <Route index element={<GeneralSettings />} />
                   <Route path="team" element={<TeamSettings />} />
                   <Route path="security" element={<SecuritySettings />} />
                   <Route path="logs" element={<LogSettings />} />
