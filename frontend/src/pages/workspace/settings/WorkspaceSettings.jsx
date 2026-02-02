@@ -1,13 +1,15 @@
 import { NavLink, Outlet, useParams } from 'react-router-dom';
 
 const WorkspaceSettings = () => {
-  const { id } = useParams();
+  // Fix 1: Use the correct parameter name 'workspaceId' to match App.jsx
+  const { workspaceId } = useParams();
   
   const navItems = [
-    { name: 'General', path: `/workspace/${id}/settings` },
-    { name: 'Team', path: `/workspace/${id}/settings/team` },
-    { name: 'Security', path: `/workspace/${id}/settings/security` },
-    { name: 'Logs', path: `/workspace/${id}/settings/logs` },
+    // Fix 2: Update paths to match the actual route structure: /app/ws/:id/settings/...
+    { name: 'General', path: `/app/ws/${workspaceId}/settings` },
+    { name: 'Team', path: `/app/ws/${workspaceId}/settings/team` },
+    { name: 'Security', path: `/app/ws/${workspaceId}/settings/security` },
+    { name: 'Logs', path: `/app/ws/${workspaceId}/settings/logs` },
   ];
 
   return (
@@ -21,8 +23,8 @@ const WorkspaceSettings = () => {
               to={item.path}
               end={item.name === 'General'}
               className={({ isActive }) =>
-                `block px-3 py-2 rounded-md text-sm font-medium ${
-                  isActive ? 'bg-black text-white' : 'text-gray-600 hover:bg-gray-100'
+                `block px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                  isActive ? 'bg-gray-900 text-white' : 'text-gray-600 hover:bg-gray-100'
                 }`
               }
             >

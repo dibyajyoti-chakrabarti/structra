@@ -58,16 +58,6 @@ function App() {
                 </Route>
             </Route>
             
-            {/* Workspace Settings */}
-            <Route path="/app/ws/:workspaceId/settings" element={<WorkspaceSettings />}>
-              <Route path="general" element={<GeneralSettings />} />
-              <Route path="team" element={<TeamSettings />} />
-              <Route path="security" element={<SecuritySettings />} />
-              <Route path="iam" element={<IamSettings />} />
-              <Route path="visibility" element={<WorkspaceVisibility />} />
-              <Route path="logs" element={<LogSettings />} />
-            </Route>
-            
             {/* System/Canvas Routes */}
             <Route path="/app/ws/:workspaceId/system/:systemId" element={<Canvas />} />
             <Route path="/app/ws/:workspaceId/system/:systemId/evaluate" element={<Evaluation />} />
