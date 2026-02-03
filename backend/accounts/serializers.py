@@ -17,3 +17,10 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
             full_name=validated_data.get('full_name', '')
         )
         return user
+
+class UserSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = User
+        # FIXED: Changed 'id' to 'user_id' to match your model
+        fields = ('user_id', 'full_name', 'email', 'user_role', 'org_name', 'org_loc', 'is_new')
+        read_only_fields = ('user_id', 'email')
