@@ -15,9 +15,8 @@ export default function Login() {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
-  // 1. Updated: Accept the event object (e)
-  const handleLogin = async (e) => {
-    e.preventDefault(); // 2. Updated: Prevent default form reload
+const handleLogin = async (e) => {
+    e.preventDefault();
     
     setError('');
     setLoading(true);
@@ -25,14 +24,26 @@ export default function Login() {
       const response = await api.post('login/', formData);
       localStorage.setItem('access', response.data.access);
       localStorage.setItem('refresh', response.data.refresh);
-      navigate('/app');
+
+      // --- NEW CODE STARTS HERE ---
+      // 1. Fetch the user's profile immediately after login
+      const profileRes = await api.get('profile/'); // Ensure this matches your backend URL structure
+      
+      // 2. Check if they are a new user
+      if (profileRes.data.is_new) {
+        navigate('/app/onboarding');
+      } else {
+        navigate('/app');
+      }
+      // --- NEW CODE ENDS HERE ---
+
     } catch (err) {
       console.error(err);
       setError('Invalid credentials. Please try again.');
     } finally {
       setLoading(false);
     }
-  };
+};
 
   return (
     <div className="min-h-screen bg-black text-white font-sans selection:bg-blue-500/30 flex flex-col">
