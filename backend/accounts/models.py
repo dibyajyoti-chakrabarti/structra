@@ -24,11 +24,17 @@ class User(AbstractBaseUser, PermissionsMixin):
     created_at = models.DateTimeField(auto_now_add=True)
     is_active = models.BooleanField(default=True)
     is_staff = models.BooleanField(default=False)
+    
+    # Profile Fields
+    user_role = models.CharField(max_length=255, blank=True, null=True)
+    org_name = models.CharField(max_length=255, blank=True, null=True)
+    org_loc = models.CharField(max_length=255, blank=True, null=True)
+    is_new = models.BooleanField(default=True)
 
     objects = UserManager()
 
     USERNAME_FIELD = 'email'
-    REQUIRED_FIELDS = ['full_name']
+    REQUIRED_FIELDS = []
 
     def __str__(self):
         return self.email
