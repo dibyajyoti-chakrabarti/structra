@@ -12,6 +12,13 @@ export default function Profile() {
   const [isEditing, setIsEditing] = useState(false);
   const [formData, setFormData] = useState({});
 
+  // Helper: Format Date to "Month Year" (e.g., September 2025)
+  const formatDate = (isoString) => {
+    if (!isoString) return "Unknown";
+    const date = new Date(isoString);
+    return date.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+  };
+
   // 1. Fetch Profile Data on Mount
   useEffect(() => {
     const fetchProfile = async () => {
@@ -25,7 +32,7 @@ export default function Profile() {
           role: res.data.user_role || "Role not set",
           organization: res.data.org_name || "Organization not set",
           location: res.data.org_loc || "Location not set",
-          joined: "September 2025", // Hardcoded for now
+          joined: formatDate(res.data.created_at), // <--- CHANGED THIS
           avatar: null
         };
 
@@ -88,7 +95,15 @@ export default function Profile() {
         org_loc: formData.location
       });
 
-      setUser(formData);
+      // Update local state with the saved form data (keeping the original join date)
+      setUser(prev => ({
+        ...prev,
+        name: formData.name,
+        role: formData.role,
+        organization: formData.organization,
+        location: formData.location
+      }));
+      
       setIsEditing(false);
     } catch (err) {
       console.error("Failed to save profile", err);
@@ -256,6 +271,7 @@ export default function Profile() {
               {/* Joined Date */}
               <div className="flex items-center gap-3 text-sm text-gray-600 p-2 -ml-2">
                 <Calendar size={16} className="text-gray-400 flex-shrink-0" />
+                {/* Updated to display formatted Date */}
                 <span className={isEditing ? "text-gray-400" : ""}>Joined {user.joined}</span>
               </div>
 
