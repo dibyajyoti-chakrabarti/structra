@@ -1,12 +1,31 @@
-import React, { useState, useEffect } from "react"; // Added useEffect
+import React, { useState, useEffect } from "react";
 import { Outlet, useNavigate, useParams } from "react-router-dom";
 import { Menu, Settings } from "lucide-react";
 import AuthenticatedNavbar from "../../components/AuthenticatedNavbar";
 import WorkspaceNavbar from "../../components/WorkspaceNavbar";
-import api from "../../api"; // Import your API instance
+import api from "../../api";
 
 const WorkspaceInstance = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  
+  // Lifted State: Manage workspaces globally for this layout
+  const [workspaces, setWorkspaces] = useState([]);
+  const [areWorkspacesLoading, setAreWorkspacesLoading] = useState(true);
+
+  const fetchWorkspaces = async () => {
+    try {
+      const response = await api.get('workspaces/');
+      setWorkspaces(response.data);
+    } catch (error) {
+      console.error("Failed to fetch workspaces", error);
+    } finally {
+      setAreWorkspacesLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchWorkspaces();
+  }, []);
 
   return (
     <div className="flex flex-col h-screen bg-white overflow-hidden">
@@ -26,11 +45,14 @@ const WorkspaceInstance = () => {
         <WorkspaceNavbar
           isOpen={isMobileMenuOpen}
           onClose={() => setIsMobileMenuOpen(false)}
+          workspaces={workspaces} // Pass data down
+          loading={areWorkspacesLoading} // Pass loading state
         />
 
         <main className="flex-1 overflow-hidden bg-white md:border-l border-gray-100 w-full relative z-0">
           <div className="h-full w-full max-w-[1600px] mx-auto p-4 md:p-10 overflow-y-auto">
-            <Outlet />
+            {/* Pass refresh trigger to children (GeneralSettings) */}
+            <Outlet context={{ refreshWorkspaces: fetchWorkspaces }} />
           </div>
         </main>
       </div>
@@ -41,10 +63,9 @@ const WorkspaceInstance = () => {
 export const WorkspaceOverview = () => {
   const navigate = useNavigate();
   const { workspaceId } = useParams();
-  const [workspace, setWorkspace] = useState(null); // State for workspace data
+  const [workspace, setWorkspace] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  // Fetch specific workspace details on mount
   useEffect(() => {
     const fetchWorkspaceDetails = async () => {
       try {
@@ -59,7 +80,6 @@ export const WorkspaceOverview = () => {
     fetchWorkspaceDetails();
   }, [workspaceId]);
 
-  // Mock data for systems as requested to ignore for now
   const systems = [
     { id: 1, name: "Supply Chain Model", status: "Active", updated: "2h ago" },
     { id: 2, name: "Cloud Infrastructure", status: "Draft", updated: "5h ago" },
@@ -70,16 +90,15 @@ export const WorkspaceOverview = () => {
   if (!workspace) return <div className="p-10 text-red-500">Workspace not found.</div>;
 
   const stats = [
-    { label: "Total Systems", value: "0" }, // Mock for now
-    { label: "Active Evaluations", value: "0" }, // Mock for now
-    { label: "Team Members", value: workspace.member_count || "1" }, // Real data
+    { label: "Total Systems", value: "0" },
+    { label: "Active Evaluations", value: "0" },
+    { label: "Team Members", value: workspace.member_count || "1" },
   ];
 
   return (
     <div className="pb-10">
       <div className="mb-6 md:mb-8 flex flex-col md:flex-row md:items-end justify-between gap-4">
         <div>
-          {/* Real data: Workspace Name */}
           <h1 className="text-2xl md:text-3xl font-bold text-gray-900">
             {workspace.name}
           </h1>

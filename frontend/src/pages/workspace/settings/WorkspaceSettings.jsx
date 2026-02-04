@@ -1,9 +1,10 @@
-import { NavLink, Outlet, useParams, useNavigate } from 'react-router-dom';
+import { NavLink, Outlet, useParams, useNavigate, useOutletContext } from 'react-router-dom';
 import { Settings, Users, Shield, FileText, ArrowLeft } from 'lucide-react';
 
 const WorkspaceSettings = () => {
   const { workspaceId } = useParams();
   const navigate = useNavigate();
+  const context = useOutletContext(); // Get context from parent
   
   const navItems = [
     { name: 'General', path: `/app/ws/${workspaceId}/settings`, icon: Settings },
@@ -63,7 +64,7 @@ const WorkspaceSettings = () => {
       {/* Content Area */}
       <main className="flex-1 p-6 lg:p-10 overflow-y-auto">
         <div className="max-w-4xl h-full flex flex-col">
-           <Outlet />
+           <Outlet context={context} /> {/* ✅ Pass context to children */}
         </div>
       </main>
     </div>

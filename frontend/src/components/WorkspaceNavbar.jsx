@@ -1,27 +1,9 @@
-import React, { useState, useEffect } from 'react'; // Added hooks
+import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Plus, ChevronRight, X } from 'lucide-react';
-import api from '../api'; // Import your refactored API instance
 
-export default function WorkspaceNavbar({ isOpen, onClose }) {
+export default function WorkspaceNavbar({ isOpen, onClose, workspaces = [], loading = false }) {
   const navigate = useNavigate();
-  const [workspaces, setWorkspaces] = useState([]); // State to hold backend data
-  const [loading, setLoading] = useState(true);
-
-  // Fetch workspaces from the backend on mount
-  useEffect(() => {
-    const fetchWorkspaces = async () => {
-      try {
-        const response = await api.get('workspaces/'); // Matches api/workspaces/ route
-        setWorkspaces(response.data);
-      } catch (error) {
-        console.error("Failed to fetch workspaces in navbar", error);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchWorkspaces();
-  }, []);
 
   const NavContent = () => (
     <div className="h-full flex flex-col">
@@ -54,7 +36,6 @@ export default function WorkspaceNavbar({ isOpen, onClose }) {
                   {ws.name}
                 </span>
                 <span className="text-xs text-gray-500 font-medium">
-                  {/* Using member_count from WorkspaceSerializer */}
                   {ws.member_count} {ws.member_count === 1 ? 'member' : 'members'} | {ws.visibility}
                 </span>
               </div>
