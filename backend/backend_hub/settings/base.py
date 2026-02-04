@@ -22,7 +22,14 @@ INSTALLED_APPS = [
     'corsheaders',
     'rest_framework',
     'rest_framework_simplejwt',
-    'accounts', 
+    
+    #local apps
+    'accounts',
+    'workspaces',
+    'canvases',
+    'permissions',
+    'notifications',
+    'core',
 ]
 
 MIDDLEWARE = [
