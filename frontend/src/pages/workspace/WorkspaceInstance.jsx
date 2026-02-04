@@ -45,13 +45,12 @@ const WorkspaceInstance = () => {
         <WorkspaceNavbar
           isOpen={isMobileMenuOpen}
           onClose={() => setIsMobileMenuOpen(false)}
-          workspaces={workspaces} // Pass data down
-          loading={areWorkspacesLoading} // Pass loading state
+          workspaces={workspaces}
+          loading={areWorkspacesLoading}
         />
 
         <main className="flex-1 overflow-hidden bg-white md:border-l border-gray-100 w-full relative z-0">
           <div className="h-full w-full max-w-[1600px] mx-auto p-4 md:p-10 overflow-y-auto">
-            {/* Pass refresh trigger to children (GeneralSettings) */}
             <Outlet context={{ refreshWorkspaces: fetchWorkspaces }} />
           </div>
         </main>
@@ -64,7 +63,9 @@ export const WorkspaceOverview = () => {
   const navigate = useNavigate();
   const { workspaceId } = useParams();
   const [workspace, setWorkspace] = useState(null);
+  const [systems, setSystems] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [systemsLoading, setSystemsLoading] = useState(true);
 
   useEffect(() => {
     const fetchWorkspaceDetails = async () => {
@@ -77,20 +78,41 @@ export const WorkspaceOverview = () => {
         setLoading(false);
       }
     };
+
+    const fetchSystems = async () => {
+      try {
+        const response = await api.get(`workspaces/${workspaceId}/canvases/`);
+        setSystems(response.data);
+      } catch (error) {
+        console.error("Failed to fetch systems:", error);
+      } finally {
+        setSystemsLoading(false);
+      }
+    };
+
     fetchWorkspaceDetails();
+    fetchSystems();
   }, [workspaceId]);
 
-  const systems = [
-    { id: 1, name: "Supply Chain Model", status: "Active", updated: "2h ago" },
-    { id: 2, name: "Cloud Infrastructure", status: "Draft", updated: "5h ago" },
-    { id: 3, name: "Financial Pipeline", status: "Active", updated: "1d ago" },
-  ];
+  const formatTimeAgo = (dateString) => {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffMs = now - date;
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMs / 3600000);
+    const diffDays = Math.floor(diffMs / 86400000);
+
+    if (diffMins < 60) return `${diffMins}m ago`;
+    if (diffHours < 24) return `${diffHours}h ago`;
+    if (diffDays === 1) return "1d ago";
+    return `${diffDays}d ago`;
+  };
 
   if (loading) return <div className="p-10 text-gray-400">Loading workspace details...</div>;
   if (!workspace) return <div className="p-10 text-red-500">Workspace not found.</div>;
 
   const stats = [
-    { label: "Total Systems", value: "0" },
+    { label: "Total Systems", value: systems.length.toString() },
     { label: "Active Evaluations", value: "0" },
     { label: "Team Members", value: workspace.member_count || "1" },
   ];
@@ -138,28 +160,42 @@ export const WorkspaceOverview = () => {
       </div>
 
       <h2 className="text-xl font-bold text-gray-800 mb-4">Systems</h2>
-      <div className="grid grid-cols-1 gap-3">
-        {systems.map((system) => (
-          <div
-            key={system.id}
-            className="bg-white p-4 rounded-xl border border-gray-200 flex justify-between items-center hover:border-blue-400 transition-all cursor-pointer"
-          >
-            <div>
-              <h3 className="font-bold text-gray-900 text-sm md:text-base">
-                {system.name}
-              </h3>
-              <p className="text-xs md:text-sm text-gray-500">
-                Last updated {system.updated}
-              </p>
-            </div>
-            <span
-              className={`px-2 py-1 md:px-3 md:py-1 rounded-lg text-[10px] md:text-xs font-bold ${system.status === "Active" ? "bg-green-50 text-green-600" : "bg-gray-50 text-gray-500"}`}
+      
+      {systemsLoading ? (
+        <div className="text-center py-10 text-gray-400">Loading systems...</div>
+      ) : systems.length > 0 ? (
+        <div className="grid grid-cols-1 gap-3">
+          {systems.map((system) => (
+            <div
+              key={system.id}
+              onClick={() => navigate(`/app/ws/${workspaceId}/systems/${system.id}`)}
+              className="bg-white p-4 rounded-xl border border-gray-200 flex justify-between items-center hover:border-blue-400 transition-all cursor-pointer"
             >
-              {system.status}
-            </span>
-          </div>
-        ))}
-      </div>
+              <div>
+                <h3 className="font-bold text-gray-900 text-sm md:text-base">
+                  {system.name}
+                </h3>
+                <p className="text-xs md:text-sm text-gray-500">
+                  Last updated {formatTimeAgo(system.updated_at)}
+                </p>
+              </div>
+              <span className="px-2 py-1 md:px-3 md:py-1 rounded-lg text-[10px] md:text-xs font-bold bg-green-50 text-green-600">
+                Active
+              </span>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div className="text-center py-16 bg-gray-50 rounded-2xl border-2 border-dashed border-gray-200">
+          <p className="text-gray-400 font-medium mb-4">No systems yet</p>
+          <button
+            onClick={() => navigate(`/app/ws/${workspaceId}/create-system`)}
+            className="bg-blue-600 text-white px-6 py-2.5 rounded-xl font-semibold hover:bg-blue-700 transition-all shadow-sm shadow-blue-100 inline-flex items-center gap-2"
+          >
+            + Create Your First System
+          </button>
+        </div>
+      )}
     </div>
   );
 };

@@ -60,4 +60,8 @@ api.interceptors.response.use(
   }
 );
 
+// Export helper functions AFTER api is created
+export const createSystem = (workspaceId, systemData) => 
+  api.post(`workspaces/${workspaceId}/canvases/`, systemData);
+
 export default api;
