@@ -1,11 +1,16 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom'; // Added for redirection
 import AuthenticatedNavbar from '../../components/AuthenticatedNavbar';
 import { User, Mail, MapPin, Calendar, Building, Globe, Lock, ArrowRight, Settings, Check, X, Camera, Edit2, Copy } from 'lucide-react';
 import api from '../../api';
+import { formatDistanceToNow } from 'date-fns'; // Added for relative time formatting
 
 export default function Profile() {
-  // State for user data
+  const navigate = useNavigate(); // Hook for navigation
+  
+  // State for user and workspaces data
   const [user, setUser] = useState(null);
+  const [workspaces, setWorkspaces] = useState([]); // Replaces the hardcoded array
   const [loading, setLoading] = useState(true);
 
   // Edit Mode State
@@ -22,29 +27,37 @@ export default function Profile() {
     return date.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
   };
 
-  // Fetch Profile Data
+  // Fetch Profile and Workspaces Data
   useEffect(() => {
-    const fetchProfile = async () => {
+    const fetchData = async () => {
       try {
-        const res = await api.get('profile/'); 
+        // Fetch profile and workspaces concurrently
+        const [profileRes, workspaceRes] = await Promise.all([
+          api.get('auth/profile/'),
+          api.get('workspaces/')
+        ]);
+
         const userData = {
-          name: res.data.full_name,
-          email: res.data.email,
-          role: res.data.user_role || "Role not set",
-          organization: res.data.org_name || "Organization not set",
-          location: res.data.org_loc || "Location not set",
-          joined: formatDate(res.data.created_at),
+          id: profileRes.data.id,
+          name: profileRes.data.full_name,
+          email: profileRes.data.email,
+          role: profileRes.data.user_role || "Role not set",
+          organization: profileRes.data.org_name || "Organization not set",
+          location: profileRes.data.org_loc || "Location not set",
+          joined: formatDate(profileRes.data.created_at),
           avatar: null
         };
+        
         setUser(userData);
         setFormData(userData);
+        setWorkspaces(workspaceRes.data); // Set real workspace data
       } catch (err) {
-        console.error("Failed to load profile", err);
+        console.error("Failed to load profile or workspaces", err);
       } finally {
         setLoading(false);
       }
     };
-    fetchProfile();
+    fetchData();
   }, []);
 
   const handleCopyEmail = () => {
@@ -55,36 +68,6 @@ export default function Profile() {
     }
   };
 
-  const workspaces = [
-    {
-      id: 1,
-      name: "Core Engineering",
-      role: "Owner",
-      visibility: "private",
-      members: 12,
-      lastActive: "2 hours ago",
-      description: "Main architecture workspace for the core platform services and decision engines."
-    },
-    {
-      id: 2,
-      name: "Public Documentation",
-      role: "Admin",
-      visibility: "public",
-      members: 840,
-      lastActive: "1 day ago",
-      description: "Open source system models and architectural patterns for the community."
-    },
-    {
-      id: 3,
-      name: "Integration Sandbox",
-      role: "Editor",
-      visibility: "private",
-      members: 5,
-      lastActive: "5 days ago",
-      description: "Testing environment for third-party API integrations and data flows."
-    }
-  ];
-
   const handleEdit = () => {
     setFormData(user);
     setIsEditing(true);
@@ -92,7 +75,7 @@ export default function Profile() {
 
   const handleSave = async () => {
     try {
-      await api.patch('profile/', {
+      await api.patch('auth/profile/', {
         full_name: formData.name,
         user_role: formData.role,
         org_name: formData.organization,
@@ -141,9 +124,8 @@ export default function Profile() {
 
       <div className="flex-1 flex flex-col md:flex-row overflow-y-auto md:overflow-hidden">
         
-        {/* LEFT SIDEBAR */}
+        {/* LEFT SIDEBAR (Unchanged UI) */}
         <aside className="w-full md:w-80 bg-white border-b md:border-b-0 md:border-r border-gray-200 flex flex-col flex-shrink-0 relative group/sidebar md:overflow-y-auto">
-          
           {!isEditing && (
             <button 
               onClick={handleEdit}
@@ -154,9 +136,7 @@ export default function Profile() {
             </button>
           )}
 
-          {/* Profile Header */}
           <div className="p-6 md:p-8 flex flex-col items-center text-center border-b border-gray-100">
-            
             <div className="relative group cursor-pointer mb-6">
               <div className="w-24 h-24 rounded-full bg-gray-50 border border-gray-200 flex items-center justify-center overflow-hidden shadow-sm">
                 {user.avatar ? (
@@ -192,12 +172,10 @@ export default function Profile() {
             ) : (
               <div className="w-full space-y-1 p-2 rounded-xl transition-colors">
                 <div className="flex items-center justify-center gap-2">
-                  {/* LIMIT 1: Name Truncation */}
                   <h2 className="text-xl font-bold text-gray-900 tracking-tight md:max-w-[220px] md:truncate">
                     {user.name}
                   </h2>
                 </div>
-                {/* LIMIT 2: Role Truncation */}
                 <p className="text-sm text-gray-500 font-medium md:max-w-[220px] md:mx-auto md:truncate">
                   {user.role}
                 </p>
@@ -205,11 +183,8 @@ export default function Profile() {
             )}
           </div>
 
-          {/* Contact / Details */}
           <div className="p-6 space-y-5">
             <div className="space-y-4">
-              
-              {/* ORGANIZATION */}
               <div className="flex items-center gap-3 text-sm text-gray-600 p-2 -ml-2 rounded-lg">
                 <Building size={16} className="text-gray-400 flex-shrink-0" />
                 {isEditing ? (
@@ -222,14 +197,12 @@ export default function Profile() {
                     className="flex-1 px-2 py-1 border-b border-blue-500 focus:outline-none bg-transparent"
                   />
                 ) : (
-                  // LIMIT 3: Org Truncation + No Interaction
                   <span className="flex-1 md:max-w-[180px] md:truncate" title={user.organization}>
                     {user.organization}
                   </span>
                 )}
               </div>
 
-              {/* LOCATION */}
               <div className="flex items-center gap-3 text-sm text-gray-600 p-2 -ml-2 rounded-lg">
                 <MapPin size={16} className="text-gray-400 flex-shrink-0" />
                 {isEditing ? (
@@ -242,18 +215,14 @@ export default function Profile() {
                     className="flex-1 px-2 py-1 border-b border-blue-500 focus:outline-none bg-transparent"
                   />
                 ) : (
-                  // LIMIT 4: Location Truncation + No Interaction
                   <span className="flex-1 md:max-w-[180px] md:truncate" title={user.location}>
                     {user.location}
                   </span>
                 )}
               </div>
 
-              {/* EMAIL - WITH COPY FUNCTIONALITY */}
               <div className="flex items-center gap-3 text-sm text-gray-600 p-2 -ml-2">
                 <Mail size={16} className="text-gray-400 flex-shrink-0" />
-                
-                {/* LIMIT 5: Email Truncation (name@gma...) */}
                 <span 
                   onClick={!isEditing ? handleCopyEmail : undefined}
                   className={`flex-1 md:max-w-[170px] md:truncate ${!isEditing ? 'cursor-pointer hover:text-blue-600 transition-colors' : 'text-gray-400 cursor-not-allowed'}`}
@@ -261,8 +230,6 @@ export default function Profile() {
                 >
                   {user.email}
                 </span>
-
-                {/* Icons */}
                 {isEditing ? (
                   <Lock size={12} className="text-gray-300 flex-shrink-0" />
                 ) : (
@@ -272,12 +239,10 @@ export default function Profile() {
                 )}
               </div>
 
-              {/* JOINED DATE */}
               <div className="flex items-center gap-3 text-sm text-gray-600 p-2 -ml-2">
                 <Calendar size={16} className="text-gray-400 flex-shrink-0" />
                 <span className={isEditing ? "text-gray-400" : ""}>Joined {user.joined}</span>
               </div>
-
             </div>
           </div>
 
@@ -288,8 +253,7 @@ export default function Profile() {
                   onClick={handleSave}
                   className="flex-1 py-2.5 flex items-center justify-center gap-2 bg-gray-900 text-white rounded-lg text-sm font-bold hover:bg-black transition-all shadow-lg shadow-gray-200"
                 >
-                  <Check size={16} />
-                  Save
+                  <Check size={16} /> Save
                 </button>
                 <button 
                   onClick={handleCancel}
@@ -310,7 +274,7 @@ export default function Profile() {
           </div>
         </aside>
 
-        {/* RIGHT CONTENT */}
+        {/* RIGHT CONTENT (Updated with real data and clickable cards) */}
         <main className="flex-1 md:overflow-y-auto bg-gray-50/50 p-4 sm:p-8 md:p-12">
           <div className="max-w-4xl mx-auto md:mx-0">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
@@ -324,6 +288,7 @@ export default function Profile() {
               {workspaces.map((workspace) => (
                 <div 
                   key={workspace.id}
+                  onClick={() => navigate(`/app/ws/${workspace.id}`)} // Enables redirection
                   className="group bg-white border border-gray-200 rounded-xl p-5 md:p-6 hover:border-blue-500 hover:shadow-md transition-all duration-200 cursor-pointer"
                 >
                   <div className="flex items-start justify-between mb-3">
@@ -336,20 +301,19 @@ export default function Profile() {
                           {workspace.name}
                         </h3>
                         <p className="text-xs text-gray-500">
-                          Updated {workspace.lastActive}
+                          {/* Uses backend updated_at with relative formatting */}
+                          Updated {formatDistanceToNow(new Date(workspace.updated_at), { addSuffix: true })}
                         </p>
                       </div>
                     </div>
 
                     {workspace.visibility === 'public' ? (
                       <span className="flex items-center justify-center gap-1.5 w-24 py-1 bg-blue-50 text-blue-700 border-2 border-blue-700 text-[10px] font-bold uppercase tracking-wide rounded-xl">
-                        <Globe size={12} />
-                        Public
+                        <Globe size={12} /> Public
                       </span>
                     ) : (
                       <span className="flex items-center justify-center gap-1.5 w-24 py-1 bg-black text-white border border-gray-800 text-[10px] font-bold uppercase tracking-wide rounded-xl">
-                        <Lock size={12} />
-                        Private
+                        <Lock size={12} /> Private
                       </span>
                     )}
                   </div>
@@ -360,9 +324,10 @@ export default function Profile() {
 
                   <div className="flex items-center justify-between pt-4 border-t border-gray-100">
                     <div className="flex items-center gap-4 text-xs font-medium text-gray-500">
-                      <span>{workspace.role}</span>
+                      {/* logic for role and member count from backend */}
+                      <span>{workspace.owner_name === user.id ? 'Owner' : 'Member'}</span>
                       <span className="w-1 h-1 bg-gray-300 rounded-full" />
-                      <span>{workspace.members} members</span>
+                      <span>{workspace.member_count} members</span>
                     </div>
                     
                     <div className="text-gray-400 group-hover:text-blue-600 group-hover:translate-x-1 transition-all">
@@ -372,7 +337,6 @@ export default function Profile() {
                 </div>
               ))}
             </div>
-
           </div>
         </main>
       </div>

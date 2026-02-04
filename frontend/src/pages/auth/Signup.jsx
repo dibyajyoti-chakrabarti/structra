@@ -19,7 +19,7 @@ export default function Signup() {
     setError('');
     setLoading(true);
     try {
-      await api.post('register/', formData);
+      await api.post('auth/register/', formData);
       alert('Account created! Please log in.');
       navigate('/login');
     } catch (err) {

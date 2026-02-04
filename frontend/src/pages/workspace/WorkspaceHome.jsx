@@ -1,17 +1,42 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react'; // Added hooks
 import { useNavigate } from 'react-router-dom';
 import { Plus, Layout, Users, Clock } from 'lucide-react';
+import { formatDistanceToNow } from 'date-fns';
 import AuthenticatedNavbar from '../../components/AuthenticatedNavbar';
+import api from '../../api'; // Import your axios instance
 
 const WorkspaceHome = () => {
   const navigate = useNavigate();
+  const [workspaces, setWorkspaces] = useState([]); // State for backend data
+  const [loading, setLoading] = useState(true);
 
-  // Mock data for display
-  const workspaces = [
-    { id: 1, name: "Core Engineering", members: 12, updated: '2h ago' },
-    { id: 2, name: "Public Documentation", members: 840, updated: '5h ago' },
-    { id: 3, name: "Integration Sandbox", members: 5, updated: '1d ago' },
-  ];
+  useEffect(() => {
+    const fetchWorkspaces = async () => {
+      try {
+        const response = await api.get('workspaces/');
+        setWorkspaces(response.data);
+      } catch (error) {
+        console.error("Failed to fetch workspaces", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchWorkspaces();
+  }, []);
+
+  // Helper to format the backend timestamp (e.g., "2024-05-20T...") to a readable string
+  const formatTime = (timestamp) => {
+    const date = new Date(timestamp);
+    return date.toLocaleDateString(); 
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-white flex flex-col items-center justify-center">
+        <div className="animate-pulse text-gray-400 font-semibold">Loading Workspaces...</div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-white flex flex-col">
@@ -33,7 +58,6 @@ const WorkspaceHome = () => {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
-          {/* Workspace Cards */}
           {workspaces.map((ws) => (
             <div 
               key={ws.id}
@@ -45,7 +69,7 @@ const WorkspaceHome = () => {
                   <Layout size={24} />
                 </div>
                 <span className="text-xs font-bold text-gray-400 bg-gray-50 px-2 py-1 rounded-md uppercase tracking-wider border border-gray-100">
-                  Active
+                  {ws.visibility}
                 </span>
               </div>
               
@@ -54,17 +78,17 @@ const WorkspaceHome = () => {
               <div className="flex items-center gap-4 text-sm text-gray-500 mt-4 pt-4 border-t border-gray-100">
                 <div className="flex items-center gap-1.5">
                   <Users size={16} className="text-gray-400" />
-                  <span>{ws.members} members</span>
+                  {/* Current model doesn't have a members count field yet */}
+                  <span>{ws.member_count} {ws.member_count === 1 ? 'member' : 'members'}</span> 
                 </div>
                 <div className="flex items-center gap-1.5">
                   <Clock size={16} className="text-gray-400" />
-                  <span>{ws.updated}</span>
+                  <span>{formatDistanceToNow(new Date(ws.updated_at), { addSuffix: true })}</span>
                 </div>
               </div>
             </div>
           ))}
 
-          {/* New Workspace Placeholder (Optional, looks good in grid) */}
           <button 
              onClick={() => navigate('/app/create-workspace')}
              className="flex flex-col items-center justify-center p-6 rounded-2xl border-2 border-dashed border-gray-200 hover:border-blue-400 hover:bg-blue-50/50 transition-all group min-h-[200px]"

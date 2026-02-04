@@ -1,8 +1,9 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react"; // Added useEffect
 import { Outlet, useNavigate, useParams } from "react-router-dom";
-import { Menu, Settings } from "lucide-react"; // Import Menu icon
+import { Menu, Settings } from "lucide-react";
 import AuthenticatedNavbar from "../../components/AuthenticatedNavbar";
 import WorkspaceNavbar from "../../components/WorkspaceNavbar";
+import api from "../../api"; // Import your API instance
 
 const WorkspaceInstance = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -11,7 +12,6 @@ const WorkspaceInstance = () => {
     <div className="flex flex-col h-screen bg-white overflow-hidden">
       <AuthenticatedNavbar />
 
-      {/* Mobile Header for Sidebar Toggle */}
       <div className="md:hidden border-b border-gray-100 p-4 flex items-center gap-3 bg-white">
         <button
           onClick={() => setIsMobileMenuOpen(true)}
@@ -23,17 +23,11 @@ const WorkspaceInstance = () => {
       </div>
 
       <div className="flex flex-1 overflow-hidden relative">
-        {/* Sidebar: 
-            - Hidden by default on mobile (unless toggled).
-            - Always visible on desktop (md:block).
-            - We pass the state to WorkspaceNavbar to handle the drawer logic.
-        */}
         <WorkspaceNavbar
           isOpen={isMobileMenuOpen}
           onClose={() => setIsMobileMenuOpen(false)}
         />
 
-        {/* Main Content Area */}
         <main className="flex-1 overflow-hidden bg-white md:border-l border-gray-100 w-full relative z-0">
           <div className="h-full w-full max-w-[1600px] mx-auto p-4 md:p-10 overflow-y-auto">
             <Outlet />
@@ -47,29 +41,50 @@ const WorkspaceInstance = () => {
 export const WorkspaceOverview = () => {
   const navigate = useNavigate();
   const { workspaceId } = useParams();
+  const [workspace, setWorkspace] = useState(null); // State for workspace data
+  const [loading, setLoading] = useState(true);
 
-  // Hardcoded data
-  const stats = [
-    { label: "Total Systems", value: "12" },
-    { label: "Active Evaluations", value: "5" },
-    { label: "Team Members", value: "8" },
-  ];
+  // Fetch specific workspace details on mount
+  useEffect(() => {
+    const fetchWorkspaceDetails = async () => {
+      try {
+        const response = await api.get(`workspaces/${workspaceId}/`);
+        setWorkspace(response.data);
+      } catch (error) {
+        console.error("Failed to fetch workspace details:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchWorkspaceDetails();
+  }, [workspaceId]);
 
+  // Mock data for systems as requested to ignore for now
   const systems = [
     { id: 1, name: "Supply Chain Model", status: "Active", updated: "2h ago" },
     { id: 2, name: "Cloud Infrastructure", status: "Draft", updated: "5h ago" },
     { id: 3, name: "Financial Pipeline", status: "Active", updated: "1d ago" },
   ];
 
+  if (loading) return <div className="p-10 text-gray-400">Loading workspace details...</div>;
+  if (!workspace) return <div className="p-10 text-red-500">Workspace not found.</div>;
+
+  const stats = [
+    { label: "Total Systems", value: "0" }, // Mock for now
+    { label: "Active Evaluations", value: "0" }, // Mock for now
+    { label: "Team Members", value: workspace.member_count || "1" }, // Real data
+  ];
+
   return (
     <div className="pb-10">
       <div className="mb-6 md:mb-8 flex flex-col md:flex-row md:items-end justify-between gap-4">
         <div>
+          {/* Real data: Workspace Name */}
           <h1 className="text-2xl md:text-3xl font-bold text-gray-900">
-            Workspace {workspaceId}
+            {workspace.name}
           </h1>
           <p className="text-gray-500 text-sm md:text-base">
-            Overview of your systems and evaluations.
+            {workspace.description || "Overview of your systems and evaluations."}
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -89,7 +104,6 @@ export const WorkspaceOverview = () => {
         </div>
       </div>
 
-      {/* Stats Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 md:gap-6 mb-8 md:mb-10">
         {stats.map((stat, i) => (
           <div
@@ -104,7 +118,6 @@ export const WorkspaceOverview = () => {
         ))}
       </div>
 
-      {/* Systems List */}
       <h2 className="text-xl font-bold text-gray-800 mb-4">Systems</h2>
       <div className="grid grid-cols-1 gap-3">
         {systems.map((system) => (
