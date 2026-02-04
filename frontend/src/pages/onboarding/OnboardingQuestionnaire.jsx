@@ -101,7 +101,7 @@ const OnboardingQuestionnaire = () => {
       if (currentQ.field) {
         payload[currentQ.field] = lastAnswer;
       }
-      await api.patch("profile/", payload);
+      await api.patch("auth/profile/", payload);
       navigate("/app");
     } catch (error) {
       console.error("Onboarding failed", error);

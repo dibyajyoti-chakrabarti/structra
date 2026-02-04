@@ -21,13 +21,13 @@ const handleLogin = async (e) => {
     setError('');
     setLoading(true);
     try {
-      const response = await api.post('login/', formData);
+      const response = await api.post('auth/login/', formData);
       localStorage.setItem('access', response.data.access);
       localStorage.setItem('refresh', response.data.refresh);
 
       // --- NEW CODE STARTS HERE ---
       // 1. Fetch the user's profile immediately after login
-      const profileRes = await api.get('profile/'); // Ensure this matches your backend URL structure
+      const profileRes = await api.get('auth/profile/'); // Ensure this matches your backend URL structure
       
       // 2. Check if they are a new user
       if (profileRes.data.is_new) {

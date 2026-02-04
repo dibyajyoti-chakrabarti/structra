@@ -2,30 +2,57 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Save, UserPlus, X, ChevronRight, Globe, Lock } from 'lucide-react';
 import AuthenticatedNavbar from '../../components/AuthenticatedNavbar';
+import api from '../../api'; //
 
 const CreateWorkspace = () => {
   const navigate = useNavigate();
-  const [inviteEmail, setInviteEmail] = useState('');
   
-  // State for member list
-  const [members, setMembers] = useState([
-    'You (Owner)',
-  ]);
-  
-  const [visibility, setVisibility] = useState('private');
+  // 1. Form State
+  const [name, setName] = useState('');
+  const [description, setDescription] = useState('');
+  const [visibility, setVisibility] = useState('private'); // Lowercase matches constant logic in previous step
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
 
-  const handleFinish = () => {
-    //To be fixed later
-    navigate('/app/ws/99');
+  // 2. Member state (currently stays frontend-only based on current backend implementation)
+  const [inviteEmail, setInviteEmail] = useState('');
+  const [members, setMembers] = useState(['You (Owner)']);
+
+  // 3. Handle API Submission
+  const handleFinish = async (e) => {
+    e.preventDefault();
+    if (!name.trim()) {
+      setError("Workspace name is required.");
+      return;
+    }
+
+    setLoading(true);
+    setError('');
+
+    try {
+      // Backend expects 'public' or 'private' as defined in core.constants
+      const response = await api.post('workspaces/', {
+        name: name,
+        description: description,
+        visibility: visibility.toLowerCase() 
+      });
+
+      // Navigate to the dynamic ID returned by the backend (e.g., 8-char alphanumeric)
+      navigate(`/app/ws/${response.data.id}`);
+    } catch (err) {
+      // Handle unique constraint or validation errors
+      const errMsg = err.response?.data?.name?.[0] || "Failed to create workspace. Please try again.";
+      setError(errMsg);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleAddMember = (e) => {
     e.preventDefault();
-    const randomSuffix = Math.floor(Math.random() * 10000);
-    const mockEmail = inviteEmail || `user.${randomSuffix}@structra.cloud`;
-    
-    if (!members.includes(mockEmail)) {
-      setMembers([...members, mockEmail]);
+    if (!inviteEmail.trim()) return;
+    if (!members.includes(inviteEmail)) {
+      setMembers([...members, inviteEmail]);
     }
     setInviteEmail('');
   };
@@ -34,10 +61,7 @@ const CreateWorkspace = () => {
     <div className="min-h-screen bg-white flex flex-col">
       <AuthenticatedNavbar />
 
-      {/* Main Content Wrapper */}
       <main className="flex-1 w-full max-w-7xl mx-auto p-4 md:p-8">
-        
-        {/* Container: White background, Border for structure */}
         <div className="bg-white overflow-hidden flex flex-col lg:flex-row min-h-[600px]">
           
           {/* LEFT SECTION: Main Form */}
@@ -47,16 +71,18 @@ const CreateWorkspace = () => {
               <p className="text-gray-500 mt-2">Establish a secure environment for your team and projects.</p>
             </div>
 
-            <form className="space-y-8 flex-1">
-              
+            <form onSubmit={handleFinish} className="space-y-8 flex-1">
               {/* Workspace Name */}
               <div className="space-y-2">
                 <label className="text-sm font-bold text-gray-800 uppercase tracking-wider">Workspace Name</label>
                 <input 
                   type="text" 
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
                   placeholder="e.g. Acme Corp Engineering"
                   className="w-full px-4 py-4 rounded-xl border-2 border-gray-100 focus:border-blue-500 focus:ring-0 outline-none transition-all text-lg font-medium"
                 />
+                {error && <p className="text-red-500 text-xs font-bold uppercase">{error}</p>}
               </div>
 
               {/* Visibility Selection */}
@@ -106,15 +132,17 @@ const CreateWorkspace = () => {
                 <label className="text-sm font-bold text-gray-800 uppercase tracking-wider">Description</label>
                 <textarea 
                   rows="3"
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
                   placeholder="What is this workspace for?"
                   className="w-full px-4 py-4 rounded-xl border-2 border-gray-100 focus:border-blue-500 focus:ring-0 outline-none transition-all resize-none"
                 ></textarea>
               </div>
             </form>
 
-            {/* Action Buttons */}
             <div className="pt-8 flex justify-end gap-4 mt-auto">
               <button 
+                type="button"
                 onClick={() => navigate('/app/home')}
                 className="px-6 py-3 rounded-xl font-bold text-gray-400 hover:text-gray-600 hover:bg-gray-50 transition-all"
               >
@@ -122,16 +150,16 @@ const CreateWorkspace = () => {
               </button>
               <button 
                 onClick={handleFinish}
-                className="bg-blue-600 text-white px-8 py-3 rounded-xl font-bold hover:bg-blue-700 flex items-center gap-2 shadow-lg shadow-blue-100 transition-all"
+                disabled={loading}
+                className="bg-blue-600 text-white px-8 py-3 rounded-xl font-bold hover:bg-blue-700 flex items-center gap-2 shadow-lg shadow-blue-100 transition-all disabled:opacity-50"
               >
                 <Save size={20} />
-                Create
+                {loading ? 'Creating...' : 'Create'}
               </button>
             </div>
           </div>
 
           {/* RIGHT SECTION: Initial Team Invite */}
-          {/* Changed bg-gray-50/50 to bg-white and ensured border separates it */}
           <div className="w-full lg:flex-1 flex flex-col bg-white">
             <div className="p-6 md:p-12 pb-4">
               <h3 className="text-xl font-extrabold text-gray-900 flex items-center gap-2">
@@ -141,11 +169,10 @@ const CreateWorkspace = () => {
               <p className="text-sm text-gray-500 mt-1">Add your core team members.</p>
             </div>
 
-            {/* Add Input */}
             <div className="px-6 md:px-12 mb-6">
               <form onSubmit={handleAddMember} className="relative group">
                 <input 
-                  type="text" 
+                  type="email" 
                   value={inviteEmail}
                   onChange={(e) => setInviteEmail(e.target.value)}
                   placeholder="Email to add..."
@@ -157,7 +184,6 @@ const CreateWorkspace = () => {
               </form>
             </div>
 
-            {/* Member List */}
             <div className="flex-1 overflow-y-auto px-6 md:px-12 pb-8 space-y-3 custom-scrollbar">
               <div className="flex items-center justify-between pb-2 border-b border-gray-100 mb-2">
                  <span className="text-xs font-bold text-gray-400 uppercase tracking-widest">Added ({members.length})</span>
@@ -174,7 +200,13 @@ const CreateWorkspace = () => {
                      </div>
                      <span className="text-sm font-semibold text-gray-700 truncate">{user}</span>
                   </div>
-                  {i !== 0 && <X size={16} className="text-gray-300 hover:text-red-500 cursor-pointer" />}
+                  {i !== 0 && (
+                    <X 
+                      size={16} 
+                      className="text-gray-300 hover:text-red-500 cursor-pointer" 
+                      onClick={() => setMembers(members.filter((_, index) => index !== i))}
+                    />
+                  )}
                 </div>
               ))}
             </div>
