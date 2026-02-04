@@ -53,4 +53,4 @@ class CanvasPermission(models.Model):
         ]
 
     def __str__(self):
-        return f"{self.user.email} - {self.role} on {self.canvas.name}"
+        return f"{self.user.email} - {self.role} on {self.system.name}"
