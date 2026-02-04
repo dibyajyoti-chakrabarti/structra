@@ -1,9 +1,37 @@
 import React, { useState, useEffect } from "react";
 import { Outlet, useNavigate, useParams } from "react-router-dom";
-import { Menu, Settings } from "lucide-react";
+import { Menu, Settings, Trash2, X, CheckCircle, AlertCircle } from "lucide-react";
 import AuthenticatedNavbar from "../../components/AuthenticatedNavbar";
 import WorkspaceNavbar from "../../components/WorkspaceNavbar";
 import api from "../../api";
+
+// Toast Notification Component
+const Toast = ({ message, type, onClose }) => {
+  useEffect(() => {
+    const timer = setTimeout(onClose, 3000);
+    return () => clearTimeout(timer);
+  }, [onClose]);
+
+  return (
+    <div className="fixed top-20 left-1/2 -translate-x-1/2 z-[200] animate-in slide-in-from-top duration-300">
+      <div className={`flex items-center gap-3 px-6 py-4 rounded-xl shadow-2xl border-2 ${
+        type === 'success' 
+          ? 'bg-green-50 border-green-200 text-green-800' 
+          : 'bg-red-50 border-red-200 text-red-800'
+      }`}>
+        {type === 'success' ? (
+          <CheckCircle size={20} className="text-green-600" />
+        ) : (
+          <AlertCircle size={20} className="text-red-600" />
+        )}
+        <span className="font-semibold">{message}</span>
+        <button onClick={onClose} className="ml-2 hover:opacity-70">
+          <X size={18} />
+        </button>
+      </div>
+    </div>
+  );
+};
 
 const WorkspaceInstance = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -67,6 +95,15 @@ export const WorkspaceOverview = () => {
   const [loading, setLoading] = useState(true);
   const [systemsLoading, setSystemsLoading] = useState(true);
 
+  // Toast State
+  const [toast, setToast] = useState(null);
+
+  // Delete Modal State
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleteConfirmationText, setDeleteConfirmationText] = useState('');
+  const [deleting, setDeleting] = useState(false);
+  const [systemToDelete, setSystemToDelete] = useState(null);
+
   useEffect(() => {
     const fetchWorkspaceDetails = async () => {
       try {
@@ -94,6 +131,41 @@ export const WorkspaceOverview = () => {
     fetchSystems();
   }, [workspaceId]);
 
+  // Show toast notification
+  const showToast = (message, type) => {
+    setToast({ message, type });
+  };
+
+  // Open Delete Modal
+  const initiateDelete = (system, e) => {
+    e.stopPropagation(); // Prevent navigation to system
+    setSystemToDelete(system);
+    setDeleteConfirmationText('');
+    setShowDeleteModal(true);
+  };
+
+  // Execute Delete
+  const executeDelete = async () => {
+    if (!systemToDelete) return;
+    
+    setDeleting(true);
+    try {
+      await api.delete(`workspaces/${workspaceId}/canvases/${systemToDelete.id}/`);
+      
+      // Remove system from local state
+      setSystems(systems.filter(s => s.id !== systemToDelete.id));
+      
+      setShowDeleteModal(false);
+      setSystemToDelete(null);
+      showToast("System deleted successfully", "success");
+    } catch (error) {
+      console.error("Deletion failed", error);
+      showToast("Failed to delete system", "error");
+    } finally {
+      setDeleting(false);
+    }
+  };
+
   const formatTimeAgo = (dateString) => {
     const date = new Date(dateString);
     const now = new Date();
@@ -119,6 +191,61 @@ export const WorkspaceOverview = () => {
 
   return (
     <div className="pb-10">
+      {/* Toast Notification */}
+      {toast && (
+        <Toast 
+          message={toast.message} 
+          type={toast.type} 
+          onClose={() => setToast(null)} 
+        />
+      )}
+
+      {/* DELETE CONFIRMATION MODAL */}
+      {showDeleteModal && (
+        <div className="fixed inset-0 bg-gray-900/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-2xl p-6 md:p-8 max-w-md w-full animate-in fade-in zoom-in duration-200">
+            <div className="flex justify-between items-start mb-4">
+              <div className="flex items-center gap-3">
+                <div className="bg-red-100 p-2 rounded-lg">
+                  <Trash2 size={20} className="text-red-600" />
+                </div>
+                <h3 className="text-xl font-extrabold text-gray-900">Delete System</h3>
+              </div>
+              <button onClick={() => setShowDeleteModal(false)} className="text-gray-400 hover:text-gray-600">
+                <X size={20} />
+              </button>
+            </div>
+            
+            <p className="text-gray-600 text-sm mb-2 leading-relaxed">
+              This action <span className="font-bold text-red-600">cannot be undone</span>. This will permanently delete the system <span className="font-bold text-gray-900">{systemToDelete?.name}</span> and all associated data.
+            </p>
+
+            <p className="text-gray-600 text-sm mb-6 leading-relaxed">
+              To confirm, please type <span className="font-bold text-gray-900 select-none">delete system</span> below.
+            </p>
+
+            <div className="space-y-4">
+              <input
+                type="text"
+                value={deleteConfirmationText}
+                onChange={(e) => setDeleteConfirmationText(e.target.value)}
+                placeholder="Type 'delete system'"
+                className="w-full px-4 py-3 rounded-xl border-2 border-gray-100 focus:border-red-500 focus:ring-0 outline-none font-medium text-gray-900 placeholder:text-gray-300 transition-all"
+                autoFocus
+              />
+
+              <button 
+                onClick={executeDelete}
+                disabled={deleteConfirmationText !== 'delete system' || deleting}
+                className="w-full bg-red-600 text-white py-3 rounded-xl font-bold hover:bg-red-700 transition-all shadow-lg shadow-red-100 disabled:opacity-50 disabled:cursor-not-allowed flex justify-center items-center gap-2"
+              >
+                {deleting ? "Deleting..." : "Delete System Permanently"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="mb-6 md:mb-8 flex flex-col md:flex-row md:items-end justify-between gap-4">
         <div>
           <h1 className="text-2xl md:text-3xl font-bold text-gray-900">
@@ -179,9 +306,13 @@ export const WorkspaceOverview = () => {
                   Last updated {formatTimeAgo(system.updated_at)}
                 </p>
               </div>
-              <span className="px-2 py-1 md:px-3 md:py-1 rounded-lg text-[10px] md:text-xs font-bold bg-green-50 text-green-600">
-                Active
-              </span>
+              <button
+                onClick={(e) => initiateDelete(system, e)}
+                className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all"
+                title="Delete system"
+              >
+                <Trash2 size={18} />
+              </button>
             </div>
           ))}
         </div>
