@@ -6,12 +6,13 @@ from core.utils import generate_alphanumeric_id
 class Canvas(models.Model):
     id = models.CharField(max_length=8, primary_key=True, editable=False)
     name = models.CharField(max_length=255)
+    description = models.TextField(blank=True, null=True)
     workspace = models.ForeignKey(
         Workspace,
         on_delete=models.CASCADE,
         related_name='systems'
     )
-    canvas_data = models.JSONField(default=dict)
+    canvas_data = models.JSONField(default=dict, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     last_modified_by = models.ForeignKey(
@@ -34,8 +35,8 @@ class Canvas(models.Model):
         ordering = ['-updated_at']
         verbose_name_plural = 'Systems'
         constraints = [
-        models.UniqueConstraint(
-            fields=['workspace', 'name'],
-            name='unique_canvas_per_workspace'
-        )
-    ]
+            models.UniqueConstraint(
+                fields=['workspace', 'name'],
+                name='unique_canvas_per_workspace'
+            )
+        ]
