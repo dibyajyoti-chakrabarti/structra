@@ -101,15 +101,15 @@ function App() {
 
           {/* System/Canvas Routes */}
           <Route
-            path="/app/ws/:workspaceId/system/:systemId"
+            path="/app/ws/:workspaceId/systems/:systemId"
             element={<Canvas />}
           />
           <Route
-            path="/app/ws/:workspaceId/system/:systemId/evaluate"
+            path="/app/ws/:workspaceId/systems/:systemId/evaluate"
             element={<Evaluation />}
           />
           <Route
-            path="/app/ws/:workspaceId/system/:systemId/present"
+            path="/app/ws/:workspaceId/systems/:systemId/present"
             element={<PresentCanvas />}
           />
         </Route>
