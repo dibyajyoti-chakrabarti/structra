@@ -7,7 +7,6 @@ import api from '../../api';
 export default function Login() {
   const navigate = useNavigate();
   const [formData, setFormData] = useState({ email: '', password: '' });
-  const [otpMode, setOtpMode] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -15,7 +14,7 @@ export default function Login() {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
-const handleLogin = async (e) => {
+  const handleLogin = async (e) => {
     e.preventDefault();
     
     setError('');
@@ -25,9 +24,8 @@ const handleLogin = async (e) => {
       localStorage.setItem('access', response.data.access);
       localStorage.setItem('refresh', response.data.refresh);
 
-      // --- NEW CODE STARTS HERE ---
       // 1. Fetch the user's profile immediately after login
-      const profileRes = await api.get('auth/profile/'); // Ensure this matches your backend URL structure
+      const profileRes = await api.get('auth/profile/');
       
       // 2. Check if they are a new user
       if (profileRes.data.is_new) {
@@ -35,7 +33,6 @@ const handleLogin = async (e) => {
       } else {
         navigate('/app');
       }
-      // --- NEW CODE ENDS HERE ---
 
     } catch (err) {
       console.error(err);
@@ -43,7 +40,7 @@ const handleLogin = async (e) => {
     } finally {
       setLoading(false);
     }
-};
+  };
 
   return (
     <div className="min-h-screen bg-black text-white font-sans selection:bg-blue-500/30 flex flex-col">
@@ -86,7 +83,6 @@ const handleLogin = async (e) => {
                 <div className="flex-grow border-t border-white/5"></div>
               </div>
 
-              {/* 3. Updated: Added <form> wrapper */}
               <form onSubmit={handleLogin} className="space-y-4">
                 <div className="relative group">
                   <Mail className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-600 group-focus-within:text-blue-500 transition-colors" size={16} />
@@ -96,27 +92,26 @@ const handleLogin = async (e) => {
                     onChange={handleChange}
                     type="email"
                     placeholder="Work email"
+                    required
                     className="w-full pl-10 pr-4 py-3 bg-black/50 border border-white/10 rounded-xl text-sm focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500/20 transition-all"
                   />
                 </div>
                 
-                {!otpMode && (
-                  <div className="relative group">
-                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-600 group-focus-within:text-blue-500 transition-colors" size={16} />
-                    <input
-                      name="password"
-                      value={formData.password}
-                      onChange={handleChange}
-                      type="password"
-                      placeholder="Password"
-                      className="w-full pl-10 pr-4 py-3 bg-black/50 border border-white/10 rounded-xl text-sm focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500/20 transition-all"
-                    />
-                  </div>
-                )}
+                <div className="relative group">
+                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-600 group-focus-within:text-blue-500 transition-colors" size={16} />
+                  <input
+                    name="password"
+                    value={formData.password}
+                    onChange={handleChange}
+                    type="password"
+                    placeholder="Password"
+                    required
+                    className="w-full pl-10 pr-4 py-3 bg-black/50 border border-white/10 rounded-xl text-sm focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500/20 transition-all"
+                  />
+                </div>
 
                 {error && <p className="text-red-500 text-xs text-center">{error}</p>}
 
-                {/* 4. Updated: Button type="submit" and removed onClick */}
                 <button
                   type="submit"
                   disabled={loading}
@@ -126,14 +121,7 @@ const handleLogin = async (e) => {
                 </button>
               </form>
 
-              <div className="flex items-center justify-between mt-4">
-                <button 
-                  type="button"
-                  onClick={() => setOtpMode(!otpMode)}
-                  className="text-[11px] font-bold text-neutral-500 hover:text-white transition uppercase tracking-tighter"
-                >
-                  {otpMode ? 'Use Password' : 'Login via Code'}
-                </button>
+              <div className="flex items-center justify-end mt-4">
                 <button type="button" onClick={() => navigate('/signup')} className="text-[11px] font-bold text-blue-500 hover:text-blue-400 transition uppercase tracking-tighter">
                   Create Account
                 </button>
