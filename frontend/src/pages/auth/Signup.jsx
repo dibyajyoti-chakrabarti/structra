@@ -6,7 +6,9 @@ import api from '../../api';
 
 export default function Signup() {
   const navigate = useNavigate();
+  // Added confirmPassword to state
   const [formData, setFormData] = useState({ full_name: '', email: '', password: '' });
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -15,8 +17,15 @@ export default function Signup() {
   };
 
   const handleSubmit = async (e) => {
-    e.preventDefault(); // Prevent reload
+    e.preventDefault();
     setError('');
+
+    // 1. Validate Passwords Match
+    if (formData.password !== confirmPassword) {
+      setError("Passwords do not match.");
+      return;
+    }
+
     setLoading(true);
     try {
       await api.post('auth/register/', formData);
@@ -69,7 +78,6 @@ export default function Signup() {
                 <div className="flex-grow border-t border-white/5"></div>
               </div>
 
-              {/* Added Form Wrapper */}
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div className="relative group">
                   <User className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-600 group-focus-within:text-blue-500 transition-colors" size={16} />
@@ -79,6 +87,7 @@ export default function Signup() {
                     onChange={handleChange}
                     type="text"
                     placeholder="Full name"
+                    required
                     className="w-full pl-10 pr-4 py-3 bg-black/50 border border-white/10 rounded-xl text-sm focus:outline-none focus:border-blue-500 transition-all"
                   />
                 </div>
@@ -90,6 +99,7 @@ export default function Signup() {
                     onChange={handleChange}
                     type="email"
                     placeholder="Work email"
+                    required
                     className="w-full pl-10 pr-4 py-3 bg-black/50 border border-white/10 rounded-xl text-sm focus:outline-none focus:border-blue-500 transition-all"
                   />
                 </div>
@@ -101,13 +111,26 @@ export default function Signup() {
                     onChange={handleChange}
                     type="password"
                     placeholder="Password"
+                    required
+                    className="w-full pl-10 pr-4 py-3 bg-black/50 border border-white/10 rounded-xl text-sm focus:outline-none focus:border-blue-500 transition-all"
+                  />
+                </div>
+                {/* Confirm Password Field */}
+                <div className="relative group">
+                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-600 group-focus-within:text-blue-500 transition-colors" size={16} />
+                  <input
+                    name="confirmPassword"
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    type="password"
+                    placeholder="Confirm Password"
+                    required
                     className="w-full pl-10 pr-4 py-3 bg-black/50 border border-white/10 rounded-xl text-sm focus:outline-none focus:border-blue-500 transition-all"
                   />
                 </div>
 
                 {error && <p className="text-red-500 text-xs text-center">{error}</p>}
 
-                {/* Updated Button */}
                 <button
                   type="submit"
                   disabled={loading}
