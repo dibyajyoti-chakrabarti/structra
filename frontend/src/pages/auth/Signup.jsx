@@ -1,5 +1,6 @@
 import { useNavigate } from 'react-router-dom';
 import { useState } from 'react';
+import { useGoogleLogin } from '@react-oauth/google';
 import { ArrowLeft, User, Mail, Lock, Github, Chrome } from 'lucide-react';
 import logo from '../../assets/logo.png';
 import api from '../../api';
@@ -11,6 +12,35 @@ export default function Signup() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+
+  const googleLogin = useGoogleLogin({
+    onSuccess: async (tokenResponse) => {
+      setLoading(true);
+      try {
+        // Send access token to backend for signup
+        const res = await api.post('auth/google/', {
+          access_token: tokenResponse.access_token,
+        });
+
+        // Store tokens
+        localStorage.setItem('access', res.data.access);
+        localStorage.setItem('refresh', res.data.refresh);
+
+        // Navigate based on user status
+        if (res.data.user.is_new) {
+          navigate('/app/onboarding');
+        } else {
+          navigate('/app');
+        }
+      } catch (err) {
+        console.error('Google Signup Failed', err);
+        setError('Google signup failed. Please try again.');
+      } finally {
+        setLoading(false);
+      }
+    },
+    onError: () => setError('Google signup failed'),
+  });
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -64,7 +94,7 @@ export default function Signup() {
           <div className="bg-zinc-900/40 border border-white/10 rounded-2xl p-8 backdrop-blur-xl">
             <div className="space-y-6">
               <div className="grid grid-cols-2 gap-4">
-                <button type="button" className="flex items-center justify-center gap-2 py-2.5 bg-white text-black rounded-lg font-bold text-xs hover:bg-neutral-200 transition">
+                <button type="button" onClick={() => googleLogin()} className="flex items-center justify-center gap-2 py-2.5 bg-white text-black rounded-lg font-bold text-xs hover:bg-neutral-200 transition">
                   <Chrome size={14} /> Google
                 </button>
                 <button type="button" className="flex items-center justify-center gap-2 py-2.5 bg-zinc-800 text-white border border-white/10 rounded-lg font-bold text-xs hover:bg-zinc-700 transition">
