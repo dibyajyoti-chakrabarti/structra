@@ -40,6 +40,24 @@ export default function Login() {
     onError: () => setError("Google login failed"),
   });
 
+  const handleGitHubLogin = () => {
+    const CLIENT_ID = import.meta.env.VITE_GITHUB_CLIENT_ID;
+    const REDIRECT_URI = "http://localhost:5173/auth/github/callback";
+
+    // console.log("CLIENT_ID =>", CLIENT_ID);
+
+    if (!CLIENT_ID) {
+      alert("GitHub Client ID not loaded");
+      return;
+    }
+
+    window.location.href =
+      `https://github.com/login/oauth/authorize` +
+      `?client_id=${CLIENT_ID}` +
+      `&redirect_uri=${encodeURIComponent(REDIRECT_URI)}` +
+      `&scope=user:email`;
+  };
+
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
@@ -113,10 +131,11 @@ export default function Login() {
                   <Chrome size={14} /> Google
                 </button>
                 <button
-                  type="button"
-                  className="flex items-center justify-center gap-2 py-2.5 bg-zinc-800 text-white border border-white/10 rounded-lg font-bold text-xs hover:bg-zinc-700 transition"
+                  onClick={handleGitHubLogin} // Add this
+                  className="w-full flex items-center justify-center gap-3 px-4 py-3 bg-zinc-800 text-white rounded-xl border border-white/10 hover:bg-zinc-700 transition"
                 >
-                  <Github size={14} /> GitHub
+                  <Github size={20} />
+                  <span className="font-medium">GitHub</span>
                 </button>
               </div>
 

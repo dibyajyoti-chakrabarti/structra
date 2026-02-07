@@ -42,6 +42,22 @@ export default function Signup() {
     onError: () => setError('Google signup failed'),
   });
 
+  const handleGitHubLogin = () => {
+    const CLIENT_ID = import.meta.env.VITE_GITHUB_CLIENT_ID;
+    const REDIRECT_URI = "http://localhost:5173/auth/github/callback";
+
+    if (!CLIENT_ID) {
+      alert("GitHub Client ID not loaded");
+      return;
+    }
+
+    window.location.href =
+      `https://github.com/login/oauth/authorize` +
+      `?client_id=${CLIENT_ID}` +
+      `&redirect_uri=${encodeURIComponent(REDIRECT_URI)}` +
+      `&scope=user:email`;
+  };
+
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
@@ -97,7 +113,7 @@ export default function Signup() {
                 <button type="button" onClick={() => googleLogin()} className="flex items-center justify-center gap-2 py-2.5 bg-white text-black rounded-lg font-bold text-xs hover:bg-neutral-200 transition">
                   <Chrome size={14} /> Google
                 </button>
-                <button type="button" className="flex items-center justify-center gap-2 py-2.5 bg-zinc-800 text-white border border-white/10 rounded-lg font-bold text-xs hover:bg-zinc-700 transition">
+                <button type="button" onClick={handleGitHubLogin} className="flex items-center justify-center gap-2 py-2.5 bg-zinc-800 text-white border border-white/10 rounded-lg font-bold text-xs hover:bg-zinc-700 transition">
                   <Github size={14} /> GitHub
                 </button>
               </div>
