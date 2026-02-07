@@ -31,6 +31,7 @@ import Pricing from "./pages/public/Pricing";
 import Privacy from "./pages/public/Privacy";
 import Terms from "./pages/public/Terms";
 import OnboardingQuestionnaire from "./pages/onboarding/OnboardingQuestionnaire";
+import GitHubCallback from "./pages/auth/GitHubCallback";
 
 // 2. Create a helper component to handle the redirection
 const PublicRoute = ({ children }) => {
@@ -47,6 +48,8 @@ function App() {
   return (
     <BrowserRouter>
       <Routes>
+        <Route path="/auth/github/callback" element={<GitHubCallback />} />
+        
         {/* PUBLIC ROUTES - Wrapped to redirect authenticated users */}
         <Route
           path="/"
