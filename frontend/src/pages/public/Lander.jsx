@@ -252,78 +252,68 @@ export default function Lander() {
       </section>
 
       {/* How It Works */}
-      <section className="py-20 lg:py-32 bg-white">
+      <section className="py-24 bg-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
-            <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-gray-900 mb-4">
+            <h2 className="text-4xl font-bold text-gray-900 mb-4 tracking-tight">
               How It Works
             </h2>
-            <p className="text-xl text-gray-600 max-w-3xl mx-auto">
-              Transform your ideas into actionable insights in three simple steps
+            <p className="text-xl text-gray-600 max-w-2xl mx-auto">
+              Three simple steps to actionable insights
             </p>
           </div>
 
-          <div className="grid lg:grid-cols-3 gap-12">
+          <div className="grid lg:grid-cols-3 gap-8 relative">
             {/* Step 1 */}
-            <div className="relative">
-              <div className="text-center lg:text-left">
-                <div className="inline-flex items-center justify-center w-16 h-16 bg-blue-600 text-white rounded-2xl text-2xl font-bold mb-6">
-                  1
-                </div>
-                <div className="mb-8">
-                  <img 
-                    src={Step1Model}
-                    alt="Model your system" 
-                    className="w-full h-64 object-contain"
-                  />
-                </div>
-                <h3 className="text-2xl font-bold text-gray-900 mb-4">Model Your System</h3>
-                <p className="text-gray-600 leading-relaxed">
-                  Create visual representations of your architecture, processes, or business systems using our intuitive canvas.
-                </p>
+            <div className="flex flex-col items-center text-center group">
+              <div className="w-16 h-16 bg-blue-600 text-white rounded-2xl text-2xl font-bold flex items-center justify-center mb-6 shadow-lg shadow-blue-200 group-hover:scale-110 transition-transform duration-300">
+                1
               </div>
-              {/* Connector Arrow */}
-              <div className="hidden lg:block absolute top-8 left-full w-12 h-0.5 bg-gradient-to-r from-blue-600 to-transparent"></div>
+              <h3 className="text-2xl font-bold text-gray-900 mb-4">Model Your System</h3>
+              <p className="text-gray-600 leading-relaxed mb-8 max-w-sm">
+                Create visual representations of your architecture using our intuitive canvas.
+              </p>
+              <div className="w-full max-w-xs">
+                <img src={Step1Model} alt="Model" className="w-full h-auto drop-shadow-md" />
+              </div>
+            </div>
+
+            {/* Desktop Connector Icon (Chevron) instead of Lines */}
+            <div className="hidden lg:block absolute top-8 left-[31%] text-gray-200">
+                 <svg className="w-12 h-12" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
             </div>
 
             {/* Step 2 */}
-            <div className="relative">
-              <div className="text-center lg:text-left">
-                <div className="inline-flex items-center justify-center w-16 h-16 bg-blue-600 text-white rounded-2xl text-2xl font-bold mb-6">
-                  2
-                </div>
-                <div className="mb-8">
-                  <img 
-                    src={Step2Analyze} 
-                    alt="Analyze with AI" 
-                    className="w-full h-64 object-contain"
-                  />
-                </div>
-                <h3 className="text-2xl font-bold text-gray-900 mb-4">Analyze with AI</h3>
-                <p className="text-gray-600 leading-relaxed">
-                  Let our AI evaluate trade-offs, identify risks, and generate comprehensive insights automatically.
-                </p>
+            <div className="flex flex-col items-center text-center group">
+              <div className="w-16 h-16 bg-blue-600 text-white rounded-2xl text-2xl font-bold flex items-center justify-center mb-6 shadow-lg shadow-blue-200 group-hover:scale-110 transition-transform duration-300">
+                2
               </div>
-              {/* Connector Arrow */}
-              <div className="hidden lg:block absolute top-8 left-full w-12 h-0.5 bg-gradient-to-r from-blue-600 to-transparent"></div>
+              <h3 className="text-2xl font-bold text-gray-900 mb-4">Analyze with AI</h3>
+              <p className="text-gray-600 leading-relaxed mb-8 max-w-sm">
+                Let our AI evaluate trade-offs and generate insights automatically.
+              </p>
+              <div className="w-full max-w-xs">
+                 <img src={Step2Analyze} alt="Analyze" className="w-full h-auto drop-shadow-md" />
+              </div>
+            </div>
+
+            {/* Desktop Connector Icon (Chevron) */}
+             <div className="hidden lg:block absolute top-8 right-[31%] text-gray-200">
+                 <svg className="w-12 h-12" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
             </div>
 
             {/* Step 3 */}
-            <div className="text-center lg:text-left">
-              <div className="inline-flex items-center justify-center w-16 h-16 bg-blue-600 text-white rounded-2xl text-2xl font-bold mb-6">
+            <div className="flex flex-col items-center text-center group">
+              <div className="w-16 h-16 bg-blue-600 text-white rounded-2xl text-2xl font-bold flex items-center justify-center mb-6 shadow-lg shadow-blue-200 group-hover:scale-110 transition-transform duration-300">
                 3
               </div>
-              <div className="mb-8">
-                <img 
-                  src={Step3Decide}
-                  alt="Make decisions" 
-                  className="w-full h-64 object-contain"
-                />
-              </div>
               <h3 className="text-2xl font-bold text-gray-900 mb-4">Make Decisions</h3>
-              <p className="text-gray-600 leading-relaxed">
-                Share executive-ready presentations and collaborate with stakeholders to drive confident decisions.
+              <p className="text-gray-600 leading-relaxed mb-8 max-w-sm">
+                Share executive-ready presentations and drive confident decisions.
               </p>
+              <div className="w-full max-w-xs">
+                 <img src={Step3Decide} alt="Decide" className="w-full h-auto drop-shadow-md" />
+              </div>
             </div>
           </div>
         </div>
