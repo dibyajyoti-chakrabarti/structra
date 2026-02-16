@@ -3,15 +3,25 @@ from .serializers import UserRegistrationSerializer
 from django.contrib.auth import get_user_model
 from rest_framework.permissions import AllowAny
 from .serializers import UserSerializer
+from .models import EmailOTP
 import requests
 import os
+import hashlib
+import secrets
+from datetime import timedelta
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 from rest_framework_simplejwt.tokens import RefreshToken
 from django.conf import settings
+from django.core.mail import send_mail
+from django.utils import timezone
 
 User = get_user_model()
+
+OTP_TTL_MINUTES = 10
+OTP_RESEND_COOLDOWN_SECONDS = 60
+OTP_MAX_ATTEMPTS = 5
 
 class RegisterView(generics.CreateAPIView):
     queryset = User.objects.all()
@@ -145,3 +155,169 @@ class GitHubLoginView(APIView):
                 'is_new': user.is_new
             }
         })
+
+
+def _normalize_email(email):
+    return (email or '').strip().lower()
+
+
+def _hash_otp(otp):
+    raw = f"{otp}:{settings.SECRET_KEY}"
+    return hashlib.sha256(raw.encode('utf-8')).hexdigest()
+
+
+def _generate_otp():
+    return f"{secrets.randbelow(10**6):06d}"
+
+
+def _issue_tokens_for_user(user):
+    refresh = RefreshToken.for_user(user)
+    return {
+        'refresh': str(refresh),
+        'access': str(refresh.access_token),
+        'user': {
+            'email': user.email,
+            'full_name': user.full_name,
+            'is_new': user.is_new,
+        }
+    }
+
+
+class EmailOTPRequestView(APIView):
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        email = _normalize_email(request.data.get('email'))
+        purpose = (request.data.get('purpose') or '').strip().lower()
+
+        if not email:
+            return Response({'error': 'Email is required'}, status=status.HTTP_400_BAD_REQUEST)
+        if purpose not in {EmailOTP.PURPOSE_LOGIN, EmailOTP.PURPOSE_SIGNUP}:
+            return Response({'error': 'Invalid purpose'}, status=status.HTTP_400_BAD_REQUEST)
+
+        user_exists = User.objects.filter(email=email).exists()
+        if purpose == EmailOTP.PURPOSE_LOGIN and not user_exists:
+            return Response({'error': 'No account found with this email'}, status=status.HTTP_404_NOT_FOUND)
+        if purpose == EmailOTP.PURPOSE_SIGNUP and user_exists:
+            return Response({'error': 'Account already exists. Please login instead.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        now = timezone.now()
+        latest_active = EmailOTP.objects.filter(
+            email=email,
+            purpose=purpose,
+            is_used=False,
+            expires_at__gt=now
+        ).order_by('-created_at').first()
+
+        if latest_active:
+            elapsed = int((now - latest_active.created_at).total_seconds())
+            if elapsed < OTP_RESEND_COOLDOWN_SECONDS:
+                return Response(
+                    {
+                        'error': 'Please wait before requesting another OTP',
+                        'retry_after_seconds': OTP_RESEND_COOLDOWN_SECONDS - elapsed
+                    },
+                    status=status.HTTP_429_TOO_MANY_REQUESTS
+                )
+
+        EmailOTP.objects.filter(
+            email=email,
+            purpose=purpose,
+            is_used=False
+        ).update(is_used=True)
+
+        otp = _generate_otp()
+        expires_at = now + timedelta(minutes=OTP_TTL_MINUTES)
+
+        EmailOTP.objects.create(
+            email=email,
+            purpose=purpose,
+            otp_hash=_hash_otp(otp),
+            expires_at=expires_at,
+        )
+
+        subject = "Your Structra verification code"
+        message = (
+            f"Your verification code is: {otp}\n\n"
+            f"This code expires in {OTP_TTL_MINUTES} minutes.\n"
+            "If you did not request this, please ignore this email."
+        )
+
+        try:
+            send_mail(
+                subject=subject,
+                message=message,
+                from_email=settings.DEFAULT_FROM_EMAIL,
+                recipient_list=[email],
+                fail_silently=False,
+            )
+        except Exception:
+            return Response(
+                {'error': 'Failed to send OTP email. Check email configuration.'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+        return Response(
+            {'message': 'OTP sent successfully', 'expires_in_minutes': OTP_TTL_MINUTES},
+            status=status.HTTP_200_OK
+        )
+
+
+class EmailOTPVerifyView(APIView):
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        email = _normalize_email(request.data.get('email'))
+        otp = (request.data.get('otp') or '').strip()
+        purpose = (request.data.get('purpose') or '').strip().lower()
+        full_name = (request.data.get('full_name') or '').strip()
+
+        if not email or not otp:
+            return Response({'error': 'Email and OTP are required'}, status=status.HTTP_400_BAD_REQUEST)
+        if purpose not in {EmailOTP.PURPOSE_LOGIN, EmailOTP.PURPOSE_SIGNUP}:
+            return Response({'error': 'Invalid purpose'}, status=status.HTTP_400_BAD_REQUEST)
+
+        now = timezone.now()
+        otp_record = EmailOTP.objects.filter(
+            email=email,
+            purpose=purpose,
+            is_used=False,
+            expires_at__gt=now
+        ).order_by('-created_at').first()
+
+        if not otp_record:
+            return Response({'error': 'OTP not found or expired'}, status=status.HTTP_400_BAD_REQUEST)
+
+        if otp_record.attempts >= OTP_MAX_ATTEMPTS:
+            otp_record.is_used = True
+            otp_record.save(update_fields=['is_used'])
+            return Response({'error': 'Maximum attempts exceeded. Request a new OTP.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        if otp_record.otp_hash != _hash_otp(otp):
+            otp_record.attempts += 1
+            if otp_record.attempts >= OTP_MAX_ATTEMPTS:
+                otp_record.is_used = True
+                otp_record.save(update_fields=['attempts', 'is_used'])
+            else:
+                otp_record.save(update_fields=['attempts'])
+            return Response({'error': 'Invalid OTP'}, status=status.HTTP_400_BAD_REQUEST)
+
+        otp_record.is_used = True
+        otp_record.save(update_fields=['is_used'])
+
+        if purpose == EmailOTP.PURPOSE_LOGIN:
+            user = User.objects.filter(email=email).first()
+            if not user:
+                return Response({'error': 'No account found with this email'}, status=status.HTTP_404_NOT_FOUND)
+        else:
+            if not full_name:
+                return Response({'error': 'Full name is required for signup verification'}, status=status.HTTP_400_BAD_REQUEST)
+            if User.objects.filter(email=email).exists():
+                return Response({'error': 'Account already exists. Please login instead.'}, status=status.HTTP_400_BAD_REQUEST)
+            user = User.objects.create_user(
+                email=email,
+                password=None,
+                full_name=full_name
+            )
+
+        return Response(_issue_tokens_for_user(user), status=status.HTTP_200_OK)
