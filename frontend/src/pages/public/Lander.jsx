@@ -167,15 +167,13 @@ export default function Lander() {
             </div>
           </div>
 
-          <div className="relative">
-            <div className="absolute -inset-5 rounded-[2rem] bg-gradient-to-br from-blue-100 to-sky-100 blur-2xl" />
-            <div className="relative rounded-[2rem] border border-blue-100 bg-white p-5 shadow-xl shadow-blue-100/70">
-              <img
-                src={HeroIllustration}
-                alt="Structra platform illustration"
-                className="w-full"
-              />
-            </div>
+          <div className="relative flex items-center justify-center">
+            <div className="absolute -inset-8 bg-gradient-to-br from-blue-100/70 to-sky-100/70 blur-3xl" />
+            <img
+              src={HeroIllustration}
+              alt="Structra platform illustration"
+              className="relative w-full max-w-2xl object-contain"
+            />
           </div>
         </div>
 
@@ -221,11 +219,12 @@ export default function Lander() {
           </div>
 
           <div className="grid items-center gap-8 lg:grid-cols-2">
-            <div className="rounded-3xl border border-blue-100 bg-white p-4 shadow-lg shadow-blue-100/70 sm:p-6">
+            <div className="relative flex items-center justify-center py-2 sm:py-4">
+              <div className="absolute inset-0 bg-gradient-to-br from-blue-100/60 to-sky-100/50 blur-3xl" />
               <img
                 src={active.image}
                 alt={active.title}
-                className="h-auto w-full rounded-2xl bg-slate-50"
+                className="relative h-auto w-full max-w-3xl object-contain"
               />
             </div>
 
@@ -318,14 +317,14 @@ export default function Lander() {
             {useCases.map((item) => (
               <article
                 key={item.title}
-                className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm transition hover:-translate-y-0.5 hover:border-blue-200 hover:shadow-lg hover:shadow-blue-100/70"
+                className="group rounded-2xl border border-slate-200 bg-white p-6 shadow-sm transition hover:-translate-y-0.5 hover:border-blue-200 hover:shadow-lg hover:shadow-blue-100/70"
               >
                 <h3 className="text-xl font-bold text-slate-900">{item.title}</h3>
                 <p className="mt-2 text-sm leading-relaxed text-slate-600">{item.copy}</p>
                 <img
                   src={item.image}
                   alt={item.title}
-                  className="mt-5 h-52 w-full rounded-xl bg-slate-50 object-contain p-2"
+                  className="mt-5 h-56 w-full object-contain transition group-hover:scale-[1.01]"
                 />
               </article>
             ))}
@@ -333,42 +332,42 @@ export default function Lander() {
         </div>
       </section>
 
-      <section className="pb-16 sm:pb-24">
-        <div className="mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8">
-          <div className="relative overflow-hidden rounded-3xl border border-blue-200 bg-gradient-to-r from-blue-600 to-sky-600 px-6 py-10 text-white shadow-2xl shadow-blue-200/60 sm:px-10 sm:py-12 lg:grid lg:grid-cols-2 lg:items-center lg:gap-8">
-            <div>
-              <p className="text-xs font-black uppercase tracking-[0.2em] text-blue-100">
-                Start Today
-              </p>
-              <h2 className="mt-3 text-3xl font-black tracking-tight sm:text-4xl">
-                Ready to modernize architecture decisions?
-              </h2>
-              <p className="mt-4 max-w-2xl text-sm leading-relaxed text-blue-100 sm:text-base">
-                Launch your first workspace in minutes and align teams around
-                robust, explainable decisions.
-              </p>
-              <div className="mt-7 flex flex-col gap-3 sm:flex-row">
-                <button
-                  onClick={() => navigate("/signup")}
-                  className="rounded-xl bg-white px-7 py-3 text-sm font-black text-blue-700 transition hover:bg-blue-50"
-                >
-                  Start Free Trial
-                </button>
-                <button
-                  onClick={() => navigate("/pricing")}
-                  className="rounded-xl border border-blue-200 bg-transparent px-7 py-3 text-sm font-black text-white transition hover:bg-white/10"
-                >
-                  Explore Plans
-                </button>
-              </div>
+      <section className="relative overflow-hidden border-y border-blue-200 bg-gradient-to-r from-blue-600 to-sky-600 py-12 text-white sm:py-14">
+        <div className="absolute -left-20 top-0 h-64 w-64 rounded-full bg-white/10 blur-3xl" />
+        <div className="absolute -right-10 bottom-0 h-72 w-72 rounded-full bg-white/10 blur-3xl" />
+        <div className="relative mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8 lg:grid lg:grid-cols-2 lg:items-center lg:gap-8">
+          <div>
+            <p className="text-xs font-black uppercase tracking-[0.2em] text-blue-100">
+              Start Today
+            </p>
+            <h2 className="mt-3 text-3xl font-black tracking-tight sm:text-4xl">
+              Ready to modernize architecture decisions?
+            </h2>
+            <p className="mt-4 max-w-2xl text-sm leading-relaxed text-blue-100 sm:text-base">
+              Launch your first workspace in minutes and align teams around
+              robust, explainable decisions.
+            </p>
+            <div className="mt-7 flex flex-col gap-3 sm:flex-row">
+              <button
+                onClick={() => navigate("/signup")}
+                className="rounded-xl bg-white px-7 py-3 text-sm font-black text-blue-700 transition hover:bg-blue-50"
+              >
+                Start Free Trial
+              </button>
+              <button
+                onClick={() => navigate("/pricing")}
+                className="rounded-xl border border-blue-200 bg-transparent px-7 py-3 text-sm font-black text-white transition hover:bg-white/10"
+              >
+                Explore Plans
+              </button>
             </div>
-            <img
-              src={CtaIllustration}
-              alt="Get started with Structra"
-              className="mt-8 w-full lg:mt-0"
-            />
           </div>
-        </div>
+          <img
+            src={CtaIllustration}
+            alt="Get started with Structra"
+            className="relative mt-8 w-full object-contain lg:mt-0"
+          />
+          </div>
       </section>
 
       <Footer />
