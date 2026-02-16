@@ -32,8 +32,7 @@ export default function Pricing() {
             <div className="h-6 w-px bg-[#2a2a2a] hidden sm:block" />
             <button
               onClick={() => {
-                // Check if user is authenticated (adjust 'token' if your key is named differently)
-                const isAuthenticated = localStorage.getItem("token");
+                const isAuthenticated = localStorage.getItem("access");
                 navigate(isAuthenticated ? "/app" : "/");
               }}
               className="flex items-center gap-3 transition-transform active:scale-95"

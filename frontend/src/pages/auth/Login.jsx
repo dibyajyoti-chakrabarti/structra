@@ -1,13 +1,17 @@
 import { useGoogleLogin } from "@react-oauth/google";
 import { useNavigate } from "react-router-dom";
 import { useState } from "react";
-import { ArrowLeft, Mail, Lock, Github, Chrome } from "lucide-react";
+import { ArrowLeft, Mail, Lock, Github, Chrome, KeyRound } from "lucide-react";
 import logo from "../../assets/logo.png";
 import api from "../../api";
 
 export default function Login() {
   const navigate = useNavigate();
   const [formData, setFormData] = useState({ email: "", password: "" });
+  const [authMethod, setAuthMethod] = useState("password");
+  const [otpCode, setOtpCode] = useState("");
+  const [otpSent, setOtpSent] = useState(false);
+  const [otpMessage, setOtpMessage] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -89,6 +93,81 @@ export default function Login() {
     }
   };
 
+  const handleRequestOtp = async () => {
+    if (!formData.email.trim()) {
+      setError("Please enter your email first.");
+      return;
+    }
+
+    setError("");
+    setOtpMessage("");
+    setLoading(true);
+    try {
+      const res = await api.post("auth/email-otp/request/", {
+        email: formData.email,
+        purpose: "login",
+      });
+      setOtpSent(true);
+      setOtpMessage(
+        `OTP sent. It expires in ${res.data.expires_in_minutes || 10} minutes.`
+      );
+    } catch (err) {
+      setError(
+        err.response?.data?.error ||
+          "Failed to send OTP. Please try again."
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleVerifyOtp = async () => {
+    if (!formData.email.trim() || !otpCode.trim()) {
+      setError("Please enter email and OTP.");
+      return;
+    }
+
+    setError("");
+    setLoading(true);
+    try {
+      const response = await api.post("auth/email-otp/verify/", {
+        email: formData.email,
+        otp: otpCode,
+        purpose: "login",
+      });
+
+      localStorage.setItem("access", response.data.access);
+      localStorage.setItem("refresh", response.data.refresh);
+
+      if (response.data.user?.is_new) {
+        navigate("/app/onboarding");
+      } else {
+        navigate("/app");
+      }
+    } catch (err) {
+      setError(
+        err.response?.data?.error ||
+          "OTP verification failed. Please try again."
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleAuthSubmit = async (e) => {
+    if (authMethod === "password") {
+      await handleLogin(e);
+      return;
+    }
+
+    e.preventDefault();
+    if (!otpSent) {
+      await handleRequestOtp();
+      return;
+    }
+    await handleVerifyOtp();
+  };
+
   return (
     <div className="min-h-screen bg-black text-white font-sans selection:bg-blue-500/30 flex flex-col">
       <div className="p-8">
@@ -147,7 +226,40 @@ export default function Login() {
                 <div className="flex-grow border-t border-white/5"></div>
               </div>
 
-              <form onSubmit={handleLogin} className="space-y-4">
+              <div className="grid grid-cols-2 gap-2 p-1 bg-black/30 border border-white/10 rounded-xl">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setAuthMethod("password");
+                    setError("");
+                    setOtpMessage("");
+                  }}
+                  className={`py-2 rounded-lg text-xs font-bold transition ${
+                    authMethod === "password"
+                      ? "bg-blue-600 text-white"
+                      : "text-neutral-400 hover:text-white"
+                  }`}
+                >
+                  Password
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setAuthMethod("otp");
+                    setError("");
+                    setOtpMessage("");
+                  }}
+                  className={`py-2 rounded-lg text-xs font-bold transition flex items-center justify-center gap-1.5 ${
+                    authMethod === "otp"
+                      ? "bg-blue-600 text-white"
+                      : "text-neutral-400 hover:text-white"
+                  }`}
+                >
+                  <KeyRound size={12} /> Email OTP
+                </button>
+              </div>
+
+              <form onSubmit={handleAuthSubmit} className="space-y-4">
                 <div className="relative group">
                   <Mail
                     className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-600 group-focus-within:text-blue-500 transition-colors"
@@ -164,21 +276,57 @@ export default function Login() {
                   />
                 </div>
 
-                <div className="relative group">
-                  <Lock
-                    className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-600 group-focus-within:text-blue-500 transition-colors"
-                    size={16}
-                  />
-                  <input
-                    name="password"
-                    value={formData.password}
-                    onChange={handleChange}
-                    type="password"
-                    placeholder="Password"
-                    required
-                    className="w-full pl-10 pr-4 py-3 bg-black/50 border border-white/10 rounded-xl text-sm focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500/20 transition-all"
-                  />
-                </div>
+                {authMethod === "password" ? (
+                  <div className="relative group">
+                    <Lock
+                      className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-600 group-focus-within:text-blue-500 transition-colors"
+                      size={16}
+                    />
+                    <input
+                      name="password"
+                      value={formData.password}
+                      onChange={handleChange}
+                      type="password"
+                      placeholder="Password"
+                      required
+                      className="w-full pl-10 pr-4 py-3 bg-black/50 border border-white/10 rounded-xl text-sm focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500/20 transition-all"
+                    />
+                  </div>
+                ) : (
+                  <>
+                    {otpSent && (
+                      <div className="relative group">
+                        <KeyRound
+                          className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-600 group-focus-within:text-blue-500 transition-colors"
+                          size={16}
+                        />
+                        <input
+                          value={otpCode}
+                          onChange={(e) => setOtpCode(e.target.value)}
+                          type="text"
+                          inputMode="numeric"
+                          maxLength={6}
+                          placeholder="Enter 6-digit OTP"
+                          required
+                          className="w-full pl-10 pr-4 py-3 bg-black/50 border border-white/10 rounded-xl text-sm focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500/20 transition-all"
+                        />
+                      </div>
+                    )}
+                    {otpMessage && (
+                      <p className="text-green-400 text-xs text-center">{otpMessage}</p>
+                    )}
+                    {otpSent && (
+                      <button
+                        type="button"
+                        onClick={handleRequestOtp}
+                        disabled={loading}
+                        className="w-full py-2.5 border border-white/10 text-neutral-300 rounded-xl text-xs font-bold hover:bg-white/5 transition disabled:opacity-50"
+                      >
+                        Resend OTP
+                      </button>
+                    )}
+                  </>
+                )}
 
                 {error && (
                   <p className="text-red-500 text-xs text-center">{error}</p>
@@ -189,7 +337,13 @@ export default function Login() {
                   disabled={loading}
                   className="w-full py-3 bg-blue-600 text-white rounded-xl font-bold text-sm hover:bg-blue-500 shadow-[0_0_20px_rgba(37,99,235,0.2)] transition disabled:opacity-50"
                 >
-                  {loading ? "Signing In..." : "Sign In"}
+                  {loading
+                    ? "Please wait..."
+                    : authMethod === "password"
+                    ? "Sign In"
+                    : otpSent
+                    ? "Verify OTP & Sign In"
+                    : "Send OTP"}
                 </button>
               </form>
 
