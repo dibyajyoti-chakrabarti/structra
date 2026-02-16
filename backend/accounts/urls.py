@@ -1,6 +1,13 @@
 from django.urls import path
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
-from .views import RegisterView, UserProfileView, GoogleLoginView, GitHubLoginView
+from .views import (
+    RegisterView,
+    UserProfileView,
+    GoogleLoginView,
+    GitHubLoginView,
+    EmailOTPRequestView,
+    EmailOTPVerifyView,
+)
 
 urlpatterns = [
     path('register/', RegisterView.as_view(), name='register'),
@@ -9,4 +16,6 @@ urlpatterns = [
     path('profile/', UserProfileView.as_view(), name='profile'),
     path('google/', GoogleLoginView.as_view(), name='google_login'),
     path('github/', GitHubLoginView.as_view(), name='github_login'),
+    path('email-otp/request/', EmailOTPRequestView.as_view(), name='email_otp_request'),
+    path('email-otp/verify/', EmailOTPVerifyView.as_view(), name='email_otp_verify'),
 ]
