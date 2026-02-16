@@ -1,125 +1,139 @@
-import { useNavigate } from "react-router-dom";
-import logo from "../../assets/logo.png";
+import Navbar from "../../components/Navbar";
+import Footer from "../../components/Footer";
+
+const sections = [
+  {
+    title: "Information We Collect",
+    content:
+      "We collect account and profile details (such as name and email), workspace metadata, and system-model content required to provide the platform.",
+  },
+  {
+    title: "How We Use Information",
+    content:
+      "We use collected data to authenticate users, operate collaboration features, improve product reliability, and deliver AI-assisted evaluation services.",
+  },
+  {
+    title: "Security and Protection",
+    content:
+      "We apply technical and organizational controls to protect your data, including access controls, encrypted transport channels, and monitored infrastructure practices.",
+  },
+  {
+    title: "Data Sharing",
+    content:
+      "We do not sell your personal data. Information may be shared with trusted service providers strictly for service delivery, security, and lawful obligations.",
+  },
+  {
+    title: "Data Retention",
+    content:
+      "We retain data for as long as needed to provide services, meet legal requirements, resolve disputes, and enforce our agreements. Retention periods may vary by data type.",
+  },
+  {
+    title: "Your Rights and Choices",
+    content:
+      "You may request access, correction, or deletion of personal information, subject to legal and operational limitations. You may also update profile fields directly in your account.",
+  },
+  {
+    title: "Cookies and Product Analytics",
+    content:
+      "We may use essential cookies and limited analytics to improve performance, usability, and platform stability. You can manage browser-level cookie settings as applicable.",
+  },
+  {
+    title: "International Processing",
+    content:
+      "Depending on your location, data may be processed in regions where our infrastructure or service providers operate, under applicable safeguards.",
+  },
+  {
+    title: "Policy Updates",
+    content:
+      "We may revise this Privacy Policy periodically to reflect product, legal, or security changes. Updates are indicated by the effective date.",
+  },
+];
 
 export default function Privacy() {
-  const navigate = useNavigate();
-
   return (
-    <div className="min-h-screen bg-[#0a0a0a] text-[#f5f5f5] font-sans selection:bg-blue-500/30">
-      {/* Top Navigation Bar */}
-      <nav className="border-b border-[#1f1f1f] bg-[#0a0a0a] sticky top-0 z-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 sm:h-20 flex items-center justify-between">
-          <div className="flex items-center gap-4 sm:gap-8">
-            <button
-              onClick={() => navigate(-1)}
-              className="flex items-center gap-2 text-[#a3a3a3] hover:text-white transition-colors group"
-            >
-              <svg
-                className="w-5 h-5 transition-transform group-hover:-translate-x-1"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M15 19l-7-7 7-7"
-                />
-              </svg>
-              <span className="text-sm font-medium hidden sm:inline">Back</span>
-            </button>
-            <div className="h-6 w-px bg-[#2a2a2a] hidden sm:block" />
-            <button
-              onClick={() => {
-                const isAuthenticated = localStorage.getItem("access");
-                navigate(isAuthenticated ? "/app" : "/");
-              }}
-              className="flex items-center gap-3 transition-transform active:scale-95"
-            >
-              <img
-                src={logo}
-                alt="Logo"
-                className="h-7 w-auto object-contain"
-              />
-              <span className="text-xl font-extrabold tracking-tighter text-white">
-                structra<span className="text-blue-500">.cloud</span>
-              </span>
-            </button>
-          </div>
-        </div>
-      </nav>
+    <div className="min-h-screen bg-slate-50 text-slate-900">
+      <Navbar />
 
-      {/* Main Content Body */}
-      <main className="max-w-3xl mx-auto px-6 py-16 sm:py-24">
-        {/* Header Section */}
-        <header className="mb-16 border-b border-[#1f1f1f] pb-10">
-          <h1 className="text-4xl sm:text-5xl font-black tracking-tighter text-white mb-6">
+      <section className="relative overflow-hidden border-b border-blue-100 bg-gradient-to-b from-blue-50 via-white to-white pt-24 sm:pt-28">
+        <div className="pointer-events-none absolute -left-20 top-10 h-72 w-72 rounded-full bg-blue-200/40 blur-3xl" />
+        <div className="pointer-events-none absolute right-0 top-0 h-80 w-80 rounded-full bg-sky-200/40 blur-3xl" />
+
+        <div className="relative mx-auto w-full max-w-4xl px-4 pb-14 sm:px-6 lg:pb-16">
+          <p className="text-sm font-bold uppercase tracking-[0.2em] text-blue-600">
+            Legal
+          </p>
+          <h1 className="mt-4 text-4xl font-black tracking-tight sm:text-5xl">
             Privacy Policy
           </h1>
-          <div className="flex items-center gap-4 text-[10px] font-bold uppercase tracking-[0.2em] text-blue-500">
-            <span>Effective: Jan 2026</span>
-            <span className="w-1 h-1 bg-[#2a2a2a] rounded-full" />
-            <span className="text-[#6b6b6b]">Version 1.0.0</span>
+          <div className="mt-5 inline-flex items-center rounded-full border border-blue-200 bg-white px-4 py-2 text-xs font-semibold text-slate-600">
+            Effective Date: February 16, 2026
           </div>
-        </header>
-
-        {/* Text Layout Fixes */}
-        <div className="space-y-16">
-          <section className="group">
-            <h2 className="text-xl font-bold text-white mb-4 flex items-center gap-3 tracking-tight">
-              <span className="text-blue-500 text-sm font-mono">01.</span>
-              Data Collection
-            </h2>
-            <div className="text-[#a3a3a3] text-base leading-loose space-y-4">
-              <p>
-                We collect information necessary to provide system modeling
-                services, including account identifiers, workspace
-                configurations, and technical telemetry.
-              </p>
-              <p>
-                Our primary goal is to provide a seamless{" "}
-                <span className="text-white">Decision Intelligence</span>
-                experience while ensuring your architectural data remains
-                isolated and secure.
-              </p>
-            </div>
-          </section>
-
-          <section className="group">
-            <h2 className="text-xl font-bold text-white mb-4 flex items-center gap-3 tracking-tight">
-              <span className="text-blue-500 text-sm font-mono">02.</span>
-              Information Security
-            </h2>
-            <div className="text-[#a3a3a3] text-base leading-loose">
-              <p>
-                Structra.cloud employs industry-standard AES-256 encryption at
-                rest and TLS 1.3 in transit. We conduct regular third-party
-                security audits to maintain enterprise-grade protection for your
-                intelligence assets.
-              </p>
-            </div>
-          </section>
-
-          {/* Contact Section - Stylized for the footer of the page */}
-          <section className="pt-10 border-t border-[#1f1f1f]">
-            <div className="bg-[#0f0f0f] border border-[#1f1f1f] rounded-2xl p-8">
-              <h3 className="text-lg font-bold text-white mb-2">
-                Questions regarding privacy?
-              </h3>
-              <p className="text-sm text-[#6b6b6b] mb-6">
-                Our legal and security teams are here to help.
-              </p>
-              <a
-                href="mailto:support@structra.cloud"
-                className="inline-flex items-center justify-center px-6 py-3 bg-white text-black text-sm font-bold rounded-xl hover:bg-neutral-200 transition-all"
-              >
-                Contact Security Team
-              </a>
-            </div>
-          </section>
+          <p className="mt-6 text-base leading-relaxed text-slate-600 sm:text-lg">
+            This policy describes how Structra.cloud collects, uses, secures,
+            and manages personal and workspace information when you use our
+            services.
+          </p>
         </div>
-      </main>
+      </section>
+
+      <section className="py-10 sm:py-14">
+        <div className="mx-auto grid w-full max-w-6xl gap-8 px-4 sm:px-6 lg:grid-cols-[240px_minmax(0,1fr)] lg:px-8">
+          <aside className="h-fit rounded-2xl border border-slate-200 bg-white p-4 shadow-sm lg:sticky lg:top-28">
+            <p className="px-2 pb-2 text-xs font-black uppercase tracking-wider text-blue-600">
+              On this page
+            </p>
+            <nav className="space-y-1">
+              {sections.map((section, index) => (
+                <a
+                  key={section.title}
+                  href={`#section-${index + 1}`}
+                  className="block rounded-lg px-2 py-2 text-sm font-medium text-slate-600 transition hover:bg-blue-50 hover:text-blue-700"
+                >
+                  {index + 1}. {section.title}
+                </a>
+              ))}
+            </nav>
+          </aside>
+
+          <main className="space-y-4">
+            {sections.map((section, index) => (
+              <article
+                id={`section-${index + 1}`}
+                key={section.title}
+                className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm"
+              >
+                <p className="text-xs font-black uppercase tracking-[0.2em] text-blue-600">
+                  Section {index + 1}
+                </p>
+                <h2 className="mt-2 text-2xl font-black tracking-tight text-slate-900">
+                  {section.title}
+                </h2>
+                <p className="mt-3 text-sm leading-relaxed text-slate-600 sm:text-base">
+                  {section.content}
+                </p>
+              </article>
+            ))}
+
+            <article className="rounded-2xl border border-blue-200 bg-blue-50 p-6">
+              <h3 className="text-xl font-black text-slate-900">
+                Privacy questions or requests?
+              </h3>
+              <p className="mt-2 text-sm leading-relaxed text-slate-600 sm:text-base">
+                Reach us at{" "}
+                <a
+                  href="mailto:support@structra.cloud"
+                  className="font-semibold text-blue-700 hover:text-blue-800"
+                >
+                  support@structra.cloud
+                </a>{" "}
+                for access, correction, deletion, or data-handling clarifications.
+              </p>
+            </article>
+          </main>
+        </div>
+      </section>
+
+      <Footer />
     </div>
   );
 }
