@@ -35,7 +35,7 @@ import GitHubCallback from "./pages/auth/GitHubCallback";
 
 // 2. Create a helper component to handle the redirection
 const PublicRoute = ({ children }) => {
-  const isAuthenticated = localStorage.getItem("token"); // Ensure this key matches your auth logic
+  const isAuthenticated = localStorage.getItem("access");
 
   if (isAuthenticated) {
     return <Navigate to="/app" replace />;
