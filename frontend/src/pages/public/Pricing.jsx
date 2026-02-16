@@ -1,219 +1,227 @@
 import { useNavigate } from "react-router-dom";
-import logo from "../../assets/logo.png";
+import { CheckCircle2, ArrowRight } from "lucide-react";
+import Navbar from "../../components/Navbar";
+import Footer from "../../components/Footer";
+
+const plans = [
+  {
+    name: "Core",
+    price: "$0",
+    interval: "/month",
+    subtitle: "For individuals and early exploration",
+    cta: "Start Free",
+    highlighted: false,
+    features: [
+      "Single workspace",
+      "Visual architecture canvas",
+      "Basic AI evaluation credits",
+      "Personal profile and onboarding",
+      "Community support",
+    ],
+  },
+  {
+    name: "Team",
+    price: "$49",
+    interval: " /user/month",
+    subtitle: "For collaborative architecture teams",
+    cta: "Start Team Trial",
+    highlighted: true,
+    features: [
+      "Multiple team workspaces",
+      "Shared canvases and reviews",
+      "Higher AI evaluation limits",
+      "Workspace settings and governance",
+      "Priority email support",
+    ],
+  },
+  {
+    name: "Enterprise",
+    price: "Custom",
+    interval: "",
+    subtitle: "For organizations with compliance and scale needs",
+    cta: "Contact Sales",
+    highlighted: false,
+    features: [
+      "Advanced security controls",
+      "Role-based access policies",
+      "Audit-ready activity records",
+      "Custom onboarding and training",
+      "Dedicated success manager",
+    ],
+  },
+];
 
 export default function Pricing() {
   const navigate = useNavigate();
 
   return (
-    <div className="h-screen bg-[#0a0a0a] text-[#f5f5f5] font-sans selection:bg-blue-500/30 flex flex-col overflow-hidden">
-      {/* Top Navigation Bar - Fixed Height, Flex-none */}
-      <nav className="border-b border-[#1f1f1f] bg-[#0a0a0a] sticky top-0 z-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 sm:h-20 flex items-center justify-between">
-          <div className="flex items-center gap-4 sm:gap-8">
-            <button
-              onClick={() => navigate(-1)}
-              className="flex items-center gap-2 text-[#a3a3a3] hover:text-white transition-colors group"
-            >
-              <svg
-                className="w-5 h-5 transition-transform group-hover:-translate-x-1"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M15 19l-7-7 7-7"
-                />
-              </svg>
-              <span className="text-sm font-medium hidden sm:inline">Back</span>
-            </button>
-            <div className="h-6 w-px bg-[#2a2a2a] hidden sm:block" />
-            <button
-              onClick={() => {
-                const isAuthenticated = localStorage.getItem("access");
-                navigate(isAuthenticated ? "/app" : "/");
-              }}
-              className="flex items-center gap-3 transition-transform active:scale-95"
-            >
-              <img
-                src={logo}
-                alt="Logo"
-                className="h-7 w-auto object-contain"
-              />
-              <span className="text-xl font-extrabold tracking-tighter text-white">
-                structra<span className="text-blue-500">.cloud</span>
-              </span>
-            </button>
+    <div className="min-h-screen bg-slate-50 text-slate-900">
+      <Navbar />
+
+      <section className="relative overflow-hidden border-b border-blue-100 bg-gradient-to-b from-blue-50 via-white to-white pt-24 sm:pt-28">
+        <div className="pointer-events-none absolute -left-20 top-14 h-72 w-72 rounded-full bg-blue-200/40 blur-3xl" />
+        <div className="pointer-events-none absolute right-0 top-0 h-80 w-80 rounded-full bg-sky-200/40 blur-3xl" />
+
+        <div className="relative mx-auto w-full max-w-7xl px-4 pb-16 sm:px-6 lg:px-8 lg:pb-20">
+          <div className="mx-auto max-w-3xl text-center">
+            <p className="text-sm font-bold uppercase tracking-[0.2em] text-blue-600">
+              Pricing
+            </p>
+            <h1 className="mt-4 text-4xl font-black tracking-tight sm:text-5xl">
+              Transparent plans for every stage
+            </h1>
+            <p className="mt-5 text-lg leading-relaxed text-slate-600">
+              Start free, collaborate with your team, and scale to enterprise
+              governance when your architecture practice matures.
+            </p>
           </div>
         </div>
-      </nav>
+      </section>
 
-      {/* Main Content Body - Scrollable */}
-      <main className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8">
-        <div className="w-full max-w-5xl mx-auto pb-12">
-          {/* Header Section */}
-          <header className="mb-8 sm:mb-10 border-b border-[#1f1f1f] pb-6 sm:pb-8">
-            <h1 className="text-3xl sm:text-4xl lg:text-5xl font-black tracking-tighter text-white mb-4 sm:mb-6">
-              Pricing Plans
-            </h1>
+      <section className="py-12 sm:py-16">
+        <div className="mx-auto grid w-full max-w-7xl gap-6 px-4 sm:px-6 lg:grid-cols-3 lg:px-8">
+          {plans.map((plan) => (
+            <article
+              key={plan.name}
+              className={`rounded-2xl border p-6 shadow-sm transition ${
+                plan.highlighted
+                  ? "border-blue-200 bg-white shadow-lg shadow-blue-100/80"
+                  : "border-slate-200 bg-white hover:border-blue-200 hover:shadow-md"
+              }`}
+            >
+              {plan.highlighted && (
+                <p className="mb-4 inline-flex rounded-full bg-blue-100 px-3 py-1 text-xs font-black uppercase tracking-wider text-blue-700">
+                  Most Popular
+                </p>
+              )}
+              <h2 className="text-2xl font-black text-slate-900">{plan.name}</h2>
+              <p className="mt-2 text-sm text-slate-600">{plan.subtitle}</p>
 
-            {/* Metadata Row */}
-            <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-6 text-[10px] font-bold uppercase tracking-[0.2em] text-blue-500 mb-4 sm:mb-6">
-              <div className="flex items-center gap-2">
-                <span>Monthly Billing</span>
-                <span className="w-1 h-1 bg-[#2a2a2a] rounded-full" />
-                <span className="text-[#6b6b6b]">Cancel Anytime</span>
-              </div>
-            </div>
-
-            {/* Description */}
-            <p className="text-sm sm:text-base text-[#a3a3a3] leading-relaxed max-w-xl">
-              Choose the plan that matches your system complexity and governance
-              requirements.
-            </p>
-          </header>
-
-          {/* Pricing Cards Grid - Stacks on Mobile */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-stretch">
-            {/* Core Tier */}
-            <div className="border border-[#2a2a2a] rounded-2xl p-5 sm:p-6 bg-[#0f0f0f] flex flex-col hover:border-[#3a3a3a] transition-all duration-300">
-              <div className="flex items-start justify-between mb-4">
-                <div>
-                  <h2 className="text-lg sm:text-xl font-bold text-white tracking-tight mb-1">
-                    Core
-                  </h2>
-                  <p className="text-xs text-[#a3a3a3]">
-                    For individual engineers
-                  </p>
-                </div>
-                <div className="px-2 py-1 bg-[#1f1f1f] rounded-full text-[10px] font-bold uppercase tracking-wider text-[#a3a3a3]">
-                  Free
-                </div>
+              <div className="mt-6 flex items-end gap-1">
+                <span className="text-4xl font-black tracking-tight text-slate-900">
+                  {plan.price}
+                </span>
+                <span className="pb-1 text-sm font-semibold text-slate-500">
+                  {plan.interval}
+                </span>
               </div>
 
-              <div className="mb-6">
-                <div className="flex items-baseline gap-1">
-                  <span className="text-3xl font-black tracking-tighter">
-                    $0
-                  </span>
-                  <span className="text-[#6b6b6b] text-xs font-medium">
-                    /month
-                  </span>
-                </div>
-              </div>
-
-              <div className="mb-6 flex-1">
-                <ul className="space-y-3">
-                  {[
-                    "Visual system modeling canvas",
-                    "Relationship & assumption modeling",
-                    "AI-assisted evaluation (limited)",
-                    "Single workspace",
-                    "Community support",
-                  ].map((item, i) => (
-                    <li key={i} className="flex items-start gap-3">
-                      <div className="w-4 h-4 rounded-full bg-[#1f1f1f] flex items-center justify-center flex-shrink-0 mt-0.5">
-                        <svg
-                          className="w-2.5 h-2.5 text-[#a3a3a3]"
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M5 13l4 4L19 7"
-                          />
-                        </svg>
-                      </div>
-                      <span className="text-sm text-[#a3a3a3] leading-tight">
-                        {item}
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
+              <ul className="mt-6 space-y-3">
+                {plan.features.map((feature) => (
+                  <li
+                    key={feature}
+                    className="flex items-start gap-2 text-sm text-slate-700"
+                  >
+                    <CheckCircle2
+                      size={16}
+                      className="mt-0.5 flex-shrink-0 text-blue-600"
+                    />
+                    {feature}
+                  </li>
+                ))}
+              </ul>
 
               <button
-                disabled
-                className="w-full py-2.5 border border-[#2a2a2a] text-[#6b6b6b] rounded-lg cursor-not-allowed text-xs font-bold uppercase tracking-wider"
+                onClick={() =>
+                  plan.name === "Enterprise"
+                    ? (window.location.href = "mailto:support@structra.cloud")
+                    : navigate("/signup")
+                }
+                className={`mt-8 inline-flex w-full items-center justify-center gap-2 rounded-xl px-5 py-3 text-sm font-bold transition ${
+                  plan.highlighted
+                    ? "bg-blue-600 text-white hover:bg-blue-700"
+                    : "border border-blue-200 bg-white text-blue-700 hover:bg-blue-50"
+                }`}
               >
-                Current Plan
+                {plan.cta}
+                <ArrowRight size={16} />
               </button>
+            </article>
+          ))}
+        </div>
+      </section>
+
+      <section className="border-y border-blue-100 bg-white py-12 sm:py-16">
+        <div className="mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8">
+          <h3 className="text-2xl font-black tracking-tight text-slate-900 sm:text-3xl">
+            Frequently Asked Questions
+          </h3>
+          <div className="mt-8 grid gap-5 md:grid-cols-2">
+            <div className="rounded-xl border border-slate-200 bg-slate-50 p-5">
+              <h4 className="font-bold text-slate-900">
+                Is there a free trial for paid plans?
+              </h4>
+              <p className="mt-2 text-sm leading-relaxed text-slate-600">
+                Yes. Team plans can start with a trial so you can validate value
+                with your workflow before committing.
+              </p>
             </div>
+            <div className="rounded-xl border border-slate-200 bg-slate-50 p-5">
+              <h4 className="font-bold text-slate-900">
+                Can we switch plans later?
+              </h4>
+              <p className="mt-2 text-sm leading-relaxed text-slate-600">
+                Absolutely. You can upgrade as your team grows or move to
+                enterprise when governance needs increase.
+              </p>
+            </div>
+            <div className="rounded-xl border border-slate-200 bg-slate-50 p-5">
+              <h4 className="font-bold text-slate-900">
+                Do you support enterprise procurement?
+              </h4>
+              <p className="mt-2 text-sm leading-relaxed text-slate-600">
+                Yes. We support standard procurement flows, security reviews, and
+                custom commercial terms.
+              </p>
+            </div>
+            <div className="rounded-xl border border-slate-200 bg-slate-50 p-5">
+              <h4 className="font-bold text-slate-900">
+                Where do I contact support or sales?
+              </h4>
+              <p className="mt-2 text-sm leading-relaxed text-slate-600">
+                Reach us anytime at{" "}
+                <a
+                  href="mailto:support@structra.cloud"
+                  className="font-semibold text-blue-700 hover:text-blue-800"
+                >
+                  support@structra.cloud
+                </a>
+                .
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
 
-            {/* Enterprise Tier */}
-            <div className="border-2 border-white rounded-2xl p-5 sm:p-6 bg-[#0a0a0a] flex flex-col relative shadow-2xl shadow-white/5 mt-4 lg:mt-0">
-              <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-1 bg-white text-black rounded-full text-[10px] font-bold uppercase tracking-wider whitespace-nowrap">
-                Most Popular
-              </div>
-
-              <div className="flex items-start justify-between mb-4">
-                <div>
-                  <h2 className="text-lg sm:text-xl font-bold text-white tracking-tight mb-1">
-                    Enterprise
-                  </h2>
-                  <p className="text-xs text-[#a3a3a3]">
-                    For teams requiring governance
-                  </p>
-                </div>
-              </div>
-
-              <div className="mb-6">
-                <div className="flex items-baseline gap-1">
-                  <span className="text-3xl font-black tracking-tighter">
-                    Custom
-                  </span>
-                </div>
-              </div>
-
-              <div className="mb-6 flex-1">
-                <ul className="space-y-3">
-                  {[
-                    "Advanced AI evaluation workflows",
-                    "Role-based access control (RBAC)",
-                    "Audit logs & activity history",
-                    "Multiple workspaces",
-                    "SSO & advanced security",
-                    "Dedicated success manager",
-                  ].map((item, i) => (
-                    <li key={i} className="flex items-start gap-3">
-                      <div className="w-4 h-4 rounded-full bg-green-500/20 flex items-center justify-center flex-shrink-0 mt-0.5">
-                        <svg
-                          className="w-2.5 h-2.5 text-green-500"
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M5 13l4 4L19 7"
-                          />
-                        </svg>
-                      </div>
-                      <span className="text-sm text-[#f5f5f5] leading-tight">
-                        {item}
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-
+      <section className="py-12 sm:py-16">
+        <div className="mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8">
+          <div className="rounded-2xl border border-blue-200 bg-gradient-to-r from-blue-600 to-sky-600 px-6 py-10 text-white shadow-xl shadow-blue-100 sm:px-10">
+            <h3 className="text-3xl font-black tracking-tight">
+              Need a tailored enterprise plan?
+            </h3>
+            <p className="mt-3 max-w-2xl text-sm leading-relaxed text-blue-100 sm:text-base">
+              Tell us about your architecture governance, team size, and
+              compliance needs. We’ll configure the right rollout plan.
+            </p>
+            <div className="mt-6 flex flex-col gap-3 sm:flex-row">
+              <button
+                onClick={() => (window.location.href = "mailto:support@structra.cloud")}
+                className="rounded-xl bg-white px-6 py-3 text-sm font-black text-blue-700 hover:bg-blue-50"
+              >
+                Talk to Sales
+              </button>
               <button
                 onClick={() => navigate("/signup")}
-                className="w-full py-2.5 bg-white text-black rounded-lg font-bold hover:bg-neutral-200 transition-all duration-200 text-xs uppercase tracking-wider"
+                className="rounded-xl border border-blue-200 px-6 py-3 text-sm font-black text-white hover:bg-white/10"
               >
-                Contact Sales
+                Start Free Now
               </button>
             </div>
           </div>
         </div>
-      </main>
+      </section>
+
+      <Footer />
     </div>
   );
 }

@@ -1,513 +1,376 @@
-import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import Navbar from '../../components/Navbar';
-import Footer from '../../components/Footer';
+import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import {
+  Sparkles,
+  ShieldCheck,
+  Clock3,
+  Users,
+  Brain,
+  Workflow,
+  ArrowRight,
+} from "lucide-react";
+import Navbar from "../../components/Navbar";
+import Footer from "../../components/Footer";
 
-// Asset Imports
-import HeroIllustration from '../../assets/hero-illustration.svg';
-import FeatureModeling from '../../assets/feature-modeling.svg';
-import FeatureAI from '../../assets/feature-ai.svg';
-import FeatureCollaboration from '../../assets/feature-collaboration.svg';
-import Step1Model from '../../assets/step-1-model.svg';
-import Step2Analyze from '../../assets/step-2-analyze.svg';
-import Step3Decide from '../../assets/step-3-decide.svg';
-import UsecaseArchitects from '../../assets/usecase-architects.svg';
-import UsecaseEngineering from '../../assets/usecase-engineering.svg';
-import UsecaseOperations from '../../assets/usecase-operations.svg';
-import UsecaseStrategy from '../../assets/usecase-strategy.svg';
-import CtaIllustration from '../../assets/cta-illustration.svg';
+import HeroIllustration from "../../assets/hero-illustration.svg";
+import FeatureModeling from "../../assets/feature-modeling.svg";
+import FeatureAI from "../../assets/feature-ai.svg";
+import FeatureCollaboration from "../../assets/feature-collaboration.svg";
+import Step1Model from "../../assets/step-1-model.svg";
+import Step2Analyze from "../../assets/step-2-analyze.svg";
+import Step3Decide from "../../assets/step-3-decide.svg";
+import UsecaseArchitects from "../../assets/usecase-architects.svg";
+import UsecaseEngineering from "../../assets/usecase-engineering.svg";
+import UsecaseOperations from "../../assets/usecase-operations.svg";
+import UsecaseStrategy from "../../assets/usecase-strategy.svg";
+import CtaIllustration from "../../assets/cta-illustration.svg";
+
+const capabilities = [
+  {
+    title: "Visual Modeling Workspace",
+    description:
+      "Design architecture, dependencies, and assumptions in one structured canvas.",
+    image: FeatureModeling,
+    icon: Workflow,
+  },
+  {
+    title: "AI Evaluation Assistant",
+    description:
+      "Compare alternatives, flag risk hotspots, and generate recommendation context.",
+    image: FeatureAI,
+    icon: Brain,
+  },
+  {
+    title: "Team Decision Workflows",
+    description:
+      "Align architects, engineering leads, and operations through shared reviews.",
+    image: FeatureCollaboration,
+    icon: Users,
+  },
+];
+
+const journey = [
+  {
+    step: "01",
+    title: "Model the system",
+    description:
+      "Capture architecture components, boundaries, and dependencies visually.",
+    image: Step1Model,
+  },
+  {
+    step: "02",
+    title: "Evaluate options",
+    description:
+      "Run AI-assisted analysis to compare trade-offs across multiple scenarios.",
+    image: Step2Analyze,
+  },
+  {
+    step: "03",
+    title: "Decide with confidence",
+    description:
+      "Present recommendations with clear rationale and stakeholder-ready context.",
+    image: Step3Decide,
+  },
+];
+
+const useCases = [
+  {
+    title: "System Architects",
+    copy: "Map service boundaries, data flow, and resilience decisions with precision.",
+    image: UsecaseArchitects,
+  },
+  {
+    title: "Engineering Leadership",
+    copy: "Prioritize architecture investments using measurable risk and impact signals.",
+    image: UsecaseEngineering,
+  },
+  {
+    title: "Operations Teams",
+    copy: "Track operational bottlenecks and reliability plans from a shared model.",
+    image: UsecaseOperations,
+  },
+  {
+    title: "Strategy & Planning",
+    copy: "Build decision narratives with transparent assumptions and outcomes.",
+    image: UsecaseStrategy,
+  },
+];
 
 export default function Lander() {
   const navigate = useNavigate();
-  const [activeFeature, setActiveFeature] = useState(0);
+  const [activeCapability, setActiveCapability] = useState(0);
 
   useEffect(() => {
     const timer = setInterval(() => {
-      setActiveFeature((prev) => (prev + 1) % 3);
-    }, 4000);
+      setActiveCapability((prev) => (prev + 1) % capabilities.length);
+    }, 4500);
     return () => clearInterval(timer);
   }, []);
 
-  const features = [
-    {
-      title: "Visual System Modeling",
-      description: "Design complex technical and business systems with intuitive drag-and-drop tools",
-      image: FeatureModeling
-    },
-    {
-      title: "AI-Powered Analysis",
-      description: "Evaluate trade-offs, assess risks, and generate insights automatically",
-      image: FeatureAI
-    },
-    {
-      title: "Team Collaboration",
-      description: "Work together in real-time with enterprise-grade security and governance",
-      image: FeatureCollaboration
-    }
-  ];
+  const active = capabilities[activeCapability];
+  const ActiveIcon = active.icon;
 
   return (
-    <div className="min-h-screen bg-white">
+    <div className="min-h-screen bg-slate-50 text-slate-900">
       <Navbar />
 
-      {/* Hero Section */}
-      <section className="relative overflow-hidden bg-gradient-to-br from-blue-50 via-white to-blue-50">
-        <div className="absolute inset-0 opacity-30">
-          <div className="absolute top-20 left-10 w-72 h-72 bg-blue-200 rounded-full mix-blend-multiply filter blur-xl animate-blob"></div>
-          <div className="absolute top-40 right-10 w-72 h-72 bg-indigo-200 rounded-full mix-blend-multiply filter blur-xl animate-blob animation-delay-2000"></div>
-          <div className="absolute -bottom-8 left-1/2 w-72 h-72 bg-blue-100 rounded-full mix-blend-multiply filter blur-xl animate-blob animation-delay-4000"></div>
-        </div>
+      <section className="relative overflow-hidden border-b border-blue-100 bg-gradient-to-b from-blue-50 via-white to-white pt-24 sm:pt-28">
+        <div className="pointer-events-none absolute -left-20 top-24 h-72 w-72 rounded-full bg-blue-200/40 blur-3xl" />
+        <div className="pointer-events-none absolute right-0 top-0 h-96 w-96 rounded-full bg-sky-200/40 blur-3xl" />
 
-        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-20 pb-24 lg:pt-32 lg:pb-32">
-          <div className="grid lg:grid-cols-2 gap-12 items-center">
-            {/* Left Content */}
-            <div className="text-center lg:text-left">
-              <div className="inline-flex items-center px-4 py-2 bg-blue-100 rounded-full mb-6">
-                <span className="text-blue-700 text-sm font-medium">Enterprise AI Platform</span>
-              </div>
-              
-              <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-gray-900 leading-tight mb-6">
-                Transform Complex Systems into
-                <span className="text-blue-600"> Clear Decisions</span>
-              </h1>
-              
-              <p className="text-lg sm:text-xl text-gray-600 leading-relaxed mb-8 max-w-2xl mx-auto lg:mx-0">
-                Structra.cloud helps enterprise teams model, analyze, and optimize complex architectures with AI-powered intelligence. Make confident decisions backed by data.
-              </p>
-
-              <div className="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start">
-                <button
-                  onClick={() => navigate('/signup')}
-                  className="px-8 py-4 bg-blue-600 text-white font-semibold rounded-xl hover:bg-blue-700 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
-                >
-                  Start Free Trial
-                </button>
-                <button
-                  onClick={() => navigate('/demo')}
-                  className="px-8 py-4 bg-white text-blue-600 font-semibold rounded-xl border-2 border-blue-600 hover:bg-blue-50 transition-all duration-200"
-                >
-                  Watch Demo
-                </button>
-              </div>
-
-              {/* Trust Indicators */}
-              <div className="mt-12 flex flex-wrap items-center gap-6 justify-center lg:justify-start text-sm text-gray-500">
-                <div className="flex items-center gap-2">
-                  <svg className="w-5 h-5 text-green-500" fill="currentColor" viewBox="0 0 20 20">
-                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd"/>
-                  </svg>
-                  <span>SOC 2 Compliant</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <svg className="w-5 h-5 text-green-500" fill="currentColor" viewBox="0 0 20 20">
-                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd"/>
-                  </svg>
-                  <span>Enterprise Ready</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <svg className="w-5 h-5 text-green-500" fill="currentColor" viewBox="0 0 20 20">
-                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd"/>
-                  </svg>
-                  <span>14-Day Free Trial</span>
-                </div>
-              </div>
+        <div className="relative mx-auto grid w-full max-w-7xl gap-12 px-4 pb-16 sm:px-6 lg:grid-cols-2 lg:items-center lg:px-8 lg:pb-24">
+          <div>
+            <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-blue-200 bg-white/70 px-4 py-2 text-sm font-semibold text-blue-700">
+              <Sparkles size={16} />
+              Decision Intelligence Platform
             </div>
 
-            {/* Right Illustration */}
-            <div className="relative">
-              <div className="relative z-10">
-                <img 
-                  src={HeroIllustration}
-                  alt="System Architecture Visualization" 
-                  className="w-full h-auto drop-shadow-2xl"
-                />
-              </div>
+            <h1 className="text-4xl font-black leading-tight tracking-tight text-slate-900 sm:text-5xl lg:text-6xl">
+              Build Better Systems
+              <span className="block text-blue-600">Make Better Decisions</span>
+            </h1>
+
+            <p className="mt-6 max-w-2xl text-lg leading-relaxed text-slate-600">
+              Structra helps teams model architecture, evaluate trade-offs, and
+              align on high-impact technical decisions with AI-guided clarity.
+            </p>
+
+            <div className="mt-8 flex flex-col gap-3 sm:flex-row">
+              <button
+                onClick={() => navigate("/signup")}
+                className="inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-7 py-3.5 text-sm font-bold text-white shadow-lg shadow-blue-200 transition hover:bg-blue-700"
+              >
+                Start Free Trial
+                <ArrowRight size={16} />
+              </button>
+              <button
+                onClick={() => navigate("/pricing")}
+                className="rounded-xl border border-blue-200 bg-white px-7 py-3.5 text-sm font-bold text-blue-700 transition hover:border-blue-300 hover:bg-blue-50"
+              >
+                View Pricing
+              </button>
+            </div>
+
+            <div className="mt-8 flex flex-wrap items-center gap-5 text-sm font-medium text-slate-600">
+              <span className="inline-flex items-center gap-2">
+                <ShieldCheck size={16} className="text-green-600" />
+                SOC 2 aligned
+              </span>
+              <span className="inline-flex items-center gap-2">
+                <Users size={16} className="text-green-600" />
+                Team-ready workspaces
+              </span>
+              <span className="inline-flex items-center gap-2">
+                <Clock3 size={16} className="text-green-600" />
+                Setup in minutes
+              </span>
+            </div>
+          </div>
+
+          <div className="relative flex items-center justify-center">
+            <div className="absolute -inset-8 bg-gradient-to-br from-blue-100/70 to-sky-100/70 blur-3xl" />
+            <img
+              src={HeroIllustration}
+              alt="Structra platform illustration"
+              className="relative w-full max-w-2xl object-contain"
+            />
+          </div>
+        </div>
+
+        <div className="border-t border-blue-100 bg-white/80">
+          <div className="mx-auto grid w-full max-w-7xl grid-cols-1 gap-4 px-4 py-5 sm:grid-cols-3 sm:px-6 lg:px-8">
+            <div className="rounded-xl border border-blue-100 bg-blue-50/60 px-5 py-4">
+              <p className="text-xs font-bold uppercase tracking-wider text-blue-700">
+                Decision Velocity
+              </p>
+              <p className="mt-1 text-sm text-slate-600">
+                Move from architecture discussion to action quickly.
+              </p>
+            </div>
+            <div className="rounded-xl border border-blue-100 bg-blue-50/60 px-5 py-4">
+              <p className="text-xs font-bold uppercase tracking-wider text-blue-700">
+                Shared Context
+              </p>
+              <p className="mt-1 text-sm text-slate-600">
+                Bring engineering, operations, and leadership onto one model.
+              </p>
+            </div>
+            <div className="rounded-xl border border-blue-100 bg-blue-50/60 px-5 py-4">
+              <p className="text-xs font-bold uppercase tracking-wider text-blue-700">
+                Audit Friendly
+              </p>
+              <p className="mt-1 text-sm text-slate-600">
+                Keep traceable reasoning behind every major design choice.
+              </p>
             </div>
           </div>
         </div>
       </section>
 
-      {/* Features Showcase */}
-      <section className="py-20 lg:py-32 bg-gradient-to-b from-white to-blue-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-16">
-            <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-gray-900 mb-4">
-              Everything You Need to Make Better Decisions
-            </h2>
-            <p className="text-xl text-gray-600 max-w-3xl mx-auto">
-              From initial design to AI-powered insights, Structra.cloud provides the complete toolkit for modern enterprise architecture.
+      <section className="py-16 sm:py-20">
+        <div className="mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8">
+          <div className="mb-10 text-center">
+            <p className="text-sm font-bold uppercase tracking-[0.2em] text-blue-600">
+              Core Capabilities
             </p>
+            <h2 className="mt-3 text-3xl font-black tracking-tight sm:text-4xl">
+              Built for serious architecture work
+            </h2>
           </div>
 
-          {/* Interactive Feature Showcase */}
-          <div className="grid lg:grid-cols-2 gap-12 items-center mb-20">
-            <div className="order-2 lg:order-1">
-              <img 
-                src={features[activeFeature].image}
-                alt={features[activeFeature].title}
-                className="w-full h-auto rounded-2xl shadow-2xl transition-all duration-500"
+          <div className="grid items-center gap-8 lg:grid-cols-2">
+            <div className="relative flex items-center justify-center py-2 sm:py-4">
+              <div className="absolute inset-0 bg-gradient-to-br from-blue-100/60 to-sky-100/50 blur-3xl" />
+              <img
+                src={active.image}
+                alt={active.title}
+                className="relative h-auto w-full max-w-3xl object-contain"
               />
             </div>
-            <div className="order-1 lg:order-2 space-y-6">
-              {features.map((feature, index) => (
-                <div
-                  key={index}
-                  onClick={() => setActiveFeature(index)}
-                  className={`p-6 rounded-xl cursor-pointer transition-all duration-300 ${
-                    activeFeature === index
-                      ? 'bg-blue-600 text-white shadow-xl scale-105'
-                      : 'bg-white text-gray-900 hover:bg-gray-50 border border-gray-200'
-                  }`}
-                >
-                  <h3 className="text-xl font-bold mb-2">{feature.title}</h3>
-                  <p className={activeFeature === index ? 'text-blue-100' : 'text-gray-600'}>
-                    {feature.description}
-                  </p>
-                </div>
-              ))}
-            </div>
-          </div>
 
-          {/* Feature Grid */}
-          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-8">
-            {/* Feature 1 */}
-            <div className="bg-white rounded-2xl p-8 shadow-lg hover:shadow-2xl transition-all duration-300 border border-gray-100">
-              <div className="w-14 h-14 bg-blue-100 rounded-xl flex items-center justify-center mb-6">
-                <svg className="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-                </svg>
-              </div>
-              <h3 className="text-xl font-bold text-gray-900 mb-3">Real-Time Analytics</h3>
-              <p className="text-gray-600 leading-relaxed">
-                Get instant insights from your system models with powerful analytics and visualization tools.
-              </p>
-            </div>
-
-            {/* Feature 2 */}
-            <div className="bg-white rounded-2xl p-8 shadow-lg hover:shadow-2xl transition-all duration-300 border border-gray-100">
-              <div className="w-14 h-14 bg-blue-100 rounded-xl flex items-center justify-center mb-6">
-                <svg className="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                </svg>
-              </div>
-              <h3 className="text-xl font-bold text-gray-900 mb-3">Enterprise Security</h3>
-              <p className="text-gray-600 leading-relaxed">
-                SOC 2 compliant with advanced RBAC, SSO, and audit logging for complete governance.
-              </p>
-            </div>
-
-            {/* Feature 3 */}
-            <div className="bg-white rounded-2xl p-8 shadow-lg hover:shadow-2xl transition-all duration-300 border border-gray-100">
-              <div className="w-14 h-14 bg-blue-100 rounded-xl flex items-center justify-center mb-6">
-                <svg className="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-                </svg>
-              </div>
-              <h3 className="text-xl font-bold text-gray-900 mb-3">Team Workspaces</h3>
-              <p className="text-gray-600 leading-relaxed">
-                Collaborate seamlessly with dedicated workspaces, version control, and commenting.
-              </p>
-            </div>
-
-            {/* Feature 4 */}
-            <div className="bg-white rounded-2xl p-8 shadow-lg hover:shadow-2xl transition-all duration-300 border border-gray-100">
-              <div className="w-14 h-14 bg-blue-100 rounded-xl flex items-center justify-center mb-6">
-                <svg className="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                </svg>
-              </div>
-              <h3 className="text-xl font-bold text-gray-900 mb-3">Auto Documentation</h3>
-              <p className="text-gray-600 leading-relaxed">
-                Generate comprehensive documentation automatically from your system models.
-              </p>
-            </div>
-
-            {/* Feature 5 */}
-            <div className="bg-white rounded-2xl p-8 shadow-lg hover:shadow-2xl transition-all duration-300 border border-gray-100">
-              <div className="w-14 h-14 bg-blue-100 rounded-xl flex items-center justify-center mb-6">
-                <svg className="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z" />
-                </svg>
-              </div>
-              <h3 className="text-xl font-bold text-gray-900 mb-3">Custom Workflows</h3>
-              <p className="text-gray-600 leading-relaxed">
-                Build evaluation workflows tailored to your organization's decision-making process.
-              </p>
-            </div>
-
-            {/* Feature 6 */}
-            <div className="bg-white rounded-2xl p-8 shadow-lg hover:shadow-2xl transition-all duration-300 border border-gray-100">
-              <div className="w-14 h-14 bg-blue-100 rounded-xl flex items-center justify-center mb-6">
-                <svg className="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                </svg>
-              </div>
-              <h3 className="text-xl font-bold text-gray-900 mb-3">Integration Ready</h3>
-              <p className="text-gray-600 leading-relaxed">
-                Connect with your existing tools via REST API, webhooks, and native integrations.
-              </p>
+            <div className="space-y-4">
+              {capabilities.map((item, index) => {
+                const ItemIcon = item.icon;
+                const isActive = index === activeCapability;
+                return (
+                  <button
+                    key={item.title}
+                    onClick={() => setActiveCapability(index)}
+                    className={`w-full rounded-2xl border px-5 py-5 text-left transition ${
+                      isActive
+                        ? "border-blue-200 bg-blue-50 shadow-md shadow-blue-100"
+                        : "border-slate-200 bg-white hover:border-blue-200 hover:bg-blue-50/40"
+                    }`}
+                  >
+                    <div className="flex items-start gap-3">
+                      <div
+                        className={`rounded-lg p-2 ${
+                          isActive
+                            ? "bg-blue-600 text-white"
+                            : "bg-blue-100 text-blue-700"
+                        }`}
+                      >
+                        <ItemIcon size={18} />
+                      </div>
+                      <div>
+                        <h3 className="text-lg font-bold text-slate-900">{item.title}</h3>
+                        <p className="mt-1 text-sm leading-relaxed text-slate-600">
+                          {item.description}
+                        </p>
+                      </div>
+                    </div>
+                  </button>
+                );
+              })}
             </div>
           </div>
         </div>
       </section>
 
-      {/* How It Works */}
-      <section className="py-24 bg-white">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-16">
-            <h2 className="text-4xl font-bold text-gray-900 mb-4 tracking-tight">
-              How It Works
-            </h2>
-            <p className="text-xl text-gray-600 max-w-2xl mx-auto">
-              Three simple steps to actionable insights
+      <section className="border-y border-blue-100 bg-gradient-to-b from-blue-50 to-white py-16 sm:py-20">
+        <div className="mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8">
+          <div className="mb-10 text-center">
+            <p className="text-sm font-bold uppercase tracking-[0.2em] text-blue-600">
+              Process
             </p>
-          </div>
-
-          <div className="grid lg:grid-cols-3 gap-8 relative">
-            {/* Step 1 */}
-            <div className="flex flex-col items-center text-center group">
-              <div className="w-16 h-16 bg-blue-600 text-white rounded-2xl text-2xl font-bold flex items-center justify-center mb-6 shadow-lg shadow-blue-200 group-hover:scale-110 transition-transform duration-300">
-                1
-              </div>
-              <h3 className="text-2xl font-bold text-gray-900 mb-4">Model Your System</h3>
-              <p className="text-gray-600 leading-relaxed mb-8 max-w-sm">
-                Create visual representations of your architecture using our intuitive canvas.
-              </p>
-              <div className="w-full max-w-xs">
-                <img src={Step1Model} alt="Model" className="w-full h-auto drop-shadow-md" />
-              </div>
-            </div>
-
-            {/* Desktop Connector Icon (Chevron) instead of Lines */}
-            <div className="hidden lg:block absolute top-8 left-[31%] text-gray-200">
-                 <svg className="w-12 h-12" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
-            </div>
-
-            {/* Step 2 */}
-            <div className="flex flex-col items-center text-center group">
-              <div className="w-16 h-16 bg-blue-600 text-white rounded-2xl text-2xl font-bold flex items-center justify-center mb-6 shadow-lg shadow-blue-200 group-hover:scale-110 transition-transform duration-300">
-                2
-              </div>
-              <h3 className="text-2xl font-bold text-gray-900 mb-4">Analyze with AI</h3>
-              <p className="text-gray-600 leading-relaxed mb-8 max-w-sm">
-                Let our AI evaluate trade-offs and generate insights automatically.
-              </p>
-              <div className="w-full max-w-xs">
-                 <img src={Step2Analyze} alt="Analyze" className="w-full h-auto drop-shadow-md" />
-              </div>
-            </div>
-
-            {/* Desktop Connector Icon (Chevron) */}
-             <div className="hidden lg:block absolute top-8 right-[31%] text-gray-200">
-                 <svg className="w-12 h-12" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
-            </div>
-
-            {/* Step 3 */}
-            <div className="flex flex-col items-center text-center group">
-              <div className="w-16 h-16 bg-blue-600 text-white rounded-2xl text-2xl font-bold flex items-center justify-center mb-6 shadow-lg shadow-blue-200 group-hover:scale-110 transition-transform duration-300">
-                3
-              </div>
-              <h3 className="text-2xl font-bold text-gray-900 mb-4">Make Decisions</h3>
-              <p className="text-gray-600 leading-relaxed mb-8 max-w-sm">
-                Share executive-ready presentations and drive confident decisions.
-              </p>
-              <div className="w-full max-w-xs">
-                 <img src={Step3Decide} alt="Decide" className="w-full h-auto drop-shadow-md" />
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Use Cases */}
-      <section className="py-20 lg:py-32 bg-gradient-to-b from-blue-50 to-white">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-16">
-            <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-gray-900 mb-4">
-              Built for Every Team
+            <h2 className="mt-3 text-3xl font-black tracking-tight sm:text-4xl">
+              One workflow from idea to decision
             </h2>
-            <p className="text-xl text-gray-600 max-w-3xl mx-auto">
-              From architects to executives, Structra.cloud empowers teams across your organization
-            </p>
           </div>
 
-          <div className="grid md:grid-cols-2 gap-8">
-            {/* Use Case 1 */}
-            <div className="bg-white rounded-2xl overflow-hidden shadow-lg hover:shadow-2xl transition-all duration-300">
-              <div className="p-8">
-                <div className="w-16 h-16 bg-blue-100 rounded-xl flex items-center justify-center mb-6">
-                  <svg className="w-10 h-10 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-                  </svg>
-                </div>
-                <h3 className="text-2xl font-bold text-gray-900 mb-4">System Architects</h3>
-                <p className="text-gray-600 leading-relaxed mb-6">
-                  Design and document complex architectures with visual modeling tools. Evaluate technical trade-offs and communicate decisions clearly to stakeholders.
+          <div className="grid gap-6 lg:grid-cols-3">
+            {journey.map((item) => (
+              <div
+                key={item.step}
+                className="rounded-2xl border border-blue-100 bg-white p-6 shadow-sm shadow-blue-100/60"
+              >
+                <p className="text-xs font-black uppercase tracking-[0.2em] text-blue-600">
+                  Step {item.step}
                 </p>
-                <img 
-                  src={UsecaseArchitects}
-                  alt="System Architects" 
-                  className="w-full h-48 object-contain"
+                <h3 className="mt-2 text-xl font-bold text-slate-900">{item.title}</h3>
+                <p className="mt-2 text-sm leading-relaxed text-slate-600">
+                  {item.description}
+                </p>
+                <img
+                  src={item.image}
+                  alt={item.title}
+                  className="mt-5 h-40 w-full object-contain"
                 />
               </div>
-            </div>
-
-            {/* Use Case 2 */}
-            <div className="bg-white rounded-2xl overflow-hidden shadow-lg hover:shadow-2xl transition-all duration-300">
-              <div className="p-8">
-                <div className="w-16 h-16 bg-blue-100 rounded-xl flex items-center justify-center mb-6">
-                  <svg className="w-10 h-10 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
-                  </svg>
-                </div>
-                <h3 className="text-2xl font-bold text-gray-900 mb-4">Engineering Leaders</h3>
-                <p className="text-gray-600 leading-relaxed mb-6">
-                  Make data-driven technical decisions with AI-powered insights. Compare scenarios, assess risks, and align teams around the best path forward.
-                </p>
-                <img 
-                  src={UsecaseEngineering}
-                  alt="Engineering Leaders" 
-                  className="w-full h-48 object-contain"
-                />
-              </div>
-            </div>
-
-            {/* Use Case 3 */}
-            <div className="bg-white rounded-2xl overflow-hidden shadow-lg hover:shadow-2xl transition-all duration-300">
-              <div className="p-8">
-                <div className="w-16 h-16 bg-blue-100 rounded-xl flex items-center justify-center mb-6">
-                  <svg className="w-10 h-10 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                  </svg>
-                </div>
-                <h3 className="text-2xl font-bold text-gray-900 mb-4">Operations Teams</h3>
-                <p className="text-gray-600 leading-relaxed mb-6">
-                  Optimize processes and workflows with visual mapping. Identify bottlenecks, evaluate improvements, and track operational metrics.
-                </p>
-                <img 
-                  src={UsecaseOperations}
-                  alt="Operations Teams" 
-                  className="w-full h-48 object-contain"
-                />
-              </div>
-            </div>
-
-            {/* Use Case 4 */}
-            <div className="bg-white rounded-2xl overflow-hidden shadow-lg hover:shadow-2xl transition-all duration-300">
-              <div className="p-8">
-                <div className="w-16 h-16 bg-blue-100 rounded-xl flex items-center justify-center mb-6">
-                  <svg className="w-10 h-10 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-                  </svg>
-                </div>
-                <h3 className="text-2xl font-bold text-gray-900 mb-4">Strategy & Planning</h3>
-                <p className="text-gray-600 leading-relaxed mb-6">
-                  Model strategic initiatives and analyze scenarios. Present data-driven recommendations to executives with confidence.
-                </p>
-                <img 
-                  src={UsecaseStrategy}
-                  alt="Strategy & Planning" 
-                  className="w-full h-48 object-contain"
-                />
-              </div>
-            </div>
+            ))}
           </div>
         </div>
       </section>
 
-      {/* CTA Section */}
-      <section className="py-20 lg:py-32 bg-gradient-to-br from-blue-600 to-blue-800 relative overflow-hidden">
-        {/* Background Pattern */}
-        <div className="absolute inset-0 opacity-10">
-          <div className="absolute top-0 left-0 w-96 h-96 bg-white rounded-full mix-blend-overlay filter blur-3xl"></div>
-          <div className="absolute bottom-0 right-0 w-96 h-96 bg-white rounded-full mix-blend-overlay filter blur-3xl"></div>
-        </div>
+      <section className="py-16 sm:py-20">
+        <div className="mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8">
+          <div className="mb-10 text-center">
+            <p className="text-sm font-bold uppercase tracking-[0.2em] text-blue-600">
+              Teams
+            </p>
+            <h2 className="mt-3 text-3xl font-black tracking-tight sm:text-4xl">
+              Trusted across technical functions
+            </h2>
+          </div>
 
-        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid lg:grid-cols-2 gap-12 items-center">
-            <div>
-              <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-white mb-6">
-                Ready to Transform Your Decision-Making?
-              </h2>
-              <p className="text-xl text-blue-100 mb-8 leading-relaxed">
-                Join thousands of teams using Structra.cloud to make better, faster decisions. Start your free 14-day trial today—no credit card required.
-              </p>
-              
-              <div className="flex flex-col sm:flex-row gap-4 mb-8">
-                <button
-                  onClick={() => navigate('/signup')}
-                  className="px-8 py-4 bg-white text-blue-600 font-semibold rounded-xl hover:bg-blue-50 transition-all duration-200 shadow-xl hover:shadow-2xl transform hover:-translate-y-0.5"
-                >
-                  Start Free Trial
-                </button>
-                <button
-                  onClick={() => navigate('/contact')}
-                  className="px-8 py-4 bg-transparent text-white font-semibold rounded-xl border-2 border-white hover:bg-white/10 transition-all duration-200"
-                >
-                  Talk to Sales
-                </button>
-              </div>
-
-              <div className="flex flex-wrap gap-6 text-blue-100">
-                <div className="flex items-center gap-2">
-                  <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd"/>
-                  </svg>
-                  <span>14-day free trial</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd"/>
-                  </svg>
-                  <span>No credit card required</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd"/>
-                  </svg>
-                  <span>Cancel anytime</span>
-                </div>
-              </div>
-            </div>
-
-            <div className="relative">
-              <img 
-                src={CtaIllustration}
-                alt="Start your journey" 
-                className="w-full h-auto drop-shadow-2xl"
-              />
-            </div>
+          <div className="grid gap-6 md:grid-cols-2">
+            {useCases.map((item) => (
+              <article
+                key={item.title}
+                className="group rounded-2xl border border-slate-200 bg-white p-6 shadow-sm transition hover:-translate-y-0.5 hover:border-blue-200 hover:shadow-lg hover:shadow-blue-100/70"
+              >
+                <h3 className="text-xl font-bold text-slate-900">{item.title}</h3>
+                <p className="mt-2 text-sm leading-relaxed text-slate-600">{item.copy}</p>
+                <img
+                  src={item.image}
+                  alt={item.title}
+                  className="mt-5 h-56 w-full object-contain transition group-hover:scale-[1.01]"
+                />
+              </article>
+            ))}
           </div>
         </div>
+      </section>
+
+      <section className="relative overflow-hidden border-y border-blue-200 bg-gradient-to-r from-blue-600 to-sky-600 py-12 text-white sm:py-14">
+        <div className="absolute -left-20 top-0 h-64 w-64 rounded-full bg-white/10 blur-3xl" />
+        <div className="absolute -right-10 bottom-0 h-72 w-72 rounded-full bg-white/10 blur-3xl" />
+        <div className="relative mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8 lg:grid lg:grid-cols-2 lg:items-center lg:gap-8">
+          <div>
+            <p className="text-xs font-black uppercase tracking-[0.2em] text-blue-100">
+              Start Today
+            </p>
+            <h2 className="mt-3 text-3xl font-black tracking-tight sm:text-4xl">
+              Ready to modernize architecture decisions?
+            </h2>
+            <p className="mt-4 max-w-2xl text-sm leading-relaxed text-blue-100 sm:text-base">
+              Launch your first workspace in minutes and align teams around
+              robust, explainable decisions.
+            </p>
+            <div className="mt-7 flex flex-col gap-3 sm:flex-row">
+              <button
+                onClick={() => navigate("/signup")}
+                className="rounded-xl bg-white px-7 py-3 text-sm font-black text-blue-700 transition hover:bg-blue-50"
+              >
+                Start Free Trial
+              </button>
+              <button
+                onClick={() => navigate("/pricing")}
+                className="rounded-xl border border-blue-200 bg-transparent px-7 py-3 text-sm font-black text-white transition hover:bg-white/10"
+              >
+                Explore Plans
+              </button>
+            </div>
+          </div>
+          <img
+            src={CtaIllustration}
+            alt="Get started with Structra"
+            className="relative mt-8 w-full object-contain lg:mt-0"
+          />
+          </div>
       </section>
 
       <Footer />
-
-      {/* Custom Animations */}
-      <style jsx>{`
-        @keyframes blob {
-          0%, 100% { transform: translate(0px, 0px) scale(1); }
-          33% { transform: translate(30px, -50px) scale(1.1); }
-          66% { transform: translate(-20px, 20px) scale(0.9); }
-        }
-        @keyframes float {
-          0%, 100% { transform: translateY(0px); }
-          50% { transform: translateY(-20px); }
-        }
-        .animate-blob {
-          animation: blob 7s infinite;
-        }
-        .animation-delay-2000 {
-          animation-delay: 2s;
-        }
-        .animation-delay-4000 {
-          animation-delay: 4s;
-        }
-        .animate-float {
-          animation: float 3s ease-in-out infinite;
-        }
-      `}</style>
     </div>
   );
 }
