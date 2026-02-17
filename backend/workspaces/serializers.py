@@ -2,7 +2,7 @@ from rest_framework import serializers
 from .models import Workspace
 
 class WorkspaceSerializer(serializers.ModelSerializer):
-    owner_name = serializers.ReadOnlyField(source='owner.username')
+    owner_name = serializers.ReadOnlyField(source='owner.full_name')
     member_count = serializers.SerializerMethodField()
     system_count = serializers.SerializerMethodField()
 

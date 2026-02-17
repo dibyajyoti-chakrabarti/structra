@@ -4,8 +4,7 @@ from django.utils import timezone
 from datetime import timedelta
 from workspaces.models import Workspace
 from canvases.models import Canvas
-from core.constants import InvitationStatus, NotificationType
-from core.utils import generate_alphanumeric_id
+from core.constants import InvitationStatus, NotificationType, WorkspaceRole
 import secrets
 
 class Invitation(models.Model):
@@ -34,14 +33,22 @@ class Invitation(models.Model):
         choices=InvitationStatus.CHOICES,
         default=InvitationStatus.PENDING
     )
+    role = models.CharField(
+        max_length=10,
+        choices=WorkspaceRole.choices,
+        default=WorkspaceRole.MEMBER,
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     expires_at = models.DateTimeField()
 
     def save(self, *args, **kwargs):
         if not self.token:
-            self.token = secrets.token_urlsafe(32)
+            token = secrets.token_urlsafe(32)
+            while Invitation.objects.filter(token=token).exists():
+                token = secrets.token_urlsafe(32)
+            self.token = token
         if not self.expires_at:
-            self.expires_at = timezone.now() + timedelta(days=2)
+            self.expires_at = timezone.now() + timedelta(hours=48)
         super().save(*args, **kwargs)
 
     class Meta:
