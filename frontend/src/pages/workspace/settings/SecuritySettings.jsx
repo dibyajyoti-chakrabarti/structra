@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useOutletContext, useParams } from 'react-router-dom';
-import { Shield, Globe, Lock, ChevronDown, ChevronUp, Plus, Trash2, Save } from 'lucide-react';
+import { Shield, Globe, Lock, ChevronDown, ChevronUp, Plus, Trash2, Save, Search } from 'lucide-react';
 import api from '../../../api';
 
 const ROLE_OPTIONS = [
@@ -19,6 +19,7 @@ const SecuritySettings = () => {
   const { isAdmin } = useOutletContext();
 
   const [systems, setSystems] = useState([]);
+  const [workspaceMembers, setWorkspaceMembers] = useState([]);
   const [visibility, setVisibility] = useState('private');
   const [expandedSystem, setExpandedSystem] = useState(null);
   const [grantForms, setGrantForms] = useState({});
@@ -26,7 +27,10 @@ const SecuritySettings = () => {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
 
-  const defaultForm = useMemo(() => ({ email: '', role: 'viewer', submitting: false }), []);
+  const defaultForm = useMemo(
+    () => ({ query: '', selectedUserId: '', role: 'viewer', submitting: false, openPicker: false }),
+    []
+  );
 
   const showAdminOnlyError = () => {
     setError('Action allowed only for admin.');
@@ -39,6 +43,20 @@ const SecuritySettings = () => {
       setVisibility(response.data?.visibility || 'private');
     } catch {
       setError('Failed to load workspace visibility.');
+    }
+  };
+
+  const fetchWorkspaceMembers = async () => {
+    if (!isAdmin) {
+      setWorkspaceMembers([]);
+      return;
+    }
+
+    try {
+      const response = await api.get(`workspaces/${workspaceId}/members/`);
+      setWorkspaceMembers(response.data || []);
+    } catch (err) {
+      setError(err.response?.data?.error || err.response?.data?.detail || 'Failed to load workspace members.');
     }
   };
 
@@ -72,6 +90,7 @@ const SecuritySettings = () => {
   }, [workspaceId]);
 
   useEffect(() => {
+    fetchWorkspaceMembers();
     fetchIamPolicies();
   }, [workspaceId, isAdmin]);
 
@@ -105,6 +124,46 @@ const SecuritySettings = () => {
     }));
   };
 
+  const getFilteredMembers = (systemId) => {
+    const form = grantForms[systemId] || defaultForm;
+    const query = (form.query || '').trim().toLowerCase();
+    const grantedUserIds = new Set(
+      (systems.find((system) => system.system_id === systemId)?.permissions || []).map((perm) => perm.user_id)
+    );
+
+    return workspaceMembers
+      .filter((member) => !grantedUserIds.has(member.user_id))
+      .filter((member) => {
+        if (!query) return true;
+        return (
+          (member.full_name || '').toLowerCase().includes(query) ||
+          (member.email || '').toLowerCase().includes(query)
+        );
+      })
+      .slice(0, 8);
+  };
+
+  const getSelectedMember = (systemId) => {
+    const form = grantForms[systemId] || defaultForm;
+    if (form.selectedUserId) {
+      return workspaceMembers.find((member) => member.user_id === form.selectedUserId) || null;
+    }
+
+    const query = (form.query || '').trim().toLowerCase();
+    if (!query) return null;
+
+    const exactEmailMatch = workspaceMembers.find((member) => (member.email || '').toLowerCase() === query);
+    return exactEmailMatch || null;
+  };
+
+  const handleSelectMember = (systemId, member) => {
+    updateGrantForm(systemId, {
+      query: member.email,
+      selectedUserId: member.user_id,
+      openPicker: false,
+    });
+  };
+
   const handleGrantAccess = async (systemId) => {
     if (!isAdmin) {
       showAdminOnlyError();
@@ -112,9 +171,10 @@ const SecuritySettings = () => {
     }
 
     const form = grantForms[systemId] || defaultForm;
-    const email = form.email.trim();
-    if (!email) {
-      setError('User email is required to grant system access.');
+    const selectedMember = getSelectedMember(systemId);
+
+    if (!selectedMember) {
+      setError('Select a workspace member to grant system access.');
       return;
     }
 
@@ -124,11 +184,11 @@ const SecuritySettings = () => {
 
     try {
       const response = await api.post(`workspaces/${workspaceId}/systems/${systemId}/permissions/`, {
-        email,
+        user_id: selectedMember.user_id,
         role: form.role,
       });
       setSuccess(response.data?.message || 'System access granted successfully.');
-      updateGrantForm(systemId, { email: '', submitting: false });
+      updateGrantForm(systemId, { query: '', selectedUserId: '', submitting: false, openPicker: false });
       await fetchIamPolicies();
     } catch (err) {
       setError(err.response?.data?.error || err.response?.data?.detail || 'Failed to grant system access.');
@@ -226,6 +286,9 @@ const SecuritySettings = () => {
             <div className="space-y-4">
               {systems.map((system) => {
                 const form = grantForms[system.system_id] || defaultForm;
+                const selectedMember = getSelectedMember(system.system_id);
+                const filteredMembers = getFilteredMembers(system.system_id);
+
                 return (
                   <div
                     key={system.system_id}
@@ -303,15 +366,49 @@ const SecuritySettings = () => {
                           <h4 className="text-xs font-semibold text-gray-700 uppercase tracking-wider mb-3">
                             Grant Access to {system.system_name}
                           </h4>
-                          <div className="flex flex-col md:flex-row gap-3">
-                            <input
-                              type="email"
-                              value={form.email}
-                              onChange={(e) => updateGrantForm(system.system_id, { email: e.target.value })}
-                              placeholder="Enter user email..."
-                              className="flex-[2] px-3.5 py-2.5 rounded-md border border-gray-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none text-sm transition"
-                            />
-                            <div className="flex-1 relative min-w-[140px]">
+
+                          <div className="flex flex-col md:flex-row gap-3 items-start">
+                            <div className="flex-[2] w-full relative">
+                              <div className="relative">
+                                <input
+                                  type="text"
+                                  value={form.query}
+                                  onFocus={() => updateGrantForm(system.system_id, { openPicker: true })}
+                                  onChange={(e) =>
+                                    updateGrantForm(system.system_id, {
+                                      query: e.target.value,
+                                      selectedUserId: '',
+                                      openPicker: true,
+                                    })
+                                  }
+                                  placeholder="Search member by name or email..."
+                                  className="w-full pl-10 pr-3.5 py-2.5 rounded-md border border-gray-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none text-sm transition"
+                                />
+                                <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                              </div>
+
+                              {form.openPicker && filteredMembers.length > 0 && (
+                                <div className="absolute z-20 mt-1 max-h-56 w-full overflow-y-auto rounded-md border border-gray-200 bg-white shadow-lg">
+                                  {filteredMembers.map((member) => (
+                                    <button
+                                      key={member.user_id}
+                                      type="button"
+                                      onClick={() => handleSelectMember(system.system_id, member)}
+                                      className="w-full px-3 py-2 text-left hover:bg-blue-50 transition-colors border-b last:border-b-0 border-gray-100"
+                                    >
+                                      <p className="text-sm font-medium text-gray-800">{member.full_name || member.email}</p>
+                                      <p className="text-xs text-gray-500">{member.email}</p>
+                                    </button>
+                                  ))}
+                                </div>
+                              )}
+
+                              {selectedMember && (
+                                <p className="mt-1 text-xs text-green-600">Selected: {selectedMember.email}</p>
+                              )}
+                            </div>
+
+                            <div className="flex-1 relative min-w-[140px] w-full md:w-auto">
                               <select
                                 value={form.role}
                                 onChange={(e) => updateGrantForm(system.system_id, { role: e.target.value })}
@@ -325,6 +422,7 @@ const SecuritySettings = () => {
                               </select>
                               <ChevronDown size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
                             </div>
+
                             <button
                               type="button"
                               disabled={form.submitting}
