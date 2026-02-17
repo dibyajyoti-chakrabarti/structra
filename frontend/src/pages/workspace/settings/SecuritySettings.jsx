@@ -1,58 +1,83 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useOutletContext, useParams } from 'react-router-dom';
 import { Shield, Globe, Lock, ChevronDown, ChevronUp, Plus, Trash2, Save } from 'lucide-react';
 import api from '../../../api';
+
+const ROLE_OPTIONS = [
+  { value: 'viewer', label: 'Viewer' },
+  { value: 'commenter', label: 'Commenter' },
+  { value: 'editor', label: 'Editor' },
+];
+
+const roleLabel = (role) => {
+  const match = ROLE_OPTIONS.find((option) => option.value === role);
+  return match ? match.label : role;
+};
 
 const SecuritySettings = () => {
   const { workspaceId } = useParams();
   const { isAdmin } = useOutletContext();
 
-  const [systems] = useState([
-    {
-      id: 1,
-      name: 'Supply Chain Model',
-      users: [
-        { id: 1, name: 'Alex Rivera', email: 'alex@structra.cloud', role: 'Viewer' },
-        { id: 2, name: 'Sam Chen', email: 'sam@structra.cloud', role: 'Editor' },
-      ],
-    },
-    {
-      id: 2,
-      name: 'Financial Pipeline',
-      users: [],
-    },
-    {
-      id: 3,
-      name: 'Cloud Infrastructure',
-      users: [{ id: 3, name: 'Jordan Smyth', email: 'jordan@structra.cloud', role: 'Admin' }],
-    },
-  ]);
-
+  const [systems, setSystems] = useState([]);
   const [visibility, setVisibility] = useState('private');
-  const [expandedSystem, setExpandedSystem] = useState(1);
+  const [expandedSystem, setExpandedSystem] = useState(null);
+  const [grantForms, setGrantForms] = useState({});
+  const [loadingIam, setLoadingIam] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
 
-  useEffect(() => {
-    const fetchWorkspace = async () => {
-      try {
-        const response = await api.get(`workspaces/${workspaceId}/`);
-        setVisibility(response.data?.visibility || 'private');
-      } catch {
-        setError('Failed to load workspace visibility.');
-      }
-    };
-    fetchWorkspace();
-  }, [workspaceId]);
-
-  const toggleSystem = (id) => {
-    if (expandedSystem === id) setExpandedSystem(null);
-    else setExpandedSystem(id);
-  };
+  const defaultForm = useMemo(() => ({ email: '', role: 'viewer', submitting: false }), []);
 
   const showAdminOnlyError = () => {
     setError('Action allowed only for admin.');
     setTimeout(() => setError(''), 2500);
+  };
+
+  const fetchWorkspaceVisibility = async () => {
+    try {
+      const response = await api.get(`workspaces/${workspaceId}/`);
+      setVisibility(response.data?.visibility || 'private');
+    } catch {
+      setError('Failed to load workspace visibility.');
+    }
+  };
+
+  const fetchIamPolicies = async () => {
+    if (!isAdmin) {
+      setSystems([]);
+      setLoadingIam(false);
+      return;
+    }
+
+    setLoadingIam(true);
+    try {
+      const response = await api.get(`workspaces/${workspaceId}/system-permissions/`);
+      const fetchedSystems = response.data || [];
+      setSystems(fetchedSystems);
+      setExpandedSystem((current) => {
+        if (current && fetchedSystems.some((system) => system.system_id === current)) {
+          return current;
+        }
+        return fetchedSystems.length > 0 ? fetchedSystems[0].system_id : null;
+      });
+    } catch (err) {
+      setError(err.response?.data?.error || err.response?.data?.detail || 'Failed to load IAM policies.');
+    } finally {
+      setLoadingIam(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchWorkspaceVisibility();
+  }, [workspaceId]);
+
+  useEffect(() => {
+    fetchIamPolicies();
+  }, [workspaceId, isAdmin]);
+
+  const toggleSystem = (id) => {
+    if (expandedSystem === id) setExpandedSystem(null);
+    else setExpandedSystem(id);
   };
 
   const applyVisibilityChanges = async () => {
@@ -69,7 +94,62 @@ const SecuritySettings = () => {
       setSuccess('Workspace visibility updated.');
       setTimeout(() => setSuccess(''), 2500);
     } catch (err) {
-      setError(err.response?.data?.error || 'Failed to update workspace visibility.');
+      setError(err.response?.data?.error || err.response?.data?.detail || 'Failed to update workspace visibility.');
+    }
+  };
+
+  const updateGrantForm = (systemId, updates) => {
+    setGrantForms((prev) => ({
+      ...prev,
+      [systemId]: { ...(prev[systemId] || defaultForm), ...updates },
+    }));
+  };
+
+  const handleGrantAccess = async (systemId) => {
+    if (!isAdmin) {
+      showAdminOnlyError();
+      return;
+    }
+
+    const form = grantForms[systemId] || defaultForm;
+    const email = form.email.trim();
+    if (!email) {
+      setError('User email is required to grant system access.');
+      return;
+    }
+
+    setError('');
+    setSuccess('');
+    updateGrantForm(systemId, { submitting: true });
+
+    try {
+      const response = await api.post(`workspaces/${workspaceId}/systems/${systemId}/permissions/`, {
+        email,
+        role: form.role,
+      });
+      setSuccess(response.data?.message || 'System access granted successfully.');
+      updateGrantForm(systemId, { email: '', submitting: false });
+      await fetchIamPolicies();
+    } catch (err) {
+      setError(err.response?.data?.error || err.response?.data?.detail || 'Failed to grant system access.');
+      updateGrantForm(systemId, { submitting: false });
+    }
+  };
+
+  const handleRevokeAccess = async (systemId, userId) => {
+    if (!isAdmin) {
+      showAdminOnlyError();
+      return;
+    }
+
+    setError('');
+    setSuccess('');
+    try {
+      const response = await api.delete(`workspaces/${workspaceId}/systems/${systemId}/permissions/${userId}/`);
+      setSuccess(response.data?.message || 'System access revoked successfully.');
+      await fetchIamPolicies();
+    } catch (err) {
+      setError(err.response?.data?.error || err.response?.data?.detail || 'Failed to revoke system access.');
     }
   };
 
@@ -134,111 +214,134 @@ const SecuritySettings = () => {
               <Shield size={20} className="text-blue-600" />
               IAM (Identity & Access Management)
             </h3>
-            <button className="text-sm font-medium text-blue-600 hover:text-blue-700 hover:bg-blue-50 px-3 py-1.5 rounded-md transition-colors">
-              + New System Policy
-            </button>
           </div>
 
-          <div className="space-y-4">
-            {systems.map((system) => (
-              <div
-                key={system.id}
-                className="border border-gray-200 rounded-xl overflow-hidden transition-colors bg-white hover:border-blue-200"
-              >
-                <div
-                  onClick={() => toggleSystem(system.id)}
-                  className="p-4 flex items-center justify-between cursor-pointer bg-white select-none"
-                >
-                  <div className="flex items-center gap-3">
+          {loadingIam ? (
+            <div className="rounded-xl border border-gray-200 bg-white p-5 text-sm text-gray-500">Loading IAM policies...</div>
+          ) : systems.length === 0 ? (
+            <div className="rounded-xl border border-gray-200 bg-white p-5 text-sm text-gray-500">
+              No systems found in this workspace yet.
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {systems.map((system) => {
+                const form = grantForms[system.system_id] || defaultForm;
+                return (
+                  <div
+                    key={system.system_id}
+                    className="border border-gray-200 rounded-xl overflow-hidden transition-colors bg-white hover:border-blue-200"
+                  >
                     <div
-                      className={`p-2 rounded-md transition-colors ${
-                        expandedSystem === system.id ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-500'
-                      }`}
+                      onClick={() => toggleSystem(system.system_id)}
+                      className="p-4 flex items-center justify-between cursor-pointer bg-white select-none"
                     >
-                      <Lock size={16} />
-                    </div>
-                    <span
-                      className={`font-medium text-base ${
-                        expandedSystem === system.id ? 'text-gray-900' : 'text-gray-700'
-                      }`}
-                    >
-                      {system.name}
-                    </span>
-                  </div>
-                  {expandedSystem === system.id ? (
-                    <ChevronUp size={20} className="text-gray-400" />
-                  ) : (
-                    <ChevronDown size={20} className="text-gray-400" />
-                  )}
-                </div>
-
-                {expandedSystem === system.id && (
-                  <div className="p-4 border-t border-gray-200 bg-gray-50/70">
-                    <div className="space-y-3 mb-6">
-                      {system.users.length > 0 ? (
-                        system.users.map((user) => (
-                          <div
-                            key={user.id}
-                            className="flex flex-col sm:flex-row sm:items-center justify-between p-4 bg-white rounded-md border border-gray-200 gap-3 group hover:border-blue-300 transition-colors"
-                          >
-                            <div className="flex items-center gap-3">
-                              <div className="w-9 h-9 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center font-semibold text-xs border border-blue-100">
-                                {user.name[0]}
-                              </div>
-                              <div>
-                                <p className="text-sm font-medium text-gray-900">{user.name}</p>
-                                <p className="text-xs text-gray-500 font-medium">
-                                  {user.email} <span className="text-gray-300 px-1">|</span>{' '}
-                                  <span className="text-blue-600">{user.role}</span>
-                                </p>
-                              </div>
-                            </div>
-                            <button
-                              className="p-2 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all self-end sm:self-center"
-                              title="Revoke Access"
-                            >
-                              <Trash2 size={18} />
-                            </button>
-                          </div>
-                        ))
-                      ) : (
-                        <div className="text-center py-6 border border-dashed border-gray-300 rounded-md">
-                          <p className="text-sm text-gray-400 font-medium">No specific access rules defined.</p>
-                          <p className="text-xs text-gray-400 mt-1">
-                            This system inherits global workspace permissions.
-                          </p>
+                      <div className="flex items-center gap-3">
+                        <div
+                          className={`p-2 rounded-md transition-colors ${
+                            expandedSystem === system.system_id ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-500'
+                          }`}
+                        >
+                          <Lock size={16} />
                         </div>
+                        <span
+                          className={`font-medium text-base ${
+                            expandedSystem === system.system_id ? 'text-gray-900' : 'text-gray-700'
+                          }`}
+                        >
+                          {system.system_name}
+                        </span>
+                      </div>
+                      {expandedSystem === system.system_id ? (
+                        <ChevronUp size={20} className="text-gray-400" />
+                      ) : (
+                        <ChevronDown size={20} className="text-gray-400" />
                       )}
                     </div>
 
-                    <div className="bg-white p-4 rounded-md border border-gray-200">
-                      <h4 className="text-xs font-semibold text-gray-700 uppercase tracking-wider mb-3">
-                        Grant Access to {system.name}
-                      </h4>
-                      <div className="flex flex-col md:flex-row gap-3">
-                        <input
-                          type="email"
-                          placeholder="Enter user email..."
-                          className="flex-[2] px-3.5 py-2.5 rounded-md border border-gray-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none text-sm transition"
-                        />
-                        <div className="flex-1 relative min-w-[140px]">
-                          <select className="w-full appearance-none px-3.5 py-2.5 rounded-md border border-gray-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 focus:outline-none text-sm bg-white text-gray-600 cursor-pointer">
-                            <option>Viewer</option>
-                            <option>Editor</option>
-                            <option>Commentor</option>
-                          </select>
-                          <ChevronDown size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+                    {expandedSystem === system.system_id && (
+                      <div className="p-4 border-t border-gray-200 bg-gray-50/70">
+                        <div className="space-y-3 mb-6">
+                          {system.permissions?.length > 0 ? (
+                            system.permissions.map((user) => (
+                              <div
+                                key={user.user_id}
+                                className="flex flex-col sm:flex-row sm:items-center justify-between p-4 bg-white rounded-md border border-gray-200 gap-3 group hover:border-blue-300 transition-colors"
+                              >
+                                <div className="flex items-center gap-3">
+                                  <div className="w-9 h-9 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center font-semibold text-xs border border-blue-100">
+                                    {(user.full_name || user.email || 'U')[0]}
+                                  </div>
+                                  <div>
+                                    <p className="text-sm font-medium text-gray-900">{user.full_name || user.email}</p>
+                                    <p className="text-xs text-gray-500 font-medium">
+                                      {user.email} <span className="text-gray-300 px-1">|</span>{' '}
+                                      <span className="text-blue-600">{roleLabel(user.role)}</span>
+                                    </p>
+                                  </div>
+                                </div>
+                                <button
+                                  type="button"
+                                  onClick={() => handleRevokeAccess(system.system_id, user.user_id)}
+                                  className="p-2 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all self-end sm:self-center"
+                                  title="Revoke Access"
+                                >
+                                  <Trash2 size={18} />
+                                </button>
+                              </div>
+                            ))
+                          ) : (
+                            <div className="text-center py-6 border border-dashed border-gray-300 rounded-md">
+                              <p className="text-sm text-gray-400 font-medium">No access policy set for this system.</p>
+                              <p className="text-xs text-gray-400 mt-1">
+                                Workspace members without explicit policy cannot see this system.
+                              </p>
+                            </div>
+                          )}
                         </div>
-                        <button className="bg-blue-600 text-white px-4 py-2.5 rounded-md hover:bg-blue-700 transition-colors flex items-center justify-center">
-                          <Plus size={18} />
-                        </button>
+
+                        <div className="bg-white p-4 rounded-md border border-gray-200">
+                          <h4 className="text-xs font-semibold text-gray-700 uppercase tracking-wider mb-3">
+                            Grant Access to {system.system_name}
+                          </h4>
+                          <div className="flex flex-col md:flex-row gap-3">
+                            <input
+                              type="email"
+                              value={form.email}
+                              onChange={(e) => updateGrantForm(system.system_id, { email: e.target.value })}
+                              placeholder="Enter user email..."
+                              className="flex-[2] px-3.5 py-2.5 rounded-md border border-gray-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none text-sm transition"
+                            />
+                            <div className="flex-1 relative min-w-[140px]">
+                              <select
+                                value={form.role}
+                                onChange={(e) => updateGrantForm(system.system_id, { role: e.target.value })}
+                                className="w-full appearance-none px-3.5 py-2.5 rounded-md border border-gray-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 focus:outline-none text-sm bg-white text-gray-600 cursor-pointer"
+                              >
+                                {ROLE_OPTIONS.map((role) => (
+                                  <option key={role.value} value={role.value}>
+                                    {role.label}
+                                  </option>
+                                ))}
+                              </select>
+                              <ChevronDown size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+                            </div>
+                            <button
+                              type="button"
+                              disabled={form.submitting}
+                              onClick={() => handleGrantAccess(system.system_id)}
+                              className="bg-blue-600 text-white px-4 py-2.5 rounded-md hover:bg-blue-700 transition-colors flex items-center justify-center disabled:opacity-60 disabled:cursor-not-allowed"
+                            >
+                              {form.submitting ? '...' : <Plus size={18} />}
+                            </button>
+                          </div>
+                        </div>
                       </div>
-                    </div>
+                    )}
                   </div>
-                )}
-              </div>
-            ))}
-          </div>
+                );
+              })}
+            </div>
+          )}
         </div>
       )}
 
