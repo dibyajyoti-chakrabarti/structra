@@ -112,13 +112,17 @@ class SystemPermissionGrantView(APIView):
         serializer = CanvasPermissionGrantSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
-        user_email = serializer.validated_data["email"].strip()
+        user_email = (serializer.validated_data.get("email") or "").strip()
+        user_id = serializer.validated_data.get("user_id")
         role = serializer.validated_data["role"]
 
-        target_user = get_user_model().objects.filter(email__iexact=user_email).first()
+        if user_id:
+            target_user = get_user_model().objects.filter(user_id=user_id).first()
+        else:
+            target_user = get_user_model().objects.filter(email__iexact=user_email).first()
         if not target_user:
             return Response(
-                {"error": "User with this email does not exist."},
+                {"error": "Selected user does not exist."},
                 status=status.HTTP_404_NOT_FOUND,
             )
 

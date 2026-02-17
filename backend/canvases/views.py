@@ -1,6 +1,6 @@
 from django.shortcuts import get_object_or_404
 from rest_framework import generics, status
-from rest_framework.exceptions import PermissionDenied
+from rest_framework.exceptions import PermissionDenied, ValidationError
 from rest_framework.permissions import SAFE_METHODS, IsAuthenticated
 from rest_framework.response import Response
 from core.constants import CanvasRole
@@ -8,7 +8,7 @@ from permissions.checks import (
     user_is_workspace_admin,
     user_is_workspace_member,
 )
-from permissions.models import CanvasPermission
+from permissions.models import CanvasPermission, WorkspaceMember
 from workspaces.models import Workspace
 from .models import Canvas
 from .serializers import CanvasSerializer
@@ -30,18 +30,68 @@ class CanvasListCreateView(generics.ListCreateAPIView):
 
         return base_queryset.filter(permissions__user=self.request.user).distinct()
 
+    def _validate_member_permissions(self, workspace):
+        member_permissions = self.request.data.get("member_permissions", [])
+        if member_permissions is None:
+            return []
+        if not isinstance(member_permissions, list):
+            raise ValidationError({"member_permissions": "Expected a list of member permissions."})
+
+        validated_entries = []
+        member_user_ids = {
+            str(entry.get("user_id"))
+            for entry in member_permissions
+            if isinstance(entry, dict) and entry.get("user_id")
+        }
+        workspace_member_map = {
+            str(member.user.user_id): member.user
+            for member in WorkspaceMember.objects.filter(workspace=workspace).select_related("user")
+            if str(member.user.user_id) in member_user_ids
+        }
+
+        for entry in member_permissions:
+            if not isinstance(entry, dict):
+                raise ValidationError({"member_permissions": "Each permission entry must be an object."})
+            user_id = str(entry.get("user_id", "")).strip()
+            role = str(entry.get("role", "")).strip().lower()
+
+            if not user_id:
+                raise ValidationError({"member_permissions": "Each entry must include user_id."})
+            if role not in {CanvasRole.VIEWER, CanvasRole.COMMENTER, CanvasRole.EDITOR}:
+                raise ValidationError({"member_permissions": f"Invalid role for user {user_id}."})
+
+            target_user = workspace_member_map.get(user_id)
+            if not target_user:
+                raise ValidationError(
+                    {"member_permissions": f"User {user_id} is not a member of this workspace."}
+                )
+
+            validated_entries.append((target_user, role))
+
+        return validated_entries
+
     def perform_create(self, serializer):
         workspace_id = self.kwargs['workspace_id']
         workspace = get_object_or_404(Workspace, id=workspace_id)
 
-        if not user_is_workspace_member(workspace, self.request.user):
-            raise PermissionDenied("You do not have access to this workspace.")
+        if not user_is_workspace_admin(workspace, self.request.user):
+            raise PermissionDenied("Only workspace admins can create systems.")
+
+        validated_permissions = self._validate_member_permissions(workspace)
 
         system = serializer.save(
             workspace_id=self.kwargs['workspace_id'],
             last_modified_by=self.request.user
         )
-        # Creator should always retain edit access to the system they created.
+
+        for target_user, role in validated_permissions:
+            CanvasPermission.objects.update_or_create(
+                system=system,
+                user=target_user,
+                defaults={"role": role},
+            )
+
+        # Creator should always retain edit access to the system they create.
         CanvasPermission.objects.update_or_create(
             system=system,
             user=self.request.user,
