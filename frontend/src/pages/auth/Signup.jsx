@@ -1,5 +1,5 @@
-import { useNavigate } from "react-router-dom";
-import { useState } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
+import { useEffect, useState } from "react";
 import { useGoogleLogin } from "@react-oauth/google";
 import {
   ArrowLeft,
@@ -15,9 +15,13 @@ import api from "../../api";
 
 export default function Signup() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const inviteToken = searchParams.get("invite_token") || "";
+  const inviteEmail = searchParams.get("invite_email") || "";
+
   const [formData, setFormData] = useState({
     full_name: "",
-    email: "",
+    email: inviteEmail,
     password: "",
   });
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -31,6 +35,22 @@ export default function Signup() {
     "/src/assets/signup-illustration.svg"
   );
 
+  useEffect(() => {
+    if (!inviteEmail) return;
+    setFormData((prev) => ({ ...prev, email: inviteEmail }));
+  }, [inviteEmail]);
+
+  const acceptInvitationIfPresent = async () => {
+    if (!inviteToken) return null;
+    try {
+      const response = await api.post("invitations/accept/", { token: inviteToken });
+      return response.data?.workspace_id || null;
+    } catch (err) {
+      console.error("Invitation accept failed after signup", err);
+      return null;
+    }
+  };
+
   const googleLogin = useGoogleLogin({
     onSuccess: async (tokenResponse) => {
       setLoading(true);
@@ -41,6 +61,12 @@ export default function Signup() {
 
         localStorage.setItem("access", res.data.access);
         localStorage.setItem("refresh", res.data.refresh);
+
+        const workspaceId = await acceptInvitationIfPresent();
+        if (workspaceId) {
+          navigate(`/app/ws/${workspaceId}`);
+          return;
+        }
 
         if (res.data.user.is_new) {
           navigate("/app/onboarding");
@@ -89,7 +115,13 @@ export default function Signup() {
     setLoading(true);
     try {
       await api.post("auth/register/", formData);
-      navigate("/login");
+      if (inviteToken) {
+        navigate(
+          `/login?invite_token=${encodeURIComponent(inviteToken)}&invite_email=${encodeURIComponent(formData.email)}`
+        );
+      } else {
+        navigate("/login");
+      }
     } catch (err) {
       console.error(err);
       setError(err.response?.data?.detail || "Registration failed. Try again.");
@@ -149,6 +181,13 @@ export default function Signup() {
 
       localStorage.setItem("access", response.data.access);
       localStorage.setItem("refresh", response.data.refresh);
+
+      const workspaceId = await acceptInvitationIfPresent();
+      if (workspaceId) {
+        navigate(`/app/ws/${workspaceId}`);
+        return;
+      }
+
       navigate("/app/onboarding");
     } catch (err) {
       setError(
@@ -188,6 +227,11 @@ export default function Signup() {
                 <p className="mt-2 text-sm text-slate-500">
                   Start modeling architecture and making smarter decisions.
                 </p>
+                {!!inviteToken && (
+                  <p className="mt-2 text-sm text-blue-600">
+                    Complete signup to accept your workspace invitation.
+                  </p>
+                )}
               </div>
 
               <div className="space-y-6">
@@ -287,6 +331,7 @@ export default function Signup() {
                       type="email"
                       placeholder="Work email"
                       required
+                      readOnly={!!inviteEmail}
                       className="w-full rounded-xl border border-slate-200 bg-white py-3 pl-10 pr-4 text-sm text-slate-800 placeholder:text-slate-400 focus:border-blue-400 focus:outline-none"
                     />
                   </div>
@@ -386,7 +431,13 @@ export default function Signup() {
                 <div className="pt-1 text-center">
                   <button
                     type="button"
-                    onClick={() => navigate("/login")}
+                    onClick={() =>
+                      navigate(
+                        inviteToken
+                          ? `/login?invite_token=${encodeURIComponent(inviteToken)}&invite_email=${encodeURIComponent(formData.email)}`
+                          : "/login"
+                      )
+                    }
                     className="text-xs font-bold text-blue-700 transition hover:text-blue-800"
                   >
                     Already have an account? Log in

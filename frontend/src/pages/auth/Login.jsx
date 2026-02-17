@@ -1,6 +1,6 @@
 import { useGoogleLogin } from "@react-oauth/google";
-import { useNavigate } from "react-router-dom";
-import { useState } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
+import { useEffect, useState } from "react";
 import {
   ArrowLeft,
   Mail,
@@ -15,6 +15,10 @@ import api from "../../api";
 
 export default function Login() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const inviteToken = searchParams.get("invite_token") || "";
+  const inviteEmail = searchParams.get("invite_email") || "";
+
   const [formData, setFormData] = useState({ email: "", password: "" });
   const [authMethod, setAuthMethod] = useState("password");
   const [otpCode, setOtpCode] = useState("");
@@ -25,6 +29,32 @@ export default function Login() {
   const [illustrationSrc, setIllustrationSrc] = useState(
     "/src/assets/login-illustration.svg"
   );
+
+  useEffect(() => {
+    if (!inviteEmail) return;
+    setFormData((prev) => ({ ...prev, email: prev.email || inviteEmail }));
+  }, [inviteEmail]);
+
+  const resolvePostAuthRoute = async (isNewUser) => {
+    if (inviteToken) {
+      try {
+        const invitationRes = await api.post("invitations/accept/", { token: inviteToken });
+        const workspaceId = invitationRes.data?.workspace_id;
+        if (workspaceId) {
+          navigate(`/app/ws/${workspaceId}`);
+          return;
+        }
+      } catch (err) {
+        console.error("Invitation accept after login failed", err);
+      }
+    }
+
+    if (isNewUser) {
+      navigate("/app/onboarding");
+    } else {
+      navigate("/app");
+    }
+  };
 
   const googleLogin = useGoogleLogin({
     onSuccess: async (tokenResponse) => {
@@ -37,11 +67,7 @@ export default function Login() {
         localStorage.setItem("access", res.data.access);
         localStorage.setItem("refresh", res.data.refresh);
 
-        if (res.data.user.is_new) {
-          navigate("/app/onboarding");
-        } else {
-          navigate("/app");
-        }
+        await resolvePostAuthRoute(res.data.user.is_new);
       } catch (err) {
         console.error("Google Login Failed", err);
         setError("Google login failed. Please try again.");
@@ -82,11 +108,7 @@ export default function Login() {
       localStorage.setItem("refresh", response.data.refresh);
 
       const profileRes = await api.get("auth/profile/");
-      if (profileRes.data.is_new) {
-        navigate("/app/onboarding");
-      } else {
-        navigate("/app");
-      }
+      await resolvePostAuthRoute(profileRes.data.is_new);
     } catch (err) {
       console.error(err);
       setError("Invalid credentials. Please try again.");
@@ -138,11 +160,7 @@ export default function Login() {
       localStorage.setItem("access", response.data.access);
       localStorage.setItem("refresh", response.data.refresh);
 
-      if (response.data.user?.is_new) {
-        navigate("/app/onboarding");
-      } else {
-        navigate("/app");
-      }
+      await resolvePostAuthRoute(response.data.user?.is_new);
     } catch (err) {
       setError(err.response?.data?.error || "OTP verification failed. Please try again.");
     } finally {
@@ -189,6 +207,11 @@ export default function Login() {
                 <p className="mt-2 text-sm text-slate-500">
                   Sign in to continue your architecture workspaces.
                 </p>
+                {!!inviteToken && (
+                  <p className="mt-2 text-sm text-blue-600">
+                    Log in to accept your workspace invitation.
+                  </p>
+                )}
               </div>
 
               <div className="space-y-6">
@@ -263,6 +286,7 @@ export default function Login() {
                       type="email"
                       placeholder="Work email"
                       required
+                      readOnly={!!inviteEmail}
                       className="w-full rounded-xl border border-slate-200 bg-white py-3 pl-10 pr-4 text-sm text-slate-800 placeholder:text-slate-400 focus:border-blue-400 focus:outline-none"
                     />
                   </div>
@@ -345,7 +369,13 @@ export default function Login() {
                 <div className="pt-1 text-center">
                   <button
                     type="button"
-                    onClick={() => navigate("/signup")}
+                    onClick={() =>
+                      navigate(
+                        inviteToken
+                          ? `/signup?invite_token=${encodeURIComponent(inviteToken)}&invite_email=${encodeURIComponent(formData.email)}`
+                          : "/signup"
+                      )
+                    }
                     className="text-xs font-bold text-blue-700 transition hover:text-blue-800"
                   >
                     Don&apos;t have an account? Create one
