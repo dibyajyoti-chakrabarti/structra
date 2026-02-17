@@ -1,3 +1,6 @@
+from django.db import models
+
+
 class WorkspaceVisibility:
     PUBLIC = 'public'
     PRIVATE = 'private'
@@ -5,6 +8,12 @@ class WorkspaceVisibility:
         (PUBLIC, 'Public'),
         (PRIVATE, 'Private'),
     ]
+
+
+class WorkspaceRole(models.TextChoices):
+    ADMIN = 'ADMIN', 'Admin'
+    MEMBER = 'MEMBER', 'Member'
+
 
 class CanvasRole:
     VIEWER = 'viewer'

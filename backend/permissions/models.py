@@ -2,7 +2,7 @@ from django.db import models
 from django.conf import settings
 from workspaces.models import Workspace
 from canvases.models import Canvas
-from core.constants import CanvasRole
+from core.constants import CanvasRole, WorkspaceRole
 
 class WorkspaceMember(models.Model):
     workspace = models.ForeignKey(
@@ -14,6 +14,11 @@ class WorkspaceMember(models.Model):
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
         related_name='workspace_memberships'
+    )
+    role = models.CharField(
+        max_length=10,
+        choices=WorkspaceRole.choices,
+        default=WorkspaceRole.MEMBER,
     )
     added_at = models.DateTimeField(auto_now_add=True)
 

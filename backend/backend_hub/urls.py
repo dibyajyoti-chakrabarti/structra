@@ -5,7 +5,8 @@ urlpatterns = [
     path('admin/', admin.site.urls),
     path('api/auth/', include('accounts.urls')),
     path('api/workspaces/', include('workspaces.urls')),
+    path('api/', include('permissions.urls')),
+    path('api/', include('notifications.urls')),
     
-    # ADD THIS LINE: Connects workspace IDs to canvas/system logic
     path('api/workspaces/<str:workspace_id>/canvases/', include('canvases.urls')),
 ]
