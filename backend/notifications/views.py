@@ -12,7 +12,11 @@ from permissions.checks import user_is_workspace_admin
 from permissions.models import WorkspaceMember
 from workspaces.models import Workspace
 from .models import Invitation
-from .serializers import InvitationTokenSerializer, WorkspaceInvitationCreateSerializer
+from .serializers import (
+    InvitationTokenSerializer,
+    WorkspaceInvitationCreateSerializer,
+    WorkspaceInvitationSerializer,
+)
 
 
 def _mark_expired_if_needed(invitation):
@@ -71,6 +75,31 @@ def _send_invitation_email(invitation):
 
 class WorkspaceInvitationCreateView(APIView):
     permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request, workspace_id):
+        workspace = get_object_or_404(Workspace, id=workspace_id)
+
+        if not user_is_workspace_admin(workspace, request.user):
+            return Response(
+                {"error": "Action allowed only for admin."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        # Expire stale pending invitations before listing.
+        Invitation.objects.filter(
+            workspace=workspace,
+            status=InvitationStatus.PENDING,
+            expires_at__lte=timezone.now(),
+        ).update(status=InvitationStatus.EXPIRED)
+
+        invitations = Invitation.objects.filter(
+            workspace=workspace,
+            status=InvitationStatus.PENDING,
+            expires_at__gt=timezone.now(),
+        ).select_related("invited_by")
+
+        serializer = WorkspaceInvitationSerializer(invitations, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
 
     def post(self, request, workspace_id):
         workspace = get_object_or_404(Workspace, id=workspace_id)
@@ -141,6 +170,39 @@ class WorkspaceInvitationCreateView(APIView):
             {"message": "Invitation sent successfully."},
             status=status.HTTP_201_CREATED,
         )
+
+
+class WorkspaceInvitationCancelView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def delete(self, request, workspace_id, token):
+        workspace = get_object_or_404(Workspace, id=workspace_id)
+
+        if not user_is_workspace_admin(workspace, request.user):
+            return Response(
+                {"error": "Action allowed only for admin."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        invitation = Invitation.objects.filter(workspace=workspace, token=token).first()
+        if not invitation:
+            return Response({"error": "Invitation not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        if invitation.status != InvitationStatus.PENDING:
+            return Response(
+                {"error": "Only pending invitations can be cancelled."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if _mark_expired_if_needed(invitation):
+            return Response(
+                {"error": "Invitation already expired."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        invitation.status = InvitationStatus.REJECTED
+        invitation.save(update_fields=["status"])
+        return Response({"message": "Invitation cancelled successfully."}, status=status.HTTP_200_OK)
 
 
 class InvitationDetailsView(APIView):
@@ -216,3 +278,20 @@ class InvitationAcceptView(APIView):
             },
             status=status.HTTP_200_OK,
         )
+
+
+class InvitationRejectView(APIView):
+    permission_classes = [permissions.AllowAny]
+
+    def post(self, request):
+        serializer = InvitationTokenSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        token = serializer.validated_data["token"]
+
+        invitation, error = _get_valid_invitation(token)
+        if error:
+            return Response({"error": error}, status=status.HTTP_400_BAD_REQUEST)
+
+        invitation.status = InvitationStatus.REJECTED
+        invitation.save(update_fields=["status"])
+        return Response({"message": "Invitation rejected successfully."}, status=status.HTTP_200_OK)
