@@ -20,6 +20,7 @@ const SecuritySettings = () => {
 
   const [systems, setSystems] = useState([]);
   const [workspaceMembers, setWorkspaceMembers] = useState([]);
+  const [currentUserId, setCurrentUserId] = useState('');
   const [visibility, setVisibility] = useState('private');
   const [expandedSystem, setExpandedSystem] = useState(null);
   const [grantForms, setGrantForms] = useState({});
@@ -28,7 +29,7 @@ const SecuritySettings = () => {
   const [success, setSuccess] = useState('');
 
   const defaultForm = useMemo(
-    () => ({ query: '', selectedUserId: '', role: 'viewer', submitting: false, openPicker: false }),
+    () => ({ query: '', selectedUserId: '', role: 'viewer', submitting: false, openPicker: false, dropUp: false }),
     []
   );
 
@@ -53,8 +54,13 @@ const SecuritySettings = () => {
     }
 
     try {
-      const response = await api.get(`workspaces/${workspaceId}/members/`);
-      setWorkspaceMembers(response.data || []);
+      const [membersRes, profileRes] = await Promise.all([
+        api.get(`workspaces/${workspaceId}/members/`),
+        api.get('auth/profile/'),
+      ]);
+      const userId = profileRes.data?.user_id || '';
+      setCurrentUserId(userId);
+      setWorkspaceMembers((membersRes.data || []).filter((member) => member.user_id !== userId));
     } catch (err) {
       setError(err.response?.data?.error || err.response?.data?.detail || 'Failed to load workspace members.');
     }
@@ -94,6 +100,26 @@ const SecuritySettings = () => {
     fetchIamPolicies();
   }, [workspaceId, isAdmin]);
 
+  useEffect(() => {
+    const onPointerDown = (event) => {
+      const insidePicker = event.target?.closest?.('[data-member-picker="true"]');
+      if (!insidePicker) {
+        setGrantForms((prev) => {
+          const next = { ...prev };
+          Object.keys(next).forEach((systemId) => {
+            if (next[systemId]?.openPicker) {
+              next[systemId] = { ...next[systemId], openPicker: false };
+            }
+          });
+          return next;
+        });
+      }
+    };
+
+    document.addEventListener('mousedown', onPointerDown);
+    return () => document.removeEventListener('mousedown', onPointerDown);
+  }, []);
+
   const toggleSystem = (id) => {
     if (expandedSystem === id) setExpandedSystem(null);
     else setExpandedSystem(id);
@@ -124,6 +150,13 @@ const SecuritySettings = () => {
     }));
   };
 
+  const getPickerDirection = (inputElement) => {
+    if (!inputElement) return false;
+    const rect = inputElement.getBoundingClientRect();
+    const spaceBelow = window.innerHeight - rect.bottom;
+    return spaceBelow < 280;
+  };
+
   const getFilteredMembers = (systemId) => {
     const form = grantForms[systemId] || defaultForm;
     const query = (form.query || '').trim().toLowerCase();
@@ -132,6 +165,7 @@ const SecuritySettings = () => {
     );
 
     return workspaceMembers
+      .filter((member) => member.user_id !== currentUserId)
       .filter((member) => !grantedUserIds.has(member.user_id))
       .filter((member) => {
         if (!query) return true;
@@ -292,7 +326,7 @@ const SecuritySettings = () => {
                 return (
                   <div
                     key={system.system_id}
-                    className="border border-gray-200 rounded-xl overflow-hidden transition-colors bg-white hover:border-blue-200"
+                    className="border border-gray-200 rounded-xl overflow-visible transition-colors bg-white hover:border-blue-200"
                   >
                     <div
                       onClick={() => toggleSystem(system.system_id)}
@@ -368,17 +402,23 @@ const SecuritySettings = () => {
                           </h4>
 
                           <div className="flex flex-col md:flex-row gap-3 items-start">
-                            <div className="flex-[2] w-full relative">
+                            <div className="flex-[2] w-full relative" data-member-picker="true">
                               <div className="relative">
                                 <input
                                   type="text"
                                   value={form.query}
-                                  onFocus={() => updateGrantForm(system.system_id, { openPicker: true })}
+                                  onFocus={(e) =>
+                                    updateGrantForm(system.system_id, {
+                                      openPicker: true,
+                                      dropUp: getPickerDirection(e.target),
+                                    })
+                                  }
                                   onChange={(e) =>
                                     updateGrantForm(system.system_id, {
                                       query: e.target.value,
                                       selectedUserId: '',
                                       openPicker: true,
+                                      dropUp: getPickerDirection(e.target),
                                     })
                                   }
                                   placeholder="Search member by name or email..."
@@ -388,7 +428,11 @@ const SecuritySettings = () => {
                               </div>
 
                               {form.openPicker && filteredMembers.length > 0 && (
-                                <div className="absolute z-20 mt-1 max-h-56 w-full overflow-y-auto rounded-md border border-gray-200 bg-white shadow-lg">
+                                <div
+                                  className={`absolute left-0 z-20 max-h-56 w-full overflow-y-auto rounded-md border border-gray-200 bg-white shadow-lg ${
+                                    form.dropUp ? 'bottom-full mb-1' : 'top-full mt-1'
+                                  }`}
+                                >
                                   {filteredMembers.map((member) => (
                                     <button
                                       key={member.user_id}

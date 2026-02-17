@@ -26,6 +26,7 @@ const CreateSystem = () => {
   const [searchQuery, setSearchQuery] = useState("");
 
   const [workspaceMembers, setWorkspaceMembers] = useState([]);
+  const [currentUserId, setCurrentUserId] = useState("");
   const [selectedMembers, setSelectedMembers] = useState({});
   const [loadingMembers, setLoadingMembers] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
@@ -37,13 +38,16 @@ const CreateSystem = () => {
     const fetchData = async () => {
       setLoadingMembers(true);
       try {
-        const [workspaceRes, membersRes] = await Promise.all([
+        const [workspaceRes, membersRes, profileRes] = await Promise.all([
           api.get(`workspaces/${workspaceId}/`),
           api.get(`workspaces/${workspaceId}/members/`),
+          api.get("auth/profile/"),
         ]);
 
         setIsAdmin(!!workspaceRes.data?.is_admin);
-        setWorkspaceMembers(membersRes.data || []);
+        const userId = profileRes.data?.user_id || "";
+        setCurrentUserId(userId);
+        setWorkspaceMembers((membersRes.data || []).filter((member) => member.user_id !== userId));
       } catch (err) {
         setError(err.response?.data?.error || err.response?.data?.detail || "Failed to load workspace members.");
       } finally {
@@ -56,13 +60,14 @@ const CreateSystem = () => {
 
   const filteredMembers = useMemo(() => {
     const query = searchQuery.trim().toLowerCase();
-    if (!query) return workspaceMembers;
-    return workspaceMembers.filter(
+    const list = workspaceMembers.filter((member) => member.user_id !== currentUserId);
+    if (!query) return list;
+    return list.filter(
       (member) =>
         (member.full_name || "").toLowerCase().includes(query) ||
         (member.email || "").toLowerCase().includes(query)
     );
-  }, [workspaceMembers, searchQuery]);
+  }, [workspaceMembers, searchQuery, currentUserId]);
 
   const toggleMember = (userId) => {
     setSelectedMembers((prev) => {
