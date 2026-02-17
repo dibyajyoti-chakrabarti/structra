@@ -34,7 +34,7 @@ const Toast = ({ message, type, onClose }) => {
 const GeneralSettings = () => {
   const { workspaceId } = useParams();
   const navigate = useNavigate();
-  const { refreshWorkspaces } = useOutletContext();
+  const { refreshWorkspaces, isAdmin } = useOutletContext();
 
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
@@ -77,6 +77,10 @@ const GeneralSettings = () => {
 
   // Open Save Modal
   const initiateSave = () => {
+    if (!isAdmin) {
+      showToast("Action allowed only for admin.", "error");
+      return;
+    }
     setSaveConfirmationText('');
     setShowSaveModal(true);
   };
@@ -107,6 +111,10 @@ const GeneralSettings = () => {
 
   // Open Delete Modal
   const initiateDelete = () => {
+    if (!isAdmin) {
+      showToast("Action allowed only for admin.", "error");
+      return;
+    }
     setDeleteConfirmationText('');
     setShowDeleteModal(true);
   };
@@ -248,7 +256,12 @@ const GeneralSettings = () => {
             type="text"
             value={name}
             onChange={(e) => setName(e.target.value)}
-            className="w-full px-3.5 py-2.5 rounded-md border border-gray-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none transition text-sm text-gray-900"
+            readOnly={!isAdmin}
+            className={`w-full px-3.5 py-2.5 rounded-md border outline-none transition text-sm text-gray-900 ${
+              isAdmin
+                ? 'border-gray-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-100'
+                : 'border-gray-200 bg-gray-100 text-gray-500 cursor-not-allowed'
+            }`}
           />
         </div>
 
@@ -261,7 +274,12 @@ const GeneralSettings = () => {
             rows="4"
             value={description}
             onChange={(e) => setDescription(e.target.value)}
-            className="w-full px-3.5 py-2.5 rounded-md border border-gray-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none transition resize-none text-sm text-gray-700"
+            readOnly={!isAdmin}
+            className={`w-full px-3.5 py-2.5 rounded-md border outline-none transition resize-none text-sm ${
+              isAdmin
+                ? 'border-gray-300 text-gray-700 focus:border-blue-500 focus:ring-2 focus:ring-blue-100'
+                : 'border-gray-200 bg-gray-100 text-gray-500 cursor-not-allowed'
+            }`}
           ></textarea>
         </div>
         
@@ -269,7 +287,11 @@ const GeneralSettings = () => {
           <button 
             onClick={initiateSave}
             disabled={saving}
-            className="bg-blue-600 text-white px-5 py-2.5 rounded-md text-sm font-medium hover:bg-blue-700 transition-colors flex items-center gap-2 disabled:opacity-50"
+            className={`px-5 py-2.5 rounded-md text-sm font-medium transition-colors flex items-center gap-2 disabled:opacity-50 ${
+              isAdmin
+                ? 'bg-blue-600 text-white hover:bg-blue-700'
+                : 'bg-gray-200 text-gray-500 cursor-not-allowed'
+            }`}
           >
             <Save size={16} />
             Save Changes
@@ -290,7 +312,11 @@ const GeneralSettings = () => {
         <div className="flex justify-end sm:justify-start">
           <button 
             onClick={initiateDelete}
-            className="bg-white border border-red-300 text-red-700 hover:bg-red-600 hover:text-white hover:border-red-600 px-4 py-2 rounded-md text-sm font-medium transition-colors"
+            className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+              isAdmin
+                ? 'bg-white border border-red-300 text-red-700 hover:bg-red-600 hover:text-white hover:border-red-600'
+                : 'bg-gray-100 border border-gray-200 text-gray-400 cursor-not-allowed'
+            }`}
           >
             Delete Workspace
           </button>

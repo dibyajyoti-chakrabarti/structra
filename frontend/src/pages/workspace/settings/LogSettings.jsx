@@ -1,7 +1,11 @@
 import React, { useState } from 'react';
+import { useNavigate, useOutletContext, useParams } from 'react-router-dom';
 import { Search, Download, AlertCircle, CheckCircle, Clock, Filter, FileText, Activity } from 'lucide-react';
 
 const LogSettings = () => {
+  const navigate = useNavigate();
+  const { workspaceId } = useParams();
+  const { isAdmin } = useOutletContext();
   const [filter, setFilter] = useState('all');
 
   // Mock Log Data
@@ -30,6 +34,24 @@ const LogSettings = () => {
       default: return 'bg-gray-50 border-gray-100';
     }
   };
+
+  if (!isAdmin) {
+    return (
+      <div className="h-full flex flex-col max-w-5xl">
+        <div className="rounded-xl border border-red-200 bg-red-50 p-5">
+          <h2 className="text-lg font-semibold text-red-700 mb-2">Access Restricted</h2>
+          <p className="text-sm text-red-700 mb-4">Action allowed only for admin.</p>
+          <button
+            type="button"
+            onClick={() => navigate(`/app/ws/${workspaceId}/settings`)}
+            className="px-4 py-2 rounded-md bg-white border border-red-300 text-red-700 text-sm font-medium hover:bg-red-100 transition-colors"
+          >
+            Back to Settings
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="h-full flex flex-col max-w-5xl">

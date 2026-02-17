@@ -37,16 +37,8 @@ export default function Login() {
 
   const resolvePostAuthRoute = async (isNewUser) => {
     if (inviteToken) {
-      try {
-        const invitationRes = await api.post("invitations/accept/", { token: inviteToken });
-        const workspaceId = invitationRes.data?.workspace_id;
-        if (workspaceId) {
-          navigate(`/app/ws/${workspaceId}`);
-          return;
-        }
-      } catch (err) {
-        console.error("Invitation accept after login failed", err);
-      }
+      navigate(`/invite/${encodeURIComponent(inviteToken)}/respond`);
+      return;
     }
 
     if (isNewUser) {

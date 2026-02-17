@@ -1,10 +1,31 @@
+import { useEffect, useState } from 'react';
 import { NavLink, Outlet, useParams, useNavigate, useOutletContext } from 'react-router-dom';
 import { Settings, Users, Shield, FileText, ArrowLeft } from 'lucide-react';
+import api from '../../../api';
 
 const WorkspaceSettings = () => {
   const { workspaceId } = useParams();
   const navigate = useNavigate();
   const context = useOutletContext(); // Get context from parent
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [roleError, setRoleError] = useState('');
+
+  useEffect(() => {
+    const fetchWorkspaceRole = async () => {
+      try {
+        const response = await api.get(`workspaces/${workspaceId}/`);
+        setIsAdmin(!!response.data?.is_admin);
+      } catch {
+        setIsAdmin(false);
+      }
+    };
+    fetchWorkspaceRole();
+  }, [workspaceId]);
+
+  const showAdminOnlyError = () => {
+    setRoleError('Action allowed only for admin.');
+    setTimeout(() => setRoleError(''), 2500);
+  };
   
   const navItems = [
     { name: 'General', path: `/app/ws/${workspaceId}/settings`, icon: Settings },
@@ -33,36 +54,51 @@ const WorkspaceSettings = () => {
 
             <nav className="space-y-1">
               {navItems.map((item) => (
-                <NavLink
-                  key={item.name}
-                  to={item.path}
-                  end={item.name === 'General'}
-                  className={({ isActive }) =>
-                    `group flex items-center gap-3 px-3 py-2.5 rounded-md border transition-colors ${
-                      isActive
-                        ? 'border-blue-200 bg-blue-50 text-blue-700'
-                        : 'border-transparent text-gray-600 hover:bg-gray-50 hover:text-gray-900'
-                    }`
-                  }
-                >
-                  {({ isActive }) => (
-                    <>
-                      <item.icon
-                        size={16}
-                        className={isActive ? 'text-blue-600' : 'text-gray-400 group-hover:text-gray-600'}
-                      />
-                      <span className="text-sm font-medium">{item.name}</span>
-                    </>
-                  )}
-                </NavLink>
+                item.name === 'Logs' && !isAdmin ? (
+                  <button
+                    key={item.name}
+                    type="button"
+                    onClick={showAdminOnlyError}
+                    className="w-full text-left group flex items-center gap-3 px-3 py-2.5 rounded-md border border-transparent text-gray-400 bg-gray-50 cursor-not-allowed"
+                  >
+                    <item.icon size={16} className="text-gray-300" />
+                    <span className="text-sm font-medium">{item.name}</span>
+                  </button>
+                ) : (
+                  <NavLink
+                    key={item.name}
+                    to={item.path}
+                    end={item.name === 'General'}
+                    className={({ isActive }) =>
+                      `group flex items-center gap-3 px-3 py-2.5 rounded-md border transition-colors ${
+                        isActive
+                          ? 'border-blue-200 bg-blue-50 text-blue-700'
+                          : 'border-transparent text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                      }`
+                    }
+                  >
+                    {({ isActive }) => (
+                      <>
+                        <item.icon
+                          size={16}
+                          className={isActive ? 'text-blue-600' : 'text-gray-400 group-hover:text-gray-600'}
+                        />
+                        <span className="text-sm font-medium">{item.name}</span>
+                      </>
+                    )}
+                  </NavLink>
+                )
               ))}
             </nav>
+            {roleError && (
+              <p className="mt-3 text-xs font-medium text-red-600 px-1">{roleError}</p>
+            )}
           </div>
         </aside>
 
         <main className="min-w-0 overflow-y-auto bg-gray-50">
           <div className="mx-auto w-full max-w-5xl p-5 lg:p-8">
-            <Outlet context={context} />
+            <Outlet context={{ ...context, isAdmin }} />
           </div>
         </main>
       </div>

@@ -40,14 +40,16 @@ export default function Signup() {
     setFormData((prev) => ({ ...prev, email: inviteEmail }));
   }, [inviteEmail]);
 
-  const acceptInvitationIfPresent = async () => {
-    if (!inviteToken) return null;
-    try {
-      const response = await api.post("invitations/accept/", { token: inviteToken });
-      return response.data?.workspace_id || null;
-    } catch (err) {
-      console.error("Invitation accept failed after signup", err);
-      return null;
+  const resolvePostSignupRoute = (isNewUser) => {
+    if (inviteToken) {
+      navigate(`/invite/${encodeURIComponent(inviteToken)}/respond`);
+      return;
+    }
+
+    if (isNewUser) {
+      navigate("/app/onboarding");
+    } else {
+      navigate("/app");
     }
   };
 
@@ -62,17 +64,7 @@ export default function Signup() {
         localStorage.setItem("access", res.data.access);
         localStorage.setItem("refresh", res.data.refresh);
 
-        const workspaceId = await acceptInvitationIfPresent();
-        if (workspaceId) {
-          navigate(`/app/ws/${workspaceId}`);
-          return;
-        }
-
-        if (res.data.user.is_new) {
-          navigate("/app/onboarding");
-        } else {
-          navigate("/app");
-        }
+        resolvePostSignupRoute(res.data.user.is_new);
       } catch (err) {
         console.error("Google Signup Failed", err);
         setError("Google signup failed. Please try again.");
@@ -182,13 +174,7 @@ export default function Signup() {
       localStorage.setItem("access", response.data.access);
       localStorage.setItem("refresh", response.data.refresh);
 
-      const workspaceId = await acceptInvitationIfPresent();
-      if (workspaceId) {
-        navigate(`/app/ws/${workspaceId}`);
-        return;
-      }
-
-      navigate("/app/onboarding");
+      resolvePostSignupRoute(true);
     } catch (err) {
       setError(
         err.response?.data?.error || "OTP verification failed. Please try again."

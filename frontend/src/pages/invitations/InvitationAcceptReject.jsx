@@ -7,6 +7,7 @@ export default function InvitationAcceptReject() {
   const { token } = useParams();
   const [loading, setLoading] = useState(true);
   const [accepting, setAccepting] = useState(false);
+  const [rejecting, setRejecting] = useState(false);
   const [details, setDetails] = useState(null);
   const [error, setError] = useState('');
 
@@ -61,6 +62,19 @@ export default function InvitationAcceptReject() {
       setAccepting(false);
     }
   };
+
+  const handleReject = async () => {
+    setRejecting(true);
+    setError('');
+    try {
+      await api.post('invitations/reject/', { token });
+      navigate('/');
+    } catch (err) {
+      setError(err.response?.data?.error || 'Failed to reject invitation.');
+    } finally {
+      setRejecting(false);
+    }
+  };
   
   return (
     <div className="min-h-screen flex flex-col items-center justify-center gap-4 p-8">
@@ -86,7 +100,13 @@ export default function InvitationAcceptReject() {
         >
           {accepting ? 'Accepting...' : 'Accept Invitation'}
         </button>
-        <button onClick={() => navigate('/')} className="px-4 py-2 bg-red-500 text-white rounded">Reject Invitation</button>
+        <button
+          onClick={handleReject}
+          disabled={loading || rejecting}
+          className="px-4 py-2 bg-red-500 text-white rounded disabled:opacity-60"
+        >
+          {rejecting ? 'Rejecting...' : 'Reject Invitation'}
+        </button>
       </div>
     </div>
   );
