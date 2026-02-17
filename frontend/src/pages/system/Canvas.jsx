@@ -13,7 +13,6 @@ import {
   Layers,
   Box,
   FileJson,
-  Edit3,
   Undo,
   Redo,
   Play,
@@ -26,7 +25,6 @@ import {
   ZoomOut,
   Maximize2,
   Grid3x3,
-  Move,
   MousePointer2,
   Hand,
   Users,
@@ -34,7 +32,6 @@ import {
   Save,
   RefreshCw,
   ChevronDown,
-  Sparkles,
   Plus
 } from 'lucide-react';
 import api from '../../api';
@@ -119,21 +116,21 @@ const Breadcrumb = ({ userName, workspaceName, systemName, workspaceId }) => {
 };
 
 // Tool Button Component
-const ToolButton = ({ icon: Icon, label, active, onClick, color = 'blue', badge }) => {
+const ToolButton = ({ icon: Icon, label, active, onClick, badge }) => {
   return (
     <button
       onClick={onClick}
-      className={`group relative w-full flex flex-col items-center gap-1.5 px-3 py-3 rounded-xl text-xs font-semibold transition-all ${
-        active 
-          ? `bg-gradient-to-br from-${color}-50 to-${color}-100 text-${color}-700 shadow-md border-2 border-${color}-300 scale-105` 
-          : 'text-gray-600 hover:bg-gray-50 hover:scale-105 border-2 border-transparent hover:shadow-sm'
+      className={`group relative w-full flex items-center gap-2 px-2.5 py-2 rounded-md text-xs font-medium transition-colors ${
+        active
+          ? 'bg-blue-50 text-blue-700 border border-blue-200'
+          : 'text-gray-600 hover:bg-gray-100 border border-transparent'
       }`}
       title={label}
     >
-      <Icon size={20} className={active ? `text-${color}-600` : 'text-gray-500 group-hover:text-gray-700'} />
-      <span className={`text-[10px] ${active ? 'font-bold' : 'font-medium'}`}>{label}</span>
+      <Icon size={16} className={active ? 'text-blue-600' : 'text-gray-500 group-hover:text-gray-700'} />
+      <span>{label}</span>
       {badge && (
-        <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 text-white text-[8px] font-bold rounded-full flex items-center justify-center">
+        <span className="ml-auto w-4 h-4 bg-red-500 text-white text-[8px] font-bold rounded-full flex items-center justify-center">
           {badge}
         </span>
       )}
@@ -227,31 +224,31 @@ const Canvas = () => {
   }
 
   const tools = [
-    { id: 'select', icon: MousePointer2, label: 'Select', color: 'blue' },
-    { id: 'pan', icon: Hand, label: 'Pan', color: 'purple' },
-    { id: 'comment', icon: MessageSquare, label: 'Comment', color: 'yellow', badge: '3' },
+    { id: 'select', icon: MousePointer2, label: 'Select' },
+    { id: 'pan', icon: Hand, label: 'Pan' },
+    { id: 'comment', icon: MessageSquare, label: 'Comment', badge: '3' },
   ];
 
   const components = [
-    { id: 'database', icon: Database, label: 'Database', color: 'green' },
-    { id: 'server', icon: Server, label: 'Server', color: 'blue' },
-    { id: 'cloud', icon: Cloud, label: 'Cloud', color: 'sky' },
-    { id: 'api', icon: Globe, label: 'API', color: 'purple' },
-    { id: 'auth', icon: Lock, label: 'Auth', color: 'red' },
-    { id: 'queue', icon: Layers, label: 'Queue', color: 'orange' },
-    { id: 'cache', icon: Zap, label: 'Cache', color: 'yellow' },
-    { id: 'service', icon: Box, label: 'Service', color: 'indigo' },
-    { id: 'flow', icon: GitBranch, label: 'Flow', color: 'pink' },
-    { id: 'data', icon: FileJson, label: 'Data', color: 'teal' },
+    { id: 'database', icon: Database, label: 'Database' },
+    { id: 'server', icon: Server, label: 'Server' },
+    { id: 'cloud', icon: Cloud, label: 'Cloud' },
+    { id: 'api', icon: Globe, label: 'API' },
+    { id: 'auth', icon: Lock, label: 'Auth' },
+    { id: 'queue', icon: Layers, label: 'Queue' },
+    { id: 'cache', icon: Zap, label: 'Cache' },
+    { id: 'service', icon: Box, label: 'Service' },
+    { id: 'flow', icon: GitBranch, label: 'Flow' },
+    { id: 'data', icon: FileJson, label: 'Data' },
   ];
 
   return (
-    <div className="h-screen flex flex-col bg-gradient-to-br from-gray-50 to-gray-100 overflow-hidden">
+    <div className="h-screen flex flex-col bg-gray-100 overflow-hidden">
       {/* Top Navigation Bar */}
-      <header className="flex-shrink-0 border-b border-gray-200 bg-white/80 backdrop-blur-xl shadow-sm">
-        <div className="px-6 py-3.5 flex items-center justify-between">
+      <header className="flex-shrink-0 border-b border-gray-200 bg-white">
+        <div className="px-5 py-3 flex items-center justify-between gap-4">
           {/* Breadcrumb */}
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-4 min-w-0">
             <Breadcrumb 
               userName={user.full_name}
               workspaceName={workspace.name}
@@ -261,10 +258,10 @@ const Canvas = () => {
           </div>
 
           {/* Center Controls */}
-          <div className="flex items-center gap-2 bg-white rounded-xl px-3 py-2 border border-gray-200 shadow-sm">
+          <div className="flex items-center gap-2 bg-white rounded-lg px-2 py-1.5 border border-gray-200">
             <button
               onClick={() => setZoom(Math.max(25, zoom - 10))}
-              className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors"
+              className="p-1.5 hover:bg-gray-100 rounded transition-colors"
               title="Zoom Out"
             >
               <ZoomOut size={16} className="text-gray-600" />
@@ -274,7 +271,7 @@ const Canvas = () => {
             </span>
             <button
               onClick={() => setZoom(Math.min(200, zoom + 10))}
-              className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors"
+              className="p-1.5 hover:bg-gray-100 rounded transition-colors"
               title="Zoom In"
             >
               <ZoomIn size={16} className="text-gray-600" />
@@ -282,7 +279,7 @@ const Canvas = () => {
             <div className="w-px h-5 bg-gray-200 mx-1"></div>
             <button
               onClick={() => setZoom(100)}
-              className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors"
+              className="p-1.5 hover:bg-gray-100 rounded transition-colors"
               title="Reset Zoom"
             >
               <Maximize2 size={16} className="text-gray-600" />
@@ -290,7 +287,7 @@ const Canvas = () => {
             <button
               onClick={() => setShowGrid(!showGrid)}
               className={`p-1.5 rounded-lg transition-colors ${
-                showGrid ? 'bg-blue-50 text-blue-600' : 'hover:bg-gray-100 text-gray-600'
+                showGrid ? 'bg-blue-50 text-blue-600 border border-blue-200' : 'hover:bg-gray-100 text-gray-600'
               }`}
               title="Toggle Grid"
             >
@@ -299,33 +296,33 @@ const Canvas = () => {
           </div>
 
           {/* Action Buttons */}
-          <div className="flex items-center gap-2">
-            <button className="p-2 hover:bg-gray-100 rounded-lg transition-colors" title="Collaborators">
+          <div className="flex items-center gap-2 shrink-0">
+            <button className="p-2 hover:bg-gray-100 rounded-md transition-colors" title="Collaborators">
               <Users size={18} className="text-gray-600" />
             </button>
-            <button className="p-2 hover:bg-gray-100 rounded-lg transition-colors" title="Share">
+            <button className="p-2 hover:bg-gray-100 rounded-md transition-colors" title="Share">
               <Share2 size={18} className="text-gray-600" />
             </button>
             <div className="w-px h-6 bg-gray-200 mx-1"></div>
             <button
               onClick={handleEvaluate}
-              className="px-4 py-2 bg-gradient-to-r from-purple-600 to-purple-700 text-white rounded-lg font-semibold hover:from-purple-700 hover:to-purple-800 transition-all text-sm shadow-md hover:shadow-lg flex items-center gap-2"
+              className="px-4 py-2 bg-gray-900 text-white rounded-md font-medium hover:bg-black transition-colors text-sm flex items-center gap-2"
             >
-              <Sparkles size={16} />
+              <Play size={14} />
               Evaluate
             </button>
             <button
               onClick={handlePresent}
-              className="px-4 py-2 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-lg font-semibold hover:from-blue-700 hover:to-blue-800 transition-all text-sm shadow-md hover:shadow-lg flex items-center gap-2"
+              className="px-4 py-2 bg-blue-600 text-white rounded-md font-medium hover:bg-blue-700 transition-colors text-sm flex items-center gap-2"
             >
-              <Play size={16} />
+              <Play size={14} />
               Present
             </button>
             <button
               onClick={handleExport}
-              className="px-4 py-2 bg-white border-2 border-gray-200 text-gray-700 rounded-lg font-semibold hover:border-gray-300 hover:bg-gray-50 transition-all text-sm flex items-center gap-2"
+              className="px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded-md font-medium hover:bg-gray-50 transition-colors text-sm flex items-center gap-2"
             >
-              <FileDown size={16} />
+              <FileDown size={14} />
               Export
             </button>
           </div>
@@ -335,10 +332,10 @@ const Canvas = () => {
       {/* Main Content Area */}
       <div className="flex-1 flex overflow-hidden">
         {/* Left Sidebar - Tools */}
-        <aside className="w-[88px] border-r border-gray-200 bg-white/90 backdrop-blur-sm flex flex-col shadow-lg">
+        <aside className="w-60 border-r border-gray-200 bg-white flex flex-col">
           {/* Tools Section */}
           <div className="p-3 border-b border-gray-100">
-            <h3 className="text-[9px] font-bold text-gray-400 uppercase tracking-wider mb-2 px-1">
+            <h3 className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2 px-1">
               Tools
             </h3>
             <div className="space-y-1.5">
@@ -347,7 +344,6 @@ const Canvas = () => {
                   key={tool.id}
                   icon={tool.icon}
                   label={tool.label}
-                  color={tool.color}
                   badge={tool.badge}
                   active={activeTool === tool.id}
                   onClick={() => setActiveTool(tool.id)}
@@ -358,7 +354,7 @@ const Canvas = () => {
 
           {/* Components Section */}
           <div className="flex-1 p-3 overflow-y-auto">
-            <h3 className="text-[9px] font-bold text-gray-400 uppercase tracking-wider mb-2 px-1">
+            <h3 className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2 px-1">
               Components
             </h3>
             <div className="space-y-1.5">
@@ -367,7 +363,6 @@ const Canvas = () => {
                   key={comp.id}
                   icon={comp.icon}
                   label={comp.label}
-                  color={comp.color}
                   active={activeComponent === comp.id}
                   onClick={() => setActiveComponent(comp.id)}
                 />
@@ -377,119 +372,141 @@ const Canvas = () => {
 
           {/* History Controls */}
           <div className="p-3 border-t border-gray-100 space-y-1.5">
-            <button className="w-full p-2.5 rounded-lg hover:bg-gray-100 transition-all flex items-center justify-center" title="Undo">
-              <Undo size={18} className="text-gray-600" />
+            <button className="w-full p-2 rounded-md hover:bg-gray-100 transition-colors flex items-center gap-2 text-xs text-gray-600" title="Undo">
+              <Undo size={14} className="text-gray-600" />
+              Undo
             </button>
-            <button className="w-full p-2.5 rounded-lg hover:bg-gray-100 transition-all flex items-center justify-center" title="Redo">
-              <Redo size={18} className="text-gray-600" />
+            <button className="w-full p-2 rounded-md hover:bg-gray-100 transition-colors flex items-center gap-2 text-xs text-gray-600" title="Redo">
+              <Redo size={14} className="text-gray-600" />
+              Redo
             </button>
           </div>
         </aside>
 
-        {/* Canvas Area */}
-        <main className="flex-1 relative overflow-hidden">
-          {/* Grid Background */}
-          {showGrid && (
-            <div 
-              className="absolute inset-0 opacity-30"
-              style={{
-                backgroundImage: `
-                  linear-gradient(to right, #e5e7eb 1px, transparent 1px),
-                  linear-gradient(to bottom, #e5e7eb 1px, transparent 1px)
-                `,
-                backgroundSize: '20px 20px'
-              }}
-            />
-          )}
+        <div className="flex-1 flex overflow-hidden">
+          {/* Canvas Area */}
+          <main className="flex-1 relative overflow-hidden bg-[#f8fafc]">
+            {/* Grid Background */}
+            {showGrid && (
+              <div 
+                className="absolute inset-0 opacity-70"
+                style={{
+                  backgroundImage: `
+                    linear-gradient(to right, #e5e7eb 1px, transparent 1px),
+                    linear-gradient(to bottom, #e5e7eb 1px, transparent 1px)
+                  `,
+                  backgroundSize: '24px 24px'
+                }}
+              />
+            )}
 
-          {/* Canvas Content */}
-          <div className="absolute inset-0 flex items-center justify-center">
-            {/* Welcome State */}
-            <div className="text-center max-w-md">
-              <div className="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-br from-blue-500 to-purple-600 rounded-2xl shadow-lg mb-6">
-                <Box size={40} className="text-white" />
+            {/* Canvas Content */}
+            <div className="absolute inset-0">
+              <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-[45%] w-[720px] h-[420px] bg-white/70 border border-gray-200 rounded-xl shadow-sm">
+                <div className="absolute left-8 top-10 w-36 h-20 bg-white border border-gray-300 rounded-md shadow-sm p-3">
+                  <p className="text-xs font-semibold text-gray-700 mb-1">Web App</p>
+                  <p className="text-[11px] text-gray-500">React Client</p>
+                </div>
+                <div className="absolute left-[290px] top-10 w-36 h-20 bg-white border border-gray-300 rounded-md shadow-sm p-3">
+                  <p className="text-xs font-semibold text-gray-700 mb-1">API</p>
+                  <p className="text-[11px] text-gray-500">Gateway</p>
+                </div>
+                <div className="absolute right-8 top-10 w-36 h-20 bg-white border border-gray-300 rounded-md shadow-sm p-3">
+                  <p className="text-xs font-semibold text-gray-700 mb-1">Database</p>
+                  <p className="text-[11px] text-gray-500">PostgreSQL</p>
+                </div>
+                <div className="absolute left-[180px] top-[50px] w-[110px] h-[2px] bg-gray-400" />
+                <div className="absolute left-[430px] top-[50px] w-[110px] h-[2px] bg-gray-400" />
               </div>
-              <h2 className="text-2xl font-bold text-gray-800 mb-3">
-                Start Designing
-              </h2>
-              <p className="text-gray-500 mb-6 leading-relaxed">
-                Drag and drop system components from the left panel to create your architecture diagram
-              </p>
-              <div className="flex items-center justify-center gap-3">
-                <button className="px-5 py-2.5 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-xl font-semibold hover:from-blue-700 hover:to-blue-800 transition-all shadow-md hover:shadow-lg flex items-center gap-2">
-                  <Plus size={18} />
-                  Add Component
-                </button>
-                <button className="px-5 py-2.5 bg-white border-2 border-gray-200 text-gray-700 rounded-xl font-semibold hover:border-gray-300 hover:bg-gray-50 transition-all flex items-center gap-2">
-                  <Search size={18} />
-                  Templates
-                </button>
-              </div>
-            </div>
-          </div>
 
-          {/* Mini Toolbar - Floating */}
-          <div className="absolute top-4 left-4 bg-white/95 backdrop-blur-sm rounded-xl shadow-lg border border-gray-200 p-2 flex items-center gap-1">
-            <button className="p-2 hover:bg-gray-100 rounded-lg transition-colors" title="Save">
-              <Save size={16} className="text-gray-600" />
-            </button>
-            <button className="p-2 hover:bg-gray-100 rounded-lg transition-colors" title="Refresh">
-              <RefreshCw size={16} className="text-gray-600" />
-            </button>
-            <div className="w-px h-5 bg-gray-200 mx-1"></div>
-            <button className="px-3 py-1.5 hover:bg-gray-100 rounded-lg transition-colors text-xs font-semibold text-gray-700 flex items-center gap-1.5">
-              Layers
-              <ChevronDown size={14} />
-            </button>
-          </div>
-
-          {/* Properties Panel - Floating Right */}
-          <div className="absolute top-4 right-4 bg-white/95 backdrop-blur-sm rounded-xl shadow-lg border border-gray-200 p-4 w-64">
-            <h3 className="text-sm font-bold text-gray-800 mb-3 flex items-center gap-2">
-              <Sparkles size={16} className="text-blue-600" />
-              Properties
-            </h3>
-            <div className="space-y-3 text-xs text-gray-500">
-              <div className="p-3 bg-gray-50 rounded-lg text-center">
-                Select a component to view properties
+              <div className="absolute left-1/2 top-[64%] -translate-x-1/2 w-[460px] rounded-lg border border-dashed border-gray-300 bg-white/90 px-6 py-5 text-center shadow-sm">
+                <h2 className="text-lg font-semibold text-gray-800">Drop components to start modeling</h2>
+                <p className="mt-1 text-sm text-gray-500">
+                  Use the left panel to add nodes, then connect them to describe your system flow.
+                </p>
+                <div className="mt-4 flex items-center justify-center gap-2">
+                  <button className="px-3 py-2 bg-blue-600 text-white rounded-md font-medium hover:bg-blue-700 transition-colors text-sm flex items-center gap-1.5">
+                    <Plus size={14} />
+                    Add Component
+                  </button>
+                  <button className="px-3 py-2 bg-white border border-gray-300 text-gray-700 rounded-md font-medium hover:bg-gray-50 transition-colors text-sm flex items-center gap-1.5">
+                    <Search size={14} />
+                    Browse Templates
+                  </button>
+                </div>
               </div>
             </div>
-          </div>
 
-          {/* Status Bar - Bottom */}
-          <div className="absolute bottom-0 left-0 right-0 bg-white/90 backdrop-blur-sm border-t border-gray-200 px-4 py-2 flex items-center justify-between shadow-lg">
-            <div className="flex items-center gap-4 text-xs">
-              <span className="text-gray-500">
-                <span className="font-semibold text-gray-700">System:</span> {system.name}
-              </span>
-              <div className="w-px h-4 bg-gray-300"></div>
-              <span className="text-gray-500">
-                <span className="font-semibold text-gray-700">Components:</span> 0
-              </span>
-              <div className="w-px h-4 bg-gray-300"></div>
-              <span className="text-gray-500">
-                <span className="font-semibold text-gray-700">Connections:</span> 0
-              </span>
+            {/* Mini Toolbar */}
+            <div className="absolute top-4 left-4 bg-white rounded-lg shadow-sm border border-gray-200 p-1.5 flex items-center gap-1">
+              <button className="p-2 hover:bg-gray-100 rounded-md transition-colors" title="Save">
+                <Save size={14} className="text-gray-600" />
+              </button>
+              <button className="p-2 hover:bg-gray-100 rounded-md transition-colors" title="Refresh">
+                <RefreshCw size={14} className="text-gray-600" />
+              </button>
+              <div className="w-px h-5 bg-gray-200 mx-1"></div>
+              <button className="px-3 py-1.5 hover:bg-gray-100 rounded-md transition-colors text-xs font-medium text-gray-700 flex items-center gap-1.5">
+                Layers
+                <ChevronDown size={14} />
+              </button>
             </div>
 
-            {/* Currently Active Indicator */}
-            <div className="flex items-center gap-2 px-4 py-1.5 bg-gradient-to-r from-green-50 to-emerald-50 border-2 border-green-200 rounded-lg">
-              <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse shadow-lg shadow-green-300"></div>
-              <span className="font-bold text-green-700 text-xs flex items-center gap-1.5">
-                Live
-                <Play size={12} />
-              </span>
-            </div>
-
-            <div className="flex items-center gap-3">
-              <div className="flex items-center gap-2 px-3 py-1.5 bg-blue-50 border border-blue-200 rounded-lg">
-                <Users size={14} className="text-blue-600" />
-                <span className="text-xs font-semibold text-blue-700">3 online</span>
+            {/* Status Bar - Bottom */}
+            <div className="absolute bottom-0 left-0 right-0 bg-white border-t border-gray-200 px-4 py-2 flex items-center justify-between">
+              <div className="flex items-center gap-4 text-xs">
+                <span className="text-gray-500">
+                  <span className="font-semibold text-gray-700">System:</span> {system.name}
+                </span>
+                <div className="w-px h-4 bg-gray-300"></div>
+                <span className="text-gray-500">
+                  <span className="font-semibold text-gray-700">Components:</span> 3
+                </span>
+                <div className="w-px h-4 bg-gray-300"></div>
+                <span className="text-gray-500">
+                  <span className="font-semibold text-gray-700">Connections:</span> 2
+                </span>
               </div>
-              <span className="text-xs text-gray-400">Auto-saved 2m ago</span>
+
+              <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2 px-3 py-1.5 bg-green-50 border border-green-200 rounded-md">
+                  <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                  <span className="text-xs font-medium text-green-700">Live</span>
+                </div>
+                <span className="text-xs text-gray-400">Auto-saved just now</span>
+              </div>
             </div>
-          </div>
-        </main>
+          </main>
+
+          {/* Properties Panel */}
+          <aside className="w-72 border-l border-gray-200 bg-white p-4">
+            <h3 className="text-sm font-semibold text-gray-800 mb-3">Properties</h3>
+            <div className="space-y-3">
+              <div className="rounded-md border border-gray-200 p-3">
+                <p className="text-xs text-gray-500">Selected Item</p>
+                <p className="text-sm font-medium text-gray-800 mt-1">
+                  {activeComponent ? components.find((item) => item.id === activeComponent)?.label : "None"}
+                </p>
+              </div>
+              <div className="rounded-md border border-gray-200 p-3">
+                <label className="text-xs text-gray-500 block mb-1">Label</label>
+                <input
+                  type="text"
+                  placeholder="Component label"
+                  className="w-full border border-gray-300 rounded-md px-2.5 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200 focus:border-blue-400"
+                />
+              </div>
+              <div className="rounded-md border border-gray-200 p-3">
+                <label className="text-xs text-gray-500 block mb-1">Notes</label>
+                <textarea
+                  rows={4}
+                  placeholder="Describe this component..."
+                  className="w-full border border-gray-300 rounded-md px-2.5 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-blue-200 focus:border-blue-400"
+                />
+              </div>
+            </div>
+          </aside>
+        </div>
       </div>
     </div>
   );

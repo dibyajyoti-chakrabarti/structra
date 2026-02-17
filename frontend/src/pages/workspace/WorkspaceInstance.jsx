@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Outlet, useNavigate, useParams } from "react-router-dom";
-import { Menu, Settings, Trash2, X, CheckCircle, AlertCircle } from "lucide-react";
+import { Menu, Settings, Trash2, X, CheckCircle, AlertCircle, ChevronRight } from "lucide-react";
 import AuthenticatedNavbar from "../../components/AuthenticatedNavbar";
 import WorkspaceNavbar from "../../components/WorkspaceNavbar";
 import api from "../../api";
@@ -35,6 +35,7 @@ const Toast = ({ message, type, onClose }) => {
 
 const WorkspaceInstance = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isDesktopNavbarCollapsed, setIsDesktopNavbarCollapsed] = useState(false);
   
   // Lifted State: Manage workspaces globally for this layout
   const [workspaces, setWorkspaces] = useState([]);
@@ -75,10 +76,25 @@ const WorkspaceInstance = () => {
           onClose={() => setIsMobileMenuOpen(false)}
           workspaces={workspaces}
           loading={areWorkspacesLoading}
+          isDesktopCollapsed={isDesktopNavbarCollapsed}
+          onDesktopToggle={() => setIsDesktopNavbarCollapsed((prev) => !prev)}
         />
 
-        <main className="flex-1 overflow-hidden bg-white md:border-l border-gray-100 w-full relative z-0">
-          <div className="h-full w-full max-w-[1600px] mx-auto p-4 md:p-10 overflow-y-auto">
+        {isDesktopNavbarCollapsed && (
+          <div className="hidden md:flex w-12 shrink-0 border-r border-gray-100 bg-white items-start justify-center pt-4">
+            <button
+              onClick={() => setIsDesktopNavbarCollapsed(false)}
+              className="inline-flex items-center justify-center w-8 h-8 rounded-md border border-gray-200 bg-white text-gray-500 hover:text-gray-900 hover:bg-gray-50 transition-all shadow-sm"
+              aria-label="Expand workspace sidebar"
+              title="Expand workspace sidebar"
+            >
+              <ChevronRight size={16} />
+            </button>
+          </div>
+        )}
+
+        <main className={`flex-1 overflow-hidden bg-white w-full relative z-0 ${isDesktopNavbarCollapsed ? "" : "md:border-l border-gray-100"}`}>
+          <div className={`h-full w-full mx-auto p-4 md:p-10 overflow-y-auto ${isDesktopNavbarCollapsed ? "max-w-none" : "max-w-[1600px]"}`}>
             <Outlet context={{ refreshWorkspaces: fetchWorkspaces }} />
           </div>
         </main>
