@@ -279,12 +279,14 @@ export const WorkspaceOverview = () => {
             <Settings size={20} />
           </button>
 
-          <button
-            onClick={() => navigate(`/app/ws/${workspaceId}/create-system`)}
-            className="w-full md:w-auto bg-blue-600 text-white px-5 py-2.5 rounded-md text-sm font-medium hover:bg-blue-700 transition-colors"
-          >
-            + New System
-          </button>
+          {workspace.is_admin && (
+            <button
+              onClick={() => navigate(`/app/ws/${workspaceId}/create-system`)}
+              className="w-full md:w-auto bg-blue-600 text-white px-5 py-2.5 rounded-md text-sm font-medium hover:bg-blue-700 transition-colors"
+            >
+              + New System
+            </button>
+          )}
         </div>
       </div>
 
@@ -335,12 +337,18 @@ export const WorkspaceOverview = () => {
       ) : (
         <div className="text-center py-16 bg-gray-50 rounded-2xl border-2 border-dashed border-gray-200">
           <p className="text-gray-400 font-medium mb-4">No systems yet</p>
-          <button
-            onClick={() => navigate(`/app/ws/${workspaceId}/create-system`)}
-            className="bg-blue-600 text-white px-6 py-2.5 rounded-md text-sm font-medium hover:bg-blue-700 transition-colors inline-flex items-center gap-2"
-          >
-            + Create Your First System
-          </button>
+          {workspace.is_admin ? (
+            <button
+              onClick={() => navigate(`/app/ws/${workspaceId}/create-system`)}
+              className="bg-blue-600 text-white px-6 py-2.5 rounded-md text-sm font-medium hover:bg-blue-700 transition-colors inline-flex items-center gap-2"
+            >
+              + Create Your First System
+            </button>
+          ) : (
+            <p className="text-sm text-gray-400">
+              Ask a workspace admin to create a system and grant you access.
+            </p>
+          )}
         </div>
       )}
     </div>
