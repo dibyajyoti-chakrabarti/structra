@@ -1,12 +1,20 @@
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { User, Bell, Zap, Search, Menu, X, LogOut } from 'lucide-react';
+import { NotificationDrawer } from '../pages/account/Notification';
 // Import the logo from your assets folder
 import logo from '../assets/logo.png'; 
 
 export default function AuthenticatedNavbar() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isNotificationOpen, setIsNotificationOpen] = useState(false);
+
+  useEffect(() => {
+    setIsMobileMenuOpen(false);
+    setIsNotificationOpen(false);
+  }, [location.pathname]);
 
   // Logout Logic
   const handleLogout = () => {
@@ -18,6 +26,7 @@ export default function AuthenticatedNavbar() {
   };
 
   return (
+    <>
     <nav className="bg-white border-b border-gray-200 sticky top-0 z-50">
       <div className="h-16 px-4 sm:px-8 flex items-center justify-between">
         
@@ -67,8 +76,12 @@ export default function AuthenticatedNavbar() {
 
           <div className="flex items-center gap-3">
             <button
-              onClick={() => navigate('/app/notifications')}
-              className="p-2 text-gray-400 hover:text-black hover:bg-gray-100 rounded-lg transition-all"
+              onClick={() => setIsNotificationOpen((prev) => !prev)}
+              className={`p-2 rounded-lg transition-all border ${
+                isNotificationOpen
+                  ? 'bg-blue-50 text-blue-600 border-blue-200 shadow-[0_0_0_3px_rgba(59,130,246,0.15)]'
+                  : 'bg-white text-gray-500 border-transparent hover:text-black hover:bg-gray-100'
+              }`}
               title="Notifications"
             >
               <Bell size={20} />
@@ -129,7 +142,15 @@ export default function AuthenticatedNavbar() {
             
             <div className="h-px bg-gray-100 my-2"></div>
 
-            <button onClick={() => navigate('/app/notifications')} className="flex items-center gap-3 px-2 py-2 hover:bg-gray-50 rounded-lg">
+            <button
+              onClick={() => {
+                setIsNotificationOpen((prev) => !prev);
+                setIsMobileMenuOpen(false);
+              }}
+              className={`flex items-center gap-3 px-2 py-2 rounded-lg ${
+                isNotificationOpen ? 'text-blue-700 bg-blue-50' : 'hover:bg-gray-50'
+              }`}
+            >
               <Bell size={18} />
               Notifications
             </button>
@@ -152,5 +173,10 @@ export default function AuthenticatedNavbar() {
         </div>
       )}
     </nav>
+    <NotificationDrawer
+      isOpen={isNotificationOpen}
+      onClose={() => setIsNotificationOpen(false)}
+    />
+    </>
   );
 }

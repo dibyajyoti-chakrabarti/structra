@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Outlet, useNavigate, useParams } from "react-router-dom";
-import { Menu, Settings, Trash2, X, CheckCircle, AlertCircle } from "lucide-react";
+import { Menu, Settings, Trash2, X, CheckCircle, AlertCircle, ChevronRight } from "lucide-react";
 import AuthenticatedNavbar from "../../components/AuthenticatedNavbar";
 import WorkspaceNavbar from "../../components/WorkspaceNavbar";
 import api from "../../api";
@@ -35,6 +35,7 @@ const Toast = ({ message, type, onClose }) => {
 
 const WorkspaceInstance = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isDesktopNavbarCollapsed, setIsDesktopNavbarCollapsed] = useState(false);
   
   // Lifted State: Manage workspaces globally for this layout
   const [workspaces, setWorkspaces] = useState([]);
@@ -75,10 +76,25 @@ const WorkspaceInstance = () => {
           onClose={() => setIsMobileMenuOpen(false)}
           workspaces={workspaces}
           loading={areWorkspacesLoading}
+          isDesktopCollapsed={isDesktopNavbarCollapsed}
+          onDesktopToggle={() => setIsDesktopNavbarCollapsed((prev) => !prev)}
         />
 
-        <main className="flex-1 overflow-hidden bg-white md:border-l border-gray-100 w-full relative z-0">
-          <div className="h-full w-full max-w-[1600px] mx-auto p-4 md:p-10 overflow-y-auto">
+        {isDesktopNavbarCollapsed && (
+          <div className="hidden md:flex w-12 shrink-0 border-r border-gray-100 bg-white items-start justify-center pt-4">
+            <button
+              onClick={() => setIsDesktopNavbarCollapsed(false)}
+              className="inline-flex items-center justify-center w-8 h-8 rounded-md border border-gray-200 bg-white text-gray-500 hover:text-gray-900 hover:bg-gray-50 transition-all shadow-sm"
+              aria-label="Expand workspace sidebar"
+              title="Expand workspace sidebar"
+            >
+              <ChevronRight size={16} />
+            </button>
+          </div>
+        )}
+
+        <main className={`flex-1 overflow-hidden bg-white w-full relative z-0 ${isDesktopNavbarCollapsed ? "" : "md:border-l border-gray-100"}`}>
+          <div className={`h-full w-full mx-auto p-4 md:p-10 overflow-y-auto ${isDesktopNavbarCollapsed ? "max-w-none" : "max-w-[1600px]"}`}>
             <Outlet context={{ refreshWorkspaces: fetchWorkspaces }} />
           </div>
         </main>
@@ -258,14 +274,14 @@ export const WorkspaceOverview = () => {
         <div className="flex items-center gap-2">
           <button
             onClick={() => navigate(`/app/ws/${workspaceId}/settings`)}
-            className="p-2.5 text-gray-500 hover:bg-gray-100 rounded-xl border border-gray-200 transition-all"
+            className="p-2.5 text-gray-500 hover:bg-gray-100 rounded-md border border-gray-200 transition-colors"
           >
             <Settings size={20} />
           </button>
 
           <button
             onClick={() => navigate(`/app/ws/${workspaceId}/create-system`)}
-            className="w-full md:w-auto bg-blue-600 text-white px-5 py-2.5 rounded-xl font-semibold hover:bg-blue-700 transition-all shadow-sm shadow-blue-100"
+            className="w-full md:w-auto bg-blue-600 text-white px-5 py-2.5 rounded-md text-sm font-medium hover:bg-blue-700 transition-colors"
           >
             + New System
           </button>
@@ -276,7 +292,7 @@ export const WorkspaceOverview = () => {
         {stats.map((stat, i) => (
           <div
             key={i}
-            className="bg-white p-5 md:p-6 rounded-2xl border border-gray-200 shadow-sm"
+            className="bg-white p-5 md:p-6 rounded-xl border border-gray-200"
           >
             <p className="text-xs text-gray-400 uppercase font-bold tracking-wider mb-1">
               {stat.label}
@@ -296,7 +312,7 @@ export const WorkspaceOverview = () => {
             <div
               key={system.id}
               onClick={() => navigate(`/app/ws/${workspaceId}/systems/${system.id}`)}
-              className="bg-white p-4 rounded-xl border border-gray-200 flex justify-between items-center hover:border-blue-400 transition-all cursor-pointer"
+            className="bg-white p-4 rounded-md border border-gray-200 flex justify-between items-center hover:border-blue-300 transition-colors cursor-pointer"
             >
               <div>
                 <h3 className="font-bold text-gray-900 text-sm md:text-base">
@@ -321,7 +337,7 @@ export const WorkspaceOverview = () => {
           <p className="text-gray-400 font-medium mb-4">No systems yet</p>
           <button
             onClick={() => navigate(`/app/ws/${workspaceId}/create-system`)}
-            className="bg-blue-600 text-white px-6 py-2.5 rounded-xl font-semibold hover:bg-blue-700 transition-all shadow-sm shadow-blue-100 inline-flex items-center gap-2"
+            className="bg-blue-600 text-white px-6 py-2.5 rounded-md text-sm font-medium hover:bg-blue-700 transition-colors inline-flex items-center gap-2"
           >
             + Create Your First System
           </button>

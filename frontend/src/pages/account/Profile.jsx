@@ -116,7 +116,7 @@ export default function Profile() {
   }
 
   return (
-    <div className="h-screen flex flex-col bg-white text-gray-900 font-sans overflow-hidden">
+    <div className="h-screen flex flex-col bg-white text-gray-900 overflow-hidden">
       
       <div className="flex-none z-50">
         <AuthenticatedNavbar />
@@ -129,7 +129,7 @@ export default function Profile() {
           {!isEditing && (
             <button 
               onClick={handleEdit}
-              className="absolute top-4 right-4 p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-full transition-all opacity-100 md:opacity-0 md:group-hover/sidebar:opacity-100"
+              className="absolute top-4 right-4 p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-md transition-all opacity-100 md:opacity-0 md:group-hover/sidebar:opacity-100"
               title="Edit Profile"
             >
               <Edit2 size={16} />
@@ -158,7 +158,7 @@ export default function Profile() {
                   value={formData.name}
                   onChange={handleChange}
                   placeholder="Full Name"
-                  className="w-full px-3 py-2 text-center font-bold text-gray-900 border-b-2 border-blue-500 focus:outline-none bg-blue-50/10"
+                  className="w-full px-3 py-2 text-center font-semibold text-gray-900 border-b border-blue-500 focus:outline-none bg-blue-50/10"
                 />
                 <input
                   type="text"
@@ -166,13 +166,13 @@ export default function Profile() {
                   value={formData.role}
                   onChange={handleChange}
                   placeholder="Role"
-                  className="w-full px-3 py-2 text-center text-sm font-medium text-gray-500 border-b-2 border-blue-500 focus:outline-none bg-blue-50/10"
+                  className="w-full px-3 py-2 text-center text-sm font-medium text-gray-500 border-b border-blue-500 focus:outline-none bg-blue-50/10"
                 />
               </div>
             ) : (
               <div className="w-full space-y-1 p-2 rounded-xl transition-colors">
                 <div className="flex items-center justify-center gap-2">
-                  <h2 className="text-xl font-bold text-gray-900 tracking-tight md:max-w-[220px] md:truncate">
+                  <h2 className="text-xl font-semibold text-gray-900 tracking-tight md:max-w-[220px] md:truncate">
                     {user.name}
                   </h2>
                 </div>
@@ -251,13 +251,13 @@ export default function Profile() {
               <div className="flex gap-2 animate-in slide-in-from-bottom-2 duration-200">
                 <button 
                   onClick={handleSave}
-                  className="flex-1 py-2.5 flex items-center justify-center gap-2 bg-gray-900 text-white rounded-lg text-sm font-bold hover:bg-black transition-all shadow-lg shadow-gray-200"
+                  className="flex-1 py-2.5 flex items-center justify-center gap-2 bg-gray-900 text-white rounded-md text-sm font-medium hover:bg-black transition-colors"
                 >
                   <Check size={16} /> Save
                 </button>
                 <button 
                   onClick={handleCancel}
-                  className="px-4 py-2.5 flex items-center justify-center gap-2 border border-gray-200 rounded-lg text-sm font-semibold text-gray-600 hover:bg-gray-50 transition-colors"
+                  className="px-4 py-2.5 flex items-center justify-center gap-2 border border-gray-200 rounded-md text-sm font-medium text-gray-600 hover:bg-gray-50 transition-colors"
                 >
                   <X size={16} />
                 </button>
@@ -265,7 +265,7 @@ export default function Profile() {
             ) : (
               <button 
                 onClick={handleEdit}
-                className="w-full py-2.5 flex items-center justify-center gap-2 border border-gray-200 rounded-lg text-sm font-semibold text-gray-700 hover:bg-gray-50 hover:text-gray-900 transition-colors group"
+                className="w-full py-2.5 flex items-center justify-center gap-2 border border-gray-200 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 hover:text-gray-900 transition-colors group"
               >
                 <Settings size={16} className="group-hover:rotate-45 transition-transform" />
                 Edit Profile
@@ -275,11 +275,11 @@ export default function Profile() {
         </aside>
 
         {/* RIGHT CONTENT (Updated with real data and clickable cards) */}
-        <main className="flex-1 md:overflow-y-auto bg-gray-50/50 p-4 sm:p-8 md:p-12">
+        <main className="flex-1 md:overflow-y-auto bg-gray-50 p-4 sm:p-8 md:p-10">
           <div className="max-w-4xl mx-auto md:mx-0">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
-              <h1 className="text-2xl font-bold text-gray-900 tracking-tight">Workspaces</h1>
-              <span className="text-sm text-gray-500 bg-white px-3 py-1 rounded-full border border-gray-200 shadow-sm w-fit">
+              <h1 className="text-2xl font-semibold text-gray-900 tracking-tight">Workspaces</h1>
+              <span className="text-sm text-gray-500 bg-white px-3 py-1 rounded-md border border-gray-200 w-fit">
                 {workspaces.length} Active
               </span>
             </div>
@@ -289,7 +289,7 @@ export default function Profile() {
                 <div 
                   key={workspace.id}
                   onClick={() => navigate(`/app/ws/${workspace.id}`)} // Enables redirection
-                  className="group bg-white border border-gray-200 rounded-xl p-5 md:p-6 hover:border-blue-500 hover:shadow-md transition-all duration-200 cursor-pointer"
+                  className="group bg-white border border-gray-200 rounded-xl p-5 md:p-6 hover:border-blue-300 transition-colors duration-200 cursor-pointer"
                 >
                   <div className="flex items-start justify-between mb-3">
                     <div className="flex items-center gap-3">
@@ -297,7 +297,7 @@ export default function Profile() {
                         <Building size={20} />
                       </div>
                       <div>
-                        <h3 className="font-bold text-gray-900 group-hover:text-blue-600 transition-colors">
+                        <h3 className="font-semibold text-gray-900 group-hover:text-blue-600 transition-colors">
                           {workspace.name}
                         </h3>
                         <p className="text-xs text-gray-500">
@@ -308,11 +308,11 @@ export default function Profile() {
                     </div>
 
                     {workspace.visibility === 'public' ? (
-                      <span className="flex items-center justify-center gap-1.5 w-24 py-1 bg-blue-50 text-blue-700 border-2 border-blue-700 text-[10px] font-bold uppercase tracking-wide rounded-xl">
+                      <span className="flex items-center justify-center gap-1.5 w-24 py-1 bg-blue-50 text-blue-700 border border-blue-200 text-[10px] font-semibold uppercase tracking-wide rounded-md">
                         <Globe size={12} /> Public
                       </span>
                     ) : (
-                      <span className="flex items-center justify-center gap-1.5 w-24 py-1 bg-black text-white border border-gray-800 text-[10px] font-bold uppercase tracking-wide rounded-xl">
+                      <span className="flex items-center justify-center gap-1.5 w-24 py-1 bg-gray-900 text-white border border-gray-800 text-[10px] font-semibold uppercase tracking-wide rounded-md">
                         <Lock size={12} /> Private
                       </span>
                     )}

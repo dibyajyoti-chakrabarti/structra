@@ -133,10 +133,10 @@ const GeneralSettings = () => {
     }
   };
 
-  if (loading) return <div className="p-8 text-gray-400 font-medium">Loading settings...</div>;
+  if (loading) return <div className="p-6 text-gray-400 text-sm">Loading settings...</div>;
 
   return (
-    <div className="h-full flex flex-col max-w-3xl relative">
+    <div className="relative max-w-3xl">
       {/* Toast Notification */}
       {toast && (
         <Toast 
@@ -229,18 +229,18 @@ const GeneralSettings = () => {
         </div>
       )}
 
-      <div className="mb-8">
-        <h2 className="text-2xl lg:text-3xl font-extrabold text-gray-900 tracking-tight">
+      <div className="mb-6">
+        <h2 className="text-2xl font-semibold text-gray-900">
           General Settings
         </h2>
-        <p className="text-gray-500 mt-2 text-sm lg:text-base">
+        <p className="text-gray-500 mt-1.5 text-sm">
           Manage your workspace's core details and preferences.
         </p>
       </div>
 
-      <div className="space-y-6">
+      <div className="space-y-6 rounded-xl border border-gray-200 bg-white p-6">
         <div className="space-y-2">
-          <label className="text-xs font-bold text-gray-800 uppercase tracking-wider flex items-center gap-2">
+          <label className="text-xs font-semibold text-gray-700 uppercase tracking-wider flex items-center gap-2">
             <Building size={14} className="text-gray-400" /> 
             Workspace Name
           </label>
@@ -248,12 +248,12 @@ const GeneralSettings = () => {
             type="text"
             value={name}
             onChange={(e) => setName(e.target.value)}
-            className="w-full px-4 py-3 lg:py-4 rounded-xl border-2 border-gray-100 focus:border-blue-500 focus:ring-0 outline-none transition-all text-base font-medium text-gray-900"
+            className="w-full px-3.5 py-2.5 rounded-md border border-gray-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none transition text-sm text-gray-900"
           />
         </div>
 
         <div className="space-y-2">
-          <label className="text-xs font-bold text-gray-800 uppercase tracking-wider flex items-center gap-2">
+          <label className="text-xs font-semibold text-gray-700 uppercase tracking-wider flex items-center gap-2">
             <Globe size={14} className="text-gray-400" /> 
             Description
           </label>
@@ -261,36 +261,36 @@ const GeneralSettings = () => {
             rows="4"
             value={description}
             onChange={(e) => setDescription(e.target.value)}
-            className="w-full px-4 py-3 lg:py-4 rounded-xl border-2 border-gray-100 focus:border-blue-500 focus:ring-0 outline-none transition-all resize-none font-medium text-gray-600"
+            className="w-full px-3.5 py-2.5 rounded-md border border-gray-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none transition resize-none text-sm text-gray-700"
           ></textarea>
         </div>
         
-        <div className="pt-4 flex justify-end">
+        <div className="pt-2 flex justify-end">
           <button 
             onClick={initiateSave}
             disabled={saving}
-            className="bg-blue-600 text-white px-8 py-3 rounded-xl font-bold hover:bg-blue-700 transition-all shadow-lg shadow-blue-100 flex items-center gap-2 disabled:opacity-50"
+            className="bg-blue-600 text-white px-5 py-2.5 rounded-md text-sm font-medium hover:bg-blue-700 transition-colors flex items-center gap-2 disabled:opacity-50"
           >
-            <Save size={18} />
+            <Save size={16} />
             Save Changes
           </button>
         </div>
       </div>
 
-      <div className="my-10 border-t border-gray-100"></div>
+      <div className="my-8 border-t border-gray-200"></div>
 
-      <div className="bg-red-50 border border-red-100 rounded-2xl p-6">
-        <h3 className="text-red-900 font-bold text-lg mb-2 flex items-center gap-2">
-          <Trash2 size={20} />
+      <div className="rounded-xl border border-red-200 bg-white p-5">
+        <h3 className="text-red-700 font-semibold text-base mb-2 flex items-center gap-2">
+          <Trash2 size={18} />
           Danger Zone
         </h3>
-        <p className="text-red-700 text-sm mb-6">
+        <p className="text-red-700 text-sm mb-4">
           Deleting this workspace will permanently remove all associated systems, evaluations, and data. This action cannot be undone.
         </p>
         <div className="flex justify-end sm:justify-start">
           <button 
             onClick={initiateDelete}
-            className="bg-white border-2 border-red-100 text-red-600 hover:bg-red-600 hover:text-white hover:border-red-600 px-6 py-2.5 rounded-xl font-bold transition-all text-sm shadow-sm"
+            className="bg-white border border-red-300 text-red-700 hover:bg-red-600 hover:text-white hover:border-red-600 px-4 py-2 rounded-md text-sm font-medium transition-colors"
           >
             Delete Workspace
           </button>

@@ -1,8 +1,15 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, ChevronRight, X } from 'lucide-react';
+import { Plus, ChevronLeft, ChevronRight, X } from 'lucide-react';
 
-export default function WorkspaceNavbar({ isOpen, onClose, workspaces = [], loading = false }) {
+export default function WorkspaceNavbar({
+  isOpen,
+  onClose,
+  workspaces = [],
+  loading = false,
+  isDesktopCollapsed = false,
+  onDesktopToggle,
+}) {
   const navigate = useNavigate();
 
   const NavContent = () => (
@@ -11,9 +18,19 @@ export default function WorkspaceNavbar({ isOpen, onClose, workspaces = [], load
         <span className="text-xs font-bold text-gray-400 uppercase tracking-widest">
           Switch Workspace
         </span>
-        <button onClick={onClose} className="md:hidden text-gray-400 hover:text-gray-600">
-          <X size={20} />
-        </button>
+        <div className="flex items-center gap-1">
+          <button
+            onClick={onDesktopToggle}
+            className="hidden md:inline-flex text-gray-400 hover:text-gray-600 p-1 rounded"
+            title="Collapse workspace sidebar"
+            aria-label="Collapse workspace sidebar"
+          >
+            <ChevronLeft size={18} />
+          </button>
+          <button onClick={onClose} className="md:hidden text-gray-400 hover:text-gray-600">
+            <X size={20} />
+          </button>
+        </div>
       </div>
 
       <div className="flex-1 overflow-y-auto p-3 space-y-2">
@@ -62,7 +79,13 @@ export default function WorkspaceNavbar({ isOpen, onClose, workspaces = [], load
 
   return (
     <>
-      <div className="hidden md:flex w-64 h-full bg-white flex-col border-r border-gray-200">
+      <div
+        className={`hidden md:flex h-full bg-white flex-col transition-all duration-300 ease-in-out overflow-hidden ${
+          isDesktopCollapsed
+            ? "w-0 -translate-x-full opacity-0 pointer-events-none border-r-0"
+            : "w-64 translate-x-0 opacity-100 border-r border-gray-200"
+        }`}
+      >
         <NavContent />
       </div>
 

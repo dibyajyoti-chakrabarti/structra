@@ -14,59 +14,58 @@ const WorkspaceSettings = () => {
   ];
 
   return (
-    <div className="flex flex-col lg:flex-row h-full bg-white">
-      {/* Sidebar */}
-      <aside className="w-full lg:w-80 border-r border-gray-100 p-6 lg:p-8 flex-shrink-0">
-        {/* Back Button */}
-        <button 
-            onClick={() => navigate(`/app/ws/${workspaceId}`)}
-            className="mb-6 flex items-center gap-2 text-gray-500 hover:text-gray-900 hover:bg-gray-100 px-3 py-2 -ml-3 rounded-lg transition-all font-bold text-sm"
-        >
-            <ArrowLeft size={18} />
-            Back to Systems
-        </button>
-
-        <div className="mb-8">
-            <h1 className="text-xl lg:text-2xl font-extrabold text-gray-900 tracking-tight">
-              Settings
-            </h1>
-            <p className="text-gray-500 mt-1 text-sm">Manage workspace preferences.</p>
-        </div>
-
-        <nav className="space-y-2">
-          {navItems.map((item) => (
-            <NavLink
-              key={item.name}
-              to={item.path}
-              end={item.name === 'General'}
-              className={({ isActive }) =>
-                `flex items-center gap-3 px-4 py-3.5 rounded-xl font-bold transition-all ${
-                  isActive
-                    ? 'bg-blue-50 text-blue-700 shadow-sm'
-                    : 'text-gray-500 hover:bg-gray-50 hover:text-gray-900'
-                }`
-              }
+    <div className="h-full bg-white">
+      <div className="grid h-full grid-cols-1 lg:grid-cols-[280px_minmax(0,1fr)]">
+        <aside className="border-b lg:border-b-0 lg:border-r border-gray-200 bg-white">
+          <div className="p-5 lg:p-6">
+            <button
+              onClick={() => navigate(`/app/ws/${workspaceId}`)}
+              className="mb-4 inline-flex items-center gap-2 text-sm text-gray-600 hover:text-gray-900 px-2.5 py-1.5 rounded-md hover:bg-gray-100 transition-colors"
             >
-              {({ isActive }) => (
-                <>
-                  <item.icon 
-                    size={20} 
-                    className={isActive ? "text-blue-600" : "text-gray-400"} 
-                  />
-                  {item.name}
-                </>
-              )}
-            </NavLink>
-          ))}
-        </nav>
-      </aside>
+              <ArrowLeft size={16} />
+              Back to workspace
+            </button>
 
-      {/* Content Area */}
-      <main className="flex-1 p-6 lg:p-10 overflow-y-auto">
-        <div className="max-w-4xl h-full flex flex-col">
-           <Outlet context={context} /> {/* ✅ Pass context to children */}
-        </div>
-      </main>
+            <div className="mb-4 px-1">
+              <h1 className="text-lg font-semibold text-gray-900">Settings</h1>
+              <p className="text-sm text-gray-500 mt-1">Manage workspace configuration.</p>
+            </div>
+
+            <nav className="space-y-1">
+              {navItems.map((item) => (
+                <NavLink
+                  key={item.name}
+                  to={item.path}
+                  end={item.name === 'General'}
+                  className={({ isActive }) =>
+                    `group flex items-center gap-3 px-3 py-2.5 rounded-md border transition-colors ${
+                      isActive
+                        ? 'border-blue-200 bg-blue-50 text-blue-700'
+                        : 'border-transparent text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                    }`
+                  }
+                >
+                  {({ isActive }) => (
+                    <>
+                      <item.icon
+                        size={16}
+                        className={isActive ? 'text-blue-600' : 'text-gray-400 group-hover:text-gray-600'}
+                      />
+                      <span className="text-sm font-medium">{item.name}</span>
+                    </>
+                  )}
+                </NavLink>
+              ))}
+            </nav>
+          </div>
+        </aside>
+
+        <main className="min-w-0 overflow-y-auto bg-gray-50">
+          <div className="mx-auto w-full max-w-5xl p-5 lg:p-8">
+            <Outlet context={context} />
+          </div>
+        </main>
+      </div>
     </div>
   );
 };
