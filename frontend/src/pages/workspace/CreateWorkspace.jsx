@@ -61,48 +61,48 @@ const CreateWorkspace = () => {
     <div className="min-h-screen bg-white flex flex-col">
       <AuthenticatedNavbar />
 
-      <main className="flex-1 w-full max-w-7xl mx-auto p-4 md:p-8">
-        <div className="bg-white overflow-hidden flex flex-col lg:flex-row min-h-[600px]">
+      <main className="flex-1 w-full max-w-7xl mx-auto p-4 md:p-8 bg-gray-50">
+        <div className="bg-white overflow-hidden flex flex-col lg:flex-row min-h-[600px] rounded-xl border border-gray-200">
           
           {/* LEFT SECTION: Main Form */}
           <div className="w-full lg:flex-[2] flex flex-col p-6 md:p-12 border-b lg:border-b-0 lg:border-r border-gray-100">
             <div className="mb-8">
-              <h1 className="text-2xl lg:text-3xl font-extrabold text-gray-900 tracking-tight">Create New Workspace</h1>
+              <h1 className="text-2xl font-semibold text-gray-900">Create New Workspace</h1>
               <p className="text-gray-500 mt-2">Establish a secure environment for your team and projects.</p>
             </div>
 
             <form onSubmit={handleFinish} className="space-y-8 flex-1">
               {/* Workspace Name */}
               <div className="space-y-2">
-                <label className="text-sm font-bold text-gray-800 uppercase tracking-wider">Workspace Name</label>
+                <label className="text-sm font-semibold text-gray-700 uppercase tracking-wider">Workspace Name</label>
                 <input 
                   type="text" 
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   placeholder="e.g. Acme Corp Engineering"
-                  className="w-full px-4 py-4 rounded-xl border-2 border-gray-100 focus:border-blue-500 focus:ring-0 outline-none transition-all text-lg font-medium"
+                  className="w-full px-4 py-3 rounded-md border border-gray-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none transition text-base"
                 />
                 {error && <p className="text-red-500 text-xs font-bold uppercase">{error}</p>}
               </div>
 
               {/* Visibility Selection */}
               <div className="space-y-3">
-                <label className="text-sm font-bold text-gray-800 uppercase tracking-wider">Visibility Level</label>
+                <label className="text-sm font-semibold text-gray-700 uppercase tracking-wider">Visibility Level</label>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <button 
                     type="button"
                     onClick={() => setVisibility('private')}
-                    className={`p-4 rounded-xl border-2 text-left transition-all ${
+                    className={`p-4 rounded-md border text-left transition-colors ${
                       visibility === 'private' 
-                        ? 'border-blue-600 bg-blue-50 ring-1 ring-blue-600' 
-                        : 'border-gray-100 hover:border-gray-200'
+                        ? 'border-blue-300 bg-blue-50' 
+                        : 'border-gray-200 hover:border-gray-300'
                     }`}
                   >
                     <div className="flex items-center gap-2 mb-2">
                       <div className={`p-1.5 rounded-lg ${visibility === 'private' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-500'}`}>
                         <Lock size={18} />
                       </div>
-                      <span className={`font-bold ${visibility === 'private' ? 'text-blue-900' : 'text-gray-900'}`}>Private</span>
+                      <span className={`font-medium ${visibility === 'private' ? 'text-blue-900' : 'text-gray-900'}`}>Private</span>
                     </div>
                     <p className="text-xs text-gray-500 leading-relaxed">Only invited members can access.</p>
                   </button>
@@ -110,17 +110,17 @@ const CreateWorkspace = () => {
                   <button 
                     type="button"
                     onClick={() => setVisibility('public')}
-                    className={`p-4 rounded-xl border-2 text-left transition-all ${
+                    className={`p-4 rounded-md border text-left transition-colors ${
                       visibility === 'public' 
-                        ? 'border-blue-600 bg-blue-50 ring-1 ring-blue-600' 
-                        : 'border-gray-100 hover:border-gray-200'
+                        ? 'border-blue-300 bg-blue-50' 
+                        : 'border-gray-200 hover:border-gray-300'
                     }`}
                   >
                      <div className="flex items-center gap-2 mb-2">
                       <div className={`p-1.5 rounded-lg ${visibility === 'public' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-500'}`}>
                         <Globe size={18} />
                       </div>
-                      <span className={`font-bold ${visibility === 'public' ? 'text-blue-900' : 'text-gray-900'}`}>Public</span>
+                      <span className={`font-medium ${visibility === 'public' ? 'text-blue-900' : 'text-gray-900'}`}>Public</span>
                     </div>
                     <p className="text-xs text-gray-500 leading-relaxed">Visible to the entire world.</p>
                   </button>
@@ -129,13 +129,13 @@ const CreateWorkspace = () => {
 
               {/* Description */}
               <div className="space-y-2">
-                <label className="text-sm font-bold text-gray-800 uppercase tracking-wider">Description</label>
+                <label className="text-sm font-semibold text-gray-700 uppercase tracking-wider">Description</label>
                 <textarea 
                   rows="3"
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
                   placeholder="What is this workspace for?"
-                  className="w-full px-4 py-4 rounded-xl border-2 border-gray-100 focus:border-blue-500 focus:ring-0 outline-none transition-all resize-none"
+                  className="w-full px-4 py-3 rounded-md border border-gray-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none transition resize-none"
                 ></textarea>
               </div>
             </form>
@@ -144,16 +144,16 @@ const CreateWorkspace = () => {
               <button 
                 type="button"
                 onClick={() => navigate('/app/home')}
-                className="px-6 py-3 rounded-xl font-bold text-gray-400 hover:text-gray-600 hover:bg-gray-50 transition-all"
+                className="px-6 py-2.5 rounded-md text-sm font-medium text-gray-500 hover:text-gray-700 hover:bg-gray-50 transition-colors"
               >
                 Cancel
               </button>
               <button 
                 onClick={handleFinish}
                 disabled={loading}
-                className="bg-blue-600 text-white px-8 py-3 rounded-xl font-bold hover:bg-blue-700 flex items-center gap-2 shadow-lg shadow-blue-100 transition-all disabled:opacity-50"
+                className="bg-blue-600 text-white px-6 py-2.5 rounded-md text-sm font-medium hover:bg-blue-700 flex items-center gap-2 transition-colors disabled:opacity-50"
               >
-                <Save size={20} />
+                <Save size={16} />
                 {loading ? 'Creating...' : 'Create'}
               </button>
             </div>
@@ -162,7 +162,7 @@ const CreateWorkspace = () => {
           {/* RIGHT SECTION: Initial Team Invite */}
           <div className="w-full lg:flex-1 flex flex-col bg-white">
             <div className="p-6 md:p-12 pb-4">
-              <h3 className="text-xl font-extrabold text-gray-900 flex items-center gap-2">
+              <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
                 <UserPlus size={20} className="text-blue-600" /> 
                 Invite Members
               </h3>
@@ -176,7 +176,7 @@ const CreateWorkspace = () => {
                   value={inviteEmail}
                   onChange={(e) => setInviteEmail(e.target.value)}
                   placeholder="Email to add..."
-                  className="w-full pl-4 pr-12 py-3 bg-white rounded-xl border-2 border-gray-100 group-focus-within:border-blue-500 outline-none transition-all"
+                  className="w-full pl-4 pr-12 py-2.5 bg-white rounded-md border border-gray-300 group-focus-within:border-blue-500 group-focus-within:ring-2 group-focus-within:ring-blue-100 outline-none transition"
                 />
                 <button type="submit" className="absolute right-2 top-1.5 p-1.5 bg-gray-900 text-white rounded-lg hover:bg-black transition-colors">
                   <ChevronRight size={18} />
@@ -190,9 +190,9 @@ const CreateWorkspace = () => {
               </div>
               
               {members.map((user, i) => (
-                <div 
+                <div
                   key={i} 
-                  className="flex items-center justify-between p-3 bg-white rounded-xl border border-gray-100 shadow-sm animate-in fade-in slide-in-from-right-4 hover:border-blue-200 transition-colors"
+                  className="flex items-center justify-between p-3 bg-white rounded-md border border-gray-200 animate-in fade-in slide-in-from-right-4 hover:border-blue-300 transition-colors"
                 >
                   <div className="flex items-center gap-3 overflow-hidden">
                      <div className="w-8 h-8 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center text-xs font-bold flex-shrink-0">

@@ -274,14 +274,14 @@ export const WorkspaceOverview = () => {
         <div className="flex items-center gap-2">
           <button
             onClick={() => navigate(`/app/ws/${workspaceId}/settings`)}
-            className="p-2.5 text-gray-500 hover:bg-gray-100 rounded-xl border border-gray-200 transition-all"
+            className="p-2.5 text-gray-500 hover:bg-gray-100 rounded-md border border-gray-200 transition-colors"
           >
             <Settings size={20} />
           </button>
 
           <button
             onClick={() => navigate(`/app/ws/${workspaceId}/create-system`)}
-            className="w-full md:w-auto bg-blue-600 text-white px-5 py-2.5 rounded-xl font-semibold hover:bg-blue-700 transition-all shadow-sm shadow-blue-100"
+            className="w-full md:w-auto bg-blue-600 text-white px-5 py-2.5 rounded-md text-sm font-medium hover:bg-blue-700 transition-colors"
           >
             + New System
           </button>
@@ -292,7 +292,7 @@ export const WorkspaceOverview = () => {
         {stats.map((stat, i) => (
           <div
             key={i}
-            className="bg-white p-5 md:p-6 rounded-2xl border border-gray-200 shadow-sm"
+            className="bg-white p-5 md:p-6 rounded-xl border border-gray-200"
           >
             <p className="text-xs text-gray-400 uppercase font-bold tracking-wider mb-1">
               {stat.label}
@@ -312,7 +312,7 @@ export const WorkspaceOverview = () => {
             <div
               key={system.id}
               onClick={() => navigate(`/app/ws/${workspaceId}/systems/${system.id}`)}
-              className="bg-white p-4 rounded-xl border border-gray-200 flex justify-between items-center hover:border-blue-400 transition-all cursor-pointer"
+            className="bg-white p-4 rounded-md border border-gray-200 flex justify-between items-center hover:border-blue-300 transition-colors cursor-pointer"
             >
               <div>
                 <h3 className="font-bold text-gray-900 text-sm md:text-base">
@@ -337,7 +337,7 @@ export const WorkspaceOverview = () => {
           <p className="text-gray-400 font-medium mb-4">No systems yet</p>
           <button
             onClick={() => navigate(`/app/ws/${workspaceId}/create-system`)}
-            className="bg-blue-600 text-white px-6 py-2.5 rounded-xl font-semibold hover:bg-blue-700 transition-all shadow-sm shadow-blue-100 inline-flex items-center gap-2"
+            className="bg-blue-600 text-white px-6 py-2.5 rounded-md text-sm font-medium hover:bg-blue-700 transition-colors inline-flex items-center gap-2"
           >
             + Create Your First System
           </button>

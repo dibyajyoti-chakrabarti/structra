@@ -102,12 +102,12 @@ const CreateSystem = () => {
   };
 
   return (
-    <div className="flex flex-col lg:flex-row lg:h-[calc(100vh-160px)] gap-0 bg-white">
+    <div className="flex flex-col lg:flex-row lg:h-[calc(100vh-160px)] gap-0 bg-white rounded-xl border border-gray-200 overflow-hidden">
       
       {/* LEFT SECTION: Main Form */}
       <div className="w-full lg:flex-[2] flex flex-col pr-0 lg:pr-12 mb-8 lg:mb-0">
         <div className="mb-6 lg:mb-8">
-          <h1 className="text-2xl lg:text-3xl font-extrabold text-gray-900 tracking-tight">
+          <h1 className="text-2xl font-semibold text-gray-900">
             Create New System
           </h1>
           <p className="text-gray-500 mt-2 text-sm lg:text-base">
@@ -117,7 +117,7 @@ const CreateSystem = () => {
 
         {/* Error Alert */}
         {error && (
-          <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-xl flex items-start gap-3">
+          <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-md flex items-start gap-3">
             <AlertCircle size={20} className="text-red-600 flex-shrink-0 mt-0.5" />
             <div className="flex-1">
               <p className="text-sm font-semibold text-red-900">Error</p>
@@ -128,7 +128,7 @@ const CreateSystem = () => {
 
         <form onSubmit={handleSubmit} className="space-y-6 flex-1 overflow-visible lg:overflow-y-auto lg:pr-4 custom-scrollbar">
           <div className="space-y-2">
-            <label className="text-xs lg:text-sm font-bold text-gray-800 uppercase tracking-wider">
+            <label className="text-xs lg:text-sm font-semibold text-gray-700 uppercase tracking-wider">
               System Name <span className="text-red-500">*</span>
             </label>
             <input
@@ -136,14 +136,14 @@ const CreateSystem = () => {
               value={systemName}
               onChange={(e) => setSystemName(e.target.value)}
               placeholder="e.g. Neural Link Architecture"
-              className="w-full px-4 py-3 lg:py-4 rounded-xl border-2 border-gray-100 focus:border-blue-500 focus:ring-0 outline-none transition-all text-base lg:text-lg font-medium"
+              className="w-full px-4 py-3 rounded-md border border-gray-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none transition text-base"
               required
               disabled={loading}
             />
           </div>
 
           <div className="space-y-2 flex flex-col lg:h-auto">
-            <label className="text-xs lg:text-sm font-bold text-gray-800 uppercase tracking-wider">
+            <label className="text-xs lg:text-sm font-semibold text-gray-700 uppercase tracking-wider">
               Operational Description
             </label>
             <textarea
@@ -151,7 +151,7 @@ const CreateSystem = () => {
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               placeholder="Detail the system's objective and scope..."
-              className="w-full px-4 py-3 lg:py-4 rounded-xl border-2 border-gray-100 focus:border-blue-500 focus:ring-0 outline-none transition-all resize-none lg:flex-1"
+              className="w-full px-4 py-3 rounded-md border border-gray-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none transition resize-none lg:flex-1"
               disabled={loading}
             ></textarea>
           </div>
@@ -163,7 +163,7 @@ const CreateSystem = () => {
             type="button"
             onClick={handleCancel}
             disabled={loading}
-            className="flex-1 lg:flex-none px-6 lg:px-8 py-3 rounded-xl font-bold text-gray-400 hover:text-gray-600 hover:bg-gray-50 transition-all disabled:opacity-50"
+            className="flex-1 lg:flex-none px-6 lg:px-8 py-2.5 rounded-md text-sm font-medium text-gray-500 hover:text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-50"
           >
             Cancel
           </button>
@@ -171,7 +171,7 @@ const CreateSystem = () => {
             type="button"
             onClick={handleSubmit}
             disabled={loading || !systemName.trim()}
-            className="flex-1 lg:flex-none bg-blue-600 text-white px-6 lg:px-10 py-3 rounded-xl font-bold hover:bg-blue-700 flex justify-center items-center gap-2 shadow-lg shadow-blue-100 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+            className="flex-1 lg:flex-none bg-blue-600 text-white px-6 lg:px-10 py-2.5 rounded-md text-sm font-medium hover:bg-blue-700 flex justify-center items-center gap-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {loading ? (
               <>
@@ -180,7 +180,7 @@ const CreateSystem = () => {
               </>
             ) : (
               <>
-                <Save size={20} />
+                <Save size={16} />
                 <span className="whitespace-nowrap">Save System</span>
               </>
             )}
@@ -194,7 +194,7 @@ const CreateSystem = () => {
       {/* RIGHT SECTION: Member Management Sidebar (PLACEHOLDER - NOT FUNCTIONAL) */}
       <div className="w-full lg:flex-1 flex flex-col pl-0 lg:pl-12 border-t lg:border-t-0 border-gray-100 pt-8 lg:pt-0">
         <div className="mb-6">
-          <h3 className="text-lg lg:text-xl font-extrabold text-gray-900 flex items-center gap-2">
+          <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
             <UserPlus size={20} className="text-blue-600" />
             Team Access
           </h3>
@@ -210,13 +210,13 @@ const CreateSystem = () => {
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Find member..."
-            className="w-full pl-10 pr-4 py-3 bg-gray-50 rounded-xl border border-transparent group-focus-within:bg-white group-focus-within:border-gray-200 outline-none transition-all"
+            className="w-full pl-10 pr-4 py-2.5 bg-gray-50 rounded-md border border-gray-200 group-focus-within:bg-white group-focus-within:border-blue-400 group-focus-within:ring-2 group-focus-within:ring-blue-100 outline-none transition"
           />
           <Search className="absolute left-3 top-3.5 text-gray-400" size={18} />
         </div>
 
         {/* Member List (Filtered) - MOCK DATA */}
-        <div className="flex-1 bg-gray-50 rounded-t-2xl border-x border-t border-gray-100 flex flex-col overflow-hidden h-64 lg:h-auto">
+        <div className="flex-1 bg-gray-50 rounded-t-xl border-x border-t border-gray-200 flex flex-col overflow-hidden h-64 lg:h-auto">
           <div className="p-4 border-b border-gray-100 bg-white/50 backdrop-blur-sm flex justify-between items-center">
             <span className="text-xs font-bold text-gray-400 uppercase tracking-widest">
               Workspace Members
@@ -235,8 +235,8 @@ const CreateSystem = () => {
                   onClick={() => toggleMember(user.id)}
                   className={`flex items-center justify-between p-3 rounded-xl border cursor-pointer transition-all ${
                     isSelected 
-                      ? "bg-blue-50 border-blue-200 shadow-sm" 
-                      : "bg-white border-gray-100 hover:border-gray-200"
+                    ? "bg-blue-50 border-blue-200" 
+                    : "bg-white border-gray-100 hover:border-gray-200"
                   }`}
                 >
                   <div className="flex items-center gap-3 overflow-hidden">
