@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { User, Bell, Zap, Search, Menu, X, LogOut } from 'lucide-react';
 import { NotificationDrawer } from '../pages/account/Notification';
+import { clearApiCache } from '../api';
 // Import the logo from your assets folder
 import logo from '../assets/logo.png'; 
 
@@ -19,6 +20,7 @@ export default function AuthenticatedNavbar() {
   // Logout Logic
   const handleLogout = () => {
     // 1. Clear tokens
+    clearApiCache();
     localStorage.removeItem('access');
     localStorage.removeItem('refresh');
     // 2. Redirect to login
