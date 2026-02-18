@@ -29,7 +29,7 @@ const SecuritySettings = () => {
   const [success, setSuccess] = useState('');
 
   const defaultForm = useMemo(
-    () => ({ query: '', selectedUserId: '', role: 'viewer', submitting: false, openPicker: false, dropUp: false }),
+    () => ({ query: '', selectedUserId: '', role: 'viewer', submitting: false, openPicker: false }),
     []
   );
 
@@ -150,13 +150,6 @@ const SecuritySettings = () => {
     }));
   };
 
-  const getPickerDirection = (inputElement) => {
-    if (!inputElement) return false;
-    const rect = inputElement.getBoundingClientRect();
-    const spaceBelow = window.innerHeight - rect.bottom;
-    return spaceBelow < 280;
-  };
-
   const getFilteredMembers = (systemId) => {
     const form = grantForms[systemId] || defaultForm;
     const query = (form.query || '').trim().toLowerCase();
@@ -248,7 +241,7 @@ const SecuritySettings = () => {
   };
 
   return (
-    <div className="h-full flex flex-col max-w-4xl">
+    <div className="flex flex-col max-w-4xl">
       <div className="mb-6">
         <h2 className="text-2xl font-semibold text-gray-900">Security & Permissions</h2>
         <p className="text-gray-500 mt-1.5 text-sm">
@@ -410,7 +403,6 @@ const SecuritySettings = () => {
                                   onFocus={(e) =>
                                     updateGrantForm(system.system_id, {
                                       openPicker: true,
-                                      dropUp: getPickerDirection(e.target),
                                     })
                                   }
                                   onChange={(e) =>
@@ -418,7 +410,6 @@ const SecuritySettings = () => {
                                       query: e.target.value,
                                       selectedUserId: '',
                                       openPicker: true,
-                                      dropUp: getPickerDirection(e.target),
                                     })
                                   }
                                   placeholder="Search member by name or email..."
@@ -427,23 +418,25 @@ const SecuritySettings = () => {
                                 <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
                               </div>
 
-                              {form.openPicker && filteredMembers.length > 0 && (
-                                <div
-                                  className={`absolute left-0 z-20 max-h-56 w-full overflow-y-auto rounded-md border border-gray-200 bg-white shadow-lg ${
-                                    form.dropUp ? 'bottom-full mb-1' : 'top-full mt-1'
-                                  }`}
-                                >
-                                  {filteredMembers.map((member) => (
-                                    <button
-                                      key={member.user_id}
-                                      type="button"
-                                      onClick={() => handleSelectMember(system.system_id, member)}
-                                      className="w-full px-3 py-2 text-left hover:bg-blue-50 transition-colors border-b last:border-b-0 border-gray-100"
-                                    >
-                                      <p className="text-sm font-medium text-gray-800">{member.full_name || member.email}</p>
-                                      <p className="text-xs text-gray-500">{member.email}</p>
-                                    </button>
-                                  ))}
+                              {form.openPicker && (
+                                <div className="mt-1 w-full rounded-md border border-gray-200 bg-white">
+                                  {filteredMembers.length === 0 ? (
+                                    <p className="px-3 py-2 text-xs text-gray-500">
+                                      No workspace members match your search.
+                                    </p>
+                                  ) : (
+                                    filteredMembers.map((member) => (
+                                      <button
+                                        key={member.user_id}
+                                        type="button"
+                                        onClick={() => handleSelectMember(system.system_id, member)}
+                                        className="w-full px-3 py-2 text-left hover:bg-blue-50 transition-colors border-b last:border-b-0 border-gray-100"
+                                      >
+                                        <p className="text-sm font-medium text-gray-800">{member.full_name || member.email}</p>
+                                        <p className="text-xs text-gray-500">{member.email}</p>
+                                      </button>
+                                    ))
+                                  )}
                                 </div>
                               )}
 

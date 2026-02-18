@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Bell, CheckCheck, Clock, Info, AlertTriangle, X } from 'lucide-react';
+import AuthenticatedNavbar from '../../components/AuthenticatedNavbar';
 
 const DUMMY_NOTIFICATIONS = [
   {
@@ -151,6 +152,7 @@ export default function NotificationPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
+      <AuthenticatedNavbar />
       <NotificationDrawer isOpen={true} onClose={() => navigate('/app')} />
     </div>
   );
