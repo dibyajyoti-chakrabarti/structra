@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Save, UserPlus, X, ChevronRight, Globe, Lock } from 'lucide-react';
 import AuthenticatedNavbar from '../../components/AuthenticatedNavbar';
-import api from '../../api'; //
+import api from '../../api';
 
 const CreateWorkspace = () => {
   const navigate = useNavigate();
@@ -10,13 +10,16 @@ const CreateWorkspace = () => {
   // 1. Form State
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
-  const [visibility, setVisibility] = useState('private'); // Lowercase matches constant logic in previous step
+  const [visibility, setVisibility] = useState('private');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  // 2. Member state (currently stays frontend-only based on current backend implementation)
+  // 2. Member invite state
   const [inviteEmail, setInviteEmail] = useState('');
-  const [members, setMembers] = useState(['You (Owner)']);
+  const [members, setMembers] = useState([]);
+  const [inviteError, setInviteError] = useState('');
+
+  const isValidEmail = (email) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 
   // 3. Handle API Submission
   const handleFinish = async (e) => {
@@ -30,17 +33,26 @@ const CreateWorkspace = () => {
     setError('');
 
     try {
-      // Backend expects 'public' or 'private' as defined in core.constants
       const response = await api.post('workspaces/', {
         name: name,
         description: description,
-        visibility: visibility.toLowerCase() 
+        visibility: visibility.toLowerCase()
       });
 
-      // Navigate to the dynamic ID returned by the backend (e.g., 8-char alphanumeric)
-      navigate(`/app/ws/${response.data.id}`);
+      const workspaceId = response.data.id;
+
+      if (members.length > 0) {
+        await Promise.allSettled(
+          members.map((email) =>
+            api.post(`workspaces/${workspaceId}/invitations/`, {
+              email,
+            })
+          )
+        );
+      }
+
+      navigate(`/app/ws/${workspaceId}`);
     } catch (err) {
-      // Handle unique constraint or validation errors
       const errMsg = err.response?.data?.name?.[0] || "Failed to create workspace. Please try again.";
       setError(errMsg);
     } finally {
@@ -50,10 +62,21 @@ const CreateWorkspace = () => {
 
   const handleAddMember = (e) => {
     e.preventDefault();
-    if (!inviteEmail.trim()) return;
-    if (!members.includes(inviteEmail)) {
-      setMembers([...members, inviteEmail]);
+    const email = inviteEmail.trim().toLowerCase();
+    if (!email) return;
+
+    if (!isValidEmail(email)) {
+      setInviteError('Enter a valid email address.');
+      return;
     }
+
+    if (members.some((member) => member.toLowerCase() === email)) {
+      setInviteError('This member is already added.');
+      return;
+    }
+
+    setInviteError('');
+    setMembers([...members, email]);
     setInviteEmail('');
   };
 
@@ -176,19 +199,34 @@ const CreateWorkspace = () => {
                   value={inviteEmail}
                   onChange={(e) => setInviteEmail(e.target.value)}
                   placeholder="Email to add..."
+                  disabled={loading}
                   className="w-full pl-4 pr-12 py-2.5 bg-white rounded-md border border-gray-300 group-focus-within:border-blue-500 group-focus-within:ring-2 group-focus-within:ring-blue-100 outline-none transition"
                 />
-                <button type="submit" className="absolute right-2 top-1.5 p-1.5 bg-gray-900 text-white rounded-lg hover:bg-black transition-colors">
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="absolute right-2 top-1.5 p-1.5 bg-gray-900 text-white rounded-lg hover:bg-black transition-colors disabled:opacity-50"
+                >
                   <ChevronRight size={18} />
                 </button>
               </form>
+              {inviteError && <p className="mt-2 text-xs text-red-600">{inviteError}</p>}
             </div>
 
             <div className="flex-1 overflow-y-auto px-6 md:px-12 pb-8 space-y-3 custom-scrollbar">
               <div className="flex items-center justify-between pb-2 border-b border-gray-100 mb-2">
-                 <span className="text-xs font-bold text-gray-400 uppercase tracking-widest">Added ({members.length})</span>
+                <span className="text-xs font-bold text-gray-400 uppercase tracking-widest">Added ({members.length + 1})</span>
               </div>
-              
+
+              <div className="flex items-center justify-between p-3 bg-white rounded-md border border-gray-200">
+                <div className="flex items-center gap-3 overflow-hidden">
+                  <div className="w-8 h-8 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center text-xs font-bold flex-shrink-0">
+                    Y
+                  </div>
+                  <span className="text-sm font-semibold text-gray-700 truncate">You (Owner)</span>
+                </div>
+              </div>
+
               {members.map((user, i) => (
                 <div
                   key={i} 
@@ -200,13 +238,11 @@ const CreateWorkspace = () => {
                      </div>
                      <span className="text-sm font-semibold text-gray-700 truncate">{user}</span>
                   </div>
-                  {i !== 0 && (
-                    <X 
-                      size={16} 
-                      className="text-gray-300 hover:text-red-500 cursor-pointer" 
-                      onClick={() => setMembers(members.filter((_, index) => index !== i))}
-                    />
-                  )}
+                  <X
+                    size={16}
+                    className="text-gray-300 hover:text-red-500 cursor-pointer"
+                    onClick={() => setMembers(members.filter((_, index) => index !== i))}
+                  />
                 </div>
               ))}
             </div>

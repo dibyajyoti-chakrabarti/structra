@@ -35,73 +35,68 @@ const WorkspaceSettings = () => {
   ];
 
   return (
-    <div className="h-full bg-white">
-      <div className="grid h-full grid-cols-1 lg:grid-cols-[280px_minmax(0,1fr)]">
-        <aside className="border-b lg:border-b-0 lg:border-r border-gray-200 bg-white">
-          <div className="p-5 lg:p-6">
-            <button
-              onClick={() => navigate(`/app/ws/${workspaceId}`)}
-              className="mb-4 inline-flex items-center gap-2 text-sm text-gray-600 hover:text-gray-900 px-2.5 py-1.5 rounded-md hover:bg-gray-100 transition-colors"
-            >
-              <ArrowLeft size={16} />
-              Back to workspace
-            </button>
+    <div className="h-full bg-gray-50 flex flex-col">
+      <header className="border-b border-gray-200 bg-white">
+        <div className="mx-auto w-full max-w-6xl px-4 lg:px-8 h-14 flex items-center gap-3">
+          <button
+            onClick={() => navigate(`/app/ws/${workspaceId}`)}
+            className="inline-flex items-center gap-1.5 text-sm text-gray-600 hover:text-gray-900 px-2.5 py-1.5 rounded-md hover:bg-gray-100 transition-colors whitespace-nowrap"
+          >
+            <ArrowLeft size={15} />
+            Back
+          </button>
 
-            <div className="mb-4 px-1">
-              <h1 className="text-lg font-semibold text-gray-900">Settings</h1>
-              <p className="text-sm text-gray-500 mt-1">Manage workspace configuration.</p>
-            </div>
+          <div className="h-5 w-px bg-gray-200 shrink-0" />
 
-            <nav className="space-y-1">
-              {navItems.map((item) => (
-                item.name === 'Logs' && !isAdmin ? (
-                  <button
-                    key={item.name}
-                    type="button"
-                    onClick={showAdminOnlyError}
-                    className="w-full text-left group flex items-center gap-3 px-3 py-2.5 rounded-md border border-transparent text-gray-400 bg-gray-50 cursor-not-allowed"
-                  >
-                    <item.icon size={16} className="text-gray-300" />
-                    <span className="text-sm font-medium">{item.name}</span>
-                  </button>
-                ) : (
-                  <NavLink
-                    key={item.name}
-                    to={item.path}
-                    end={item.name === 'General'}
-                    className={({ isActive }) =>
-                      `group flex items-center gap-3 px-3 py-2.5 rounded-md border transition-colors ${
-                        isActive
-                          ? 'border-blue-200 bg-blue-50 text-blue-700'
-                          : 'border-transparent text-gray-600 hover:bg-gray-50 hover:text-gray-900'
-                      }`
-                    }
-                  >
-                    {({ isActive }) => (
-                      <>
-                        <item.icon
-                          size={16}
-                          className={isActive ? 'text-blue-600' : 'text-gray-400 group-hover:text-gray-600'}
-                        />
-                        <span className="text-sm font-medium">{item.name}</span>
-                      </>
-                    )}
-                  </NavLink>
-                )
-              ))}
-            </nav>
-            {roleError && (
-              <p className="mt-3 text-xs font-medium text-red-600 px-1">{roleError}</p>
-            )}
-          </div>
-        </aside>
+          <nav className="flex items-center gap-1.5 overflow-x-auto">
+            {navItems.map((item) => (
+              item.name === 'Logs' && !isAdmin ? (
+                <button
+                  key={item.name}
+                  type="button"
+                  onClick={showAdminOnlyError}
+                  className="group inline-flex items-center gap-2 px-3 py-1.5 rounded-md border border-transparent text-gray-400 bg-gray-100 cursor-not-allowed whitespace-nowrap"
+                >
+                  <item.icon size={15} className="text-gray-300" />
+                  <span className="text-sm font-medium">{item.name}</span>
+                </button>
+              ) : (
+                <NavLink
+                  key={item.name}
+                  to={item.path}
+                  end={item.name === 'General'}
+                  className={({ isActive }) =>
+                    `group inline-flex items-center gap-2 px-3 py-1.5 rounded-md border transition-colors whitespace-nowrap ${
+                      isActive
+                        ? 'border-blue-200 bg-blue-50 text-blue-700'
+                        : 'border-transparent text-gray-600 hover:bg-gray-100 hover:text-gray-900'
+                    }`
+                  }
+                >
+                  {({ isActive }) => (
+                    <>
+                      <item.icon
+                        size={15}
+                        className={isActive ? 'text-blue-600' : 'text-gray-400 group-hover:text-gray-600'}
+                      />
+                      <span className="text-sm font-medium">{item.name}</span>
+                    </>
+                  )}
+                </NavLink>
+              )
+            ))}
+          </nav>
+        </div>
+        {roleError && (
+          <p className="mx-auto w-full max-w-6xl px-4 lg:px-8 pb-2 text-xs font-medium text-red-600">{roleError}</p>
+        )}
+      </header>
 
-        <main className="min-w-0 overflow-y-auto bg-gray-50">
-          <div className="mx-auto w-full max-w-5xl p-5 lg:p-8">
-            <Outlet context={{ ...context, isAdmin }} />
-          </div>
-        </main>
-      </div>
+      <main className="min-w-0 overflow-y-auto flex-1">
+        <div className="mx-auto w-full max-w-6xl p-5 lg:p-8">
+          <Outlet context={{ ...context, isAdmin }} />
+        </div>
+      </main>
     </div>
   );
 };
