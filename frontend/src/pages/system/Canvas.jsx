@@ -31,6 +31,8 @@ const COMPONENTS = [
   { type: 'EXTERNAL_SERVICE', label: 'External Service', icon: Box },
 ];
 
+const EDGE_PROTOCOL_OPTIONS = ['', 'HTTP', 'ASYNC', 'INTERNAL'];
+
 const DEFAULT_CANVAS_STATE = {
   nodes: [],
   edges: [],
@@ -38,6 +40,16 @@ const DEFAULT_CANVAS_STATE = {
     zoom: 1,
     pan: { x: 0, y: 0 },
   },
+  systemMetadata: {
+    goal: '',
+    assumptions: [],
+    constraints: '',
+  },
+};
+
+const normalizeStringArray = (value) => {
+  if (!Array.isArray(value)) return [];
+  return value.filter((item) => typeof item === 'string');
 };
 
 const toComponentLabel = (type) => {
@@ -47,6 +59,10 @@ const toComponentLabel = (type) => {
 
 const ensureCanvasState = (value) => {
   if (!value || typeof value !== 'object') return DEFAULT_CANVAS_STATE;
+
+  const systemMetadata = value?.systemMetadata && typeof value.systemMetadata === 'object'
+    ? value.systemMetadata
+    : {};
 
   return {
     nodes: Array.isArray(value.nodes)
@@ -58,7 +74,12 @@ const ensureCanvasState = (value) => {
             x: typeof node?.position?.x === 'number' ? node.position.x : 0,
             y: typeof node?.position?.y === 'number' ? node.position.y : 0,
           },
-          metadata: node?.metadata && typeof node.metadata === 'object' ? node.metadata : {},
+          metadata: {
+            purpose: typeof node?.metadata?.purpose === 'string' ? node.metadata.purpose : '',
+            techChoice: typeof node?.metadata?.techChoice === 'string' ? node.metadata.techChoice : '',
+            responsibilities: normalizeStringArray(node?.metadata?.responsibilities),
+            notes: typeof node?.metadata?.notes === 'string' ? node.metadata.notes : '',
+          },
         }))
       : [],
     edges: Array.isArray(value.edges)
@@ -66,6 +87,10 @@ const ensureCanvasState = (value) => {
           id: edge.id,
           source: edge.source,
           target: edge.target,
+          metadata: {
+            protocol: typeof edge?.metadata?.protocol === 'string' ? edge.metadata.protocol : '',
+            notes: typeof edge?.metadata?.notes === 'string' ? edge.metadata.notes : '',
+          },
         }))
       : [],
     viewport: {
@@ -74,6 +99,11 @@ const ensureCanvasState = (value) => {
         x: typeof value?.viewport?.pan?.x === 'number' ? value.viewport.pan.x : 0,
         y: typeof value?.viewport?.pan?.y === 'number' ? value.viewport.pan.y : 0,
       },
+    },
+    systemMetadata: {
+      goal: typeof systemMetadata.goal === 'string' ? systemMetadata.goal : '',
+      assumptions: normalizeStringArray(systemMetadata.assumptions),
+      constraints: typeof systemMetadata.constraints === 'string' ? systemMetadata.constraints : '',
     },
   };
 };
@@ -357,6 +387,10 @@ const Canvas = () => {
     () => canvasState.nodes.find((node) => node.id === selectedNodeId) || null,
     [canvasState.nodes, selectedNodeId]
   );
+  const selectedEdge = useMemo(
+    () => canvasState.edges.find((edge) => edge.id === selectedEdgeId) || null,
+    [canvasState.edges, selectedEdgeId]
+  );
 
   const setNodeLabel = (label) => {
     if (!selectedNodeId) return;
@@ -371,6 +405,151 @@ const Canvas = () => {
           : node
       ),
     }));
+  };
+
+  const setNodeMetadataField = (field, value) => {
+    if (!selectedNodeId) return;
+    setCanvasState((prev) => ({
+      ...prev,
+      nodes: prev.nodes.map((node) =>
+        node.id === selectedNodeId
+          ? {
+              ...node,
+              metadata: {
+                ...node.metadata,
+                [field]: value,
+              },
+            }
+          : node
+      ),
+    }));
+  };
+
+  const addNodeResponsibility = () => {
+    if (!selectedNodeId) return;
+    setCanvasState((prev) => ({
+      ...prev,
+      nodes: prev.nodes.map((node) => {
+        if (node.id !== selectedNodeId) return node;
+        const current = Array.isArray(node.metadata?.responsibilities) ? node.metadata.responsibilities : [];
+        return {
+          ...node,
+          metadata: {
+            ...node.metadata,
+            responsibilities: [...current, ''],
+          },
+        };
+      }),
+    }));
+  };
+
+  const updateNodeResponsibility = (index, value) => {
+    if (!selectedNodeId) return;
+    setCanvasState((prev) => ({
+      ...prev,
+      nodes: prev.nodes.map((node) => {
+        if (node.id !== selectedNodeId) return node;
+        const current = Array.isArray(node.metadata?.responsibilities) ? node.metadata.responsibilities : [];
+        return {
+          ...node,
+          metadata: {
+            ...node.metadata,
+            responsibilities: current.map((item, itemIndex) => (itemIndex === index ? value : item)),
+          },
+        };
+      }),
+    }));
+  };
+
+  const removeNodeResponsibility = (index) => {
+    if (!selectedNodeId) return;
+    setCanvasState((prev) => ({
+      ...prev,
+      nodes: prev.nodes.map((node) => {
+        if (node.id !== selectedNodeId) return node;
+        const current = Array.isArray(node.metadata?.responsibilities) ? node.metadata.responsibilities : [];
+        return {
+          ...node,
+          metadata: {
+            ...node.metadata,
+            responsibilities: current.filter((_, itemIndex) => itemIndex !== index),
+          },
+        };
+      }),
+    }));
+  };
+
+  const setEdgeMetadataField = (field, value) => {
+    if (!selectedEdgeId) return;
+    setCanvasState((prev) => ({
+      ...prev,
+      edges: prev.edges.map((edge) =>
+        edge.id === selectedEdgeId
+          ? {
+              ...edge,
+              metadata: {
+                ...edge.metadata,
+                [field]: value,
+              },
+            }
+          : edge
+      ),
+    }));
+  };
+
+  const setSystemMetadataField = (field, value) => {
+    setCanvasState((prev) => ({
+      ...prev,
+      systemMetadata: {
+        ...(prev.systemMetadata || {}),
+        [field]: value,
+      },
+    }));
+  };
+
+  const addSystemAssumption = () => {
+    setCanvasState((prev) => {
+      const assumptions = Array.isArray(prev?.systemMetadata?.assumptions)
+        ? prev.systemMetadata.assumptions
+        : [];
+      return {
+        ...prev,
+        systemMetadata: {
+          ...(prev.systemMetadata || {}),
+          assumptions: [...assumptions, ''],
+        },
+      };
+    });
+  };
+
+  const updateSystemAssumption = (index, value) => {
+    setCanvasState((prev) => {
+      const assumptions = Array.isArray(prev?.systemMetadata?.assumptions)
+        ? prev.systemMetadata.assumptions
+        : [];
+      return {
+        ...prev,
+        systemMetadata: {
+          ...(prev.systemMetadata || {}),
+          assumptions: assumptions.map((item, itemIndex) => (itemIndex === index ? value : item)),
+        },
+      };
+    });
+  };
+
+  const removeSystemAssumption = (index) => {
+    setCanvasState((prev) => {
+      const assumptions = Array.isArray(prev?.systemMetadata?.assumptions)
+        ? prev.systemMetadata.assumptions
+        : [];
+      return {
+        ...prev,
+        systemMetadata: {
+          ...(prev.systemMetadata || {}),
+          assumptions: assumptions.filter((_, itemIndex) => itemIndex !== index),
+        },
+      };
+    });
   };
 
   const deleteSelectedEdge = () => {
@@ -707,22 +886,185 @@ const Canvas = () => {
           <aside className="w-72 border-l border-gray-200 bg-white p-4 space-y-4">
             <h2 className="text-sm font-semibold text-gray-900">Properties</h2>
 
-            <div className="rounded-md border border-gray-200 p-3">
-              <p className="text-xs text-gray-500">Selected Node</p>
-              <p className="text-sm text-gray-800 mt-1">{selectedNode ? selectedNode.type : 'None'}</p>
-            </div>
+            {selectedNode ? (
+              <>
+                <div className="rounded-md border border-gray-200 p-3 space-y-3">
+                  <p className="text-[11px] font-semibold text-gray-500 uppercase tracking-wide">What It Is</p>
+                  <div>
+                    <p className="text-xs text-gray-500">Type</p>
+                    <p className="text-sm text-gray-900 mt-1">{selectedNode.type}</p>
+                  </div>
+                  <div>
+                    <label className="text-xs text-gray-500 block mb-1">Label</label>
+                    <input
+                      type="text"
+                      value={selectedNode?.label || ''}
+                      onChange={(event) => setNodeLabel(event.target.value)}
+                      className="w-full border border-gray-300 rounded-md px-2.5 py-2 text-sm"
+                    />
+                  </div>
+                </div>
 
-            <div className="rounded-md border border-gray-200 p-3">
-              <label className="text-xs text-gray-500 block mb-1">Label</label>
-              <input
-                type="text"
-                disabled={!selectedNode}
-                value={selectedNode?.label || ''}
-                onChange={(event) => setNodeLabel(event.target.value)}
-                className="w-full border border-gray-300 rounded-md px-2.5 py-2 text-sm disabled:bg-gray-100"
-                placeholder="Select a node"
-              />
-            </div>
+                <div className="rounded-md border border-gray-200 p-3 space-y-3">
+                  <p className="text-[11px] font-semibold text-gray-500 uppercase tracking-wide">Why It Exists</p>
+
+                  <div>
+                    <label className="text-xs text-gray-500 block mb-1">Purpose</label>
+                    <textarea
+                      rows={3}
+                      value={selectedNode?.metadata?.purpose || ''}
+                      onChange={(event) => setNodeMetadataField('purpose', event.target.value)}
+                      className="w-full border border-gray-300 rounded-md px-2.5 py-2 text-sm resize-none"
+                      placeholder="Why this component exists"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-xs text-gray-500 block mb-1">Technology</label>
+                    <input
+                      type="text"
+                      value={selectedNode?.metadata?.techChoice || ''}
+                      onChange={(event) => setNodeMetadataField('techChoice', event.target.value)}
+                      className="w-full border border-gray-300 rounded-md px-2.5 py-2 text-sm"
+                      placeholder="Optional implementation choice"
+                    />
+                  </div>
+
+                  <div>
+                    <div className="flex items-center justify-between mb-1">
+                      <label className="text-xs text-gray-500">Responsibilities</label>
+                      <button
+                        type="button"
+                        onClick={addNodeResponsibility}
+                        className="text-xs text-blue-600 hover:text-blue-700"
+                      >
+                        Add
+                      </button>
+                    </div>
+                    <div className="space-y-2">
+                      {(selectedNode?.metadata?.responsibilities || []).map((item, index) => (
+                        <div key={`resp-${selectedNode.id}-${index}`} className="flex items-center gap-2">
+                          <input
+                            type="text"
+                            value={item}
+                            onChange={(event) => updateNodeResponsibility(index, event.target.value)}
+                            className="flex-1 border border-gray-300 rounded-md px-2.5 py-2 text-sm"
+                            placeholder="Responsibility"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => removeNodeResponsibility(index)}
+                            className="text-xs text-red-600 hover:text-red-700"
+                          >
+                            Remove
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="text-xs text-gray-500 block mb-1">Notes</label>
+                    <textarea
+                      rows={3}
+                      value={selectedNode?.metadata?.notes || ''}
+                      onChange={(event) => setNodeMetadataField('notes', event.target.value)}
+                      className="w-full border border-gray-300 rounded-md px-2.5 py-2 text-sm resize-none"
+                      placeholder="Free-form context"
+                    />
+                  </div>
+                </div>
+              </>
+            ) : (
+              <div className="rounded-md border border-gray-200 p-3 space-y-3">
+                <p className="text-[11px] font-semibold text-gray-500 uppercase tracking-wide">System Metadata</p>
+
+                <div>
+                  <label className="text-xs text-gray-500 block mb-1">Goal</label>
+                  <textarea
+                    rows={2}
+                    value={canvasState?.systemMetadata?.goal || ''}
+                    onChange={(event) => setSystemMetadataField('goal', event.target.value)}
+                    className="w-full border border-gray-300 rounded-md px-2.5 py-2 text-sm resize-none"
+                    placeholder="What this system is trying to achieve"
+                  />
+                </div>
+
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="text-xs text-gray-500">Assumptions</label>
+                    <button
+                      type="button"
+                      onClick={addSystemAssumption}
+                      className="text-xs text-blue-600 hover:text-blue-700"
+                    >
+                      Add
+                    </button>
+                  </div>
+                  <div className="space-y-2">
+                    {(canvasState?.systemMetadata?.assumptions || []).map((item, index) => (
+                      <div key={`assump-${index}`} className="flex items-center gap-2">
+                        <input
+                          type="text"
+                          value={item}
+                          onChange={(event) => updateSystemAssumption(index, event.target.value)}
+                          className="flex-1 border border-gray-300 rounded-md px-2.5 py-2 text-sm"
+                          placeholder="Assumption"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => removeSystemAssumption(index)}
+                          className="text-xs text-red-600 hover:text-red-700"
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div>
+                  <label className="text-xs text-gray-500 block mb-1">Constraints</label>
+                  <textarea
+                    rows={3}
+                    value={canvasState?.systemMetadata?.constraints || ''}
+                    onChange={(event) => setSystemMetadataField('constraints', event.target.value)}
+                    className="w-full border border-gray-300 rounded-md px-2.5 py-2 text-sm resize-none"
+                    placeholder="Known limitations or boundaries"
+                  />
+                </div>
+              </div>
+            )}
+
+            {selectedEdge && (
+              <div className="rounded-md border border-gray-200 p-3 space-y-3">
+                <p className="text-[11px] font-semibold text-gray-500 uppercase tracking-wide">Edge Metadata</p>
+                <div>
+                  <label className="text-xs text-gray-500 block mb-1">Protocol</label>
+                  <select
+                    value={selectedEdge?.metadata?.protocol || ''}
+                    onChange={(event) => setEdgeMetadataField('protocol', event.target.value)}
+                    className="w-full border border-gray-300 rounded-md px-2.5 py-2 text-sm bg-white"
+                  >
+                    {EDGE_PROTOCOL_OPTIONS.map((option) => (
+                      <option key={`protocol-${option || 'none'}`} value={option}>
+                        {option || 'None'}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="text-xs text-gray-500 block mb-1">Notes</label>
+                  <textarea
+                    rows={2}
+                    value={selectedEdge?.metadata?.notes || ''}
+                    onChange={(event) => setEdgeMetadataField('notes', event.target.value)}
+                    className="w-full border border-gray-300 rounded-md px-2.5 py-2 text-sm resize-none"
+                    placeholder="Communication context"
+                  />
+                </div>
+              </div>
+            )}
 
             <div className="rounded-md border border-gray-200 p-3 text-sm text-gray-600 space-y-1">
               <p>
@@ -734,11 +1076,6 @@ const Canvas = () => {
               <p>
                 User: <span className="font-semibold text-gray-900">{user.full_name || user.email}</span>
               </p>
-            </div>
-
-            <div className="text-xs text-gray-500 flex items-start gap-2">
-              <Plus size={12} className="mt-0.5" />
-              Blue and black dots are connection handles. Drag from one node handle to another to connect.
             </div>
           </aside>
         </main>
