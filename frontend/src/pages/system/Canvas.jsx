@@ -247,7 +247,12 @@ const Canvas = () => {
   };
 
   const onCanvasMouseDown = (event) => {
-    if (activeTool !== 'pan' || event.button !== 0) return;
+    const isRightMouseButton = event.button === 2;
+    const isPanToolLeftClick = activeTool === 'pan' && event.button === 0;
+    if (!isRightMouseButton && !isPanToolLeftClick) return;
+    if (isRightMouseButton) {
+      event.preventDefault();
+    }
 
     panningRef.current = {
       startClientX: event.clientX,
@@ -255,9 +260,6 @@ const Canvas = () => {
       startPanX: canvasState.viewport.pan.x,
       startPanY: canvasState.viewport.pan.y,
     };
-
-    setSelectedNodeId(null);
-    setSelectedEdgeId(null);
   };
 
   useEffect(() => {
@@ -407,6 +409,12 @@ const Canvas = () => {
       : saveStatus === 'retrying'
       ? 'Saving...'
       : 'Saved';
+  const nodeZoom = canvasState.viewport.zoom;
+  const nodePadding = Math.max(6, Math.round(12 * nodeZoom));
+  const nodeTypeFontSize = Math.max(8, Math.round(12 * nodeZoom));
+  const nodeLabelFontSize = Math.max(10, Math.round(16 * nodeZoom));
+  const nodeIdFontSize = Math.max(8, Math.round(12 * nodeZoom));
+  const nodeIconSize = Math.max(10, Math.round(14 * nodeZoom));
 
   if (loading) {
     return <div className="h-screen flex items-center justify-center text-gray-500">Loading canvas...</div>;
@@ -416,12 +424,35 @@ const Canvas = () => {
     return <div className="h-screen flex items-center justify-center text-red-600">Failed to load canvas.</div>;
   }
 
+  const creatorName = user.full_name || user.email;
+
   return (
     <div className="h-screen flex flex-col bg-white overflow-hidden">
-      <header className="border-b border-gray-200 bg-white px-5 py-3 flex items-center justify-between">
-        <div>
-          <p className="text-xs text-gray-500">{workspace.name}</p>
-          <h1 className="text-lg font-semibold text-gray-900">{system.name}</h1>
+      <header className="border-b border-gray-200 bg-white px-5 py-3 flex items-center justify-between gap-3">
+        <div className="min-w-0">
+          <p className="text-sm text-gray-700 border border-gray-200 rounded-md px-2.5 py-1.5 max-w-[520px] truncate">
+            <button
+              type="button"
+              onClick={() => navigate('/app/profile')}
+              className="text-blue-600 hover:text-blue-700 hover:underline"
+              title={creatorName}
+            >
+              {creatorName}
+            </button>
+            <span className="text-gray-400 px-1">/</span>
+            <button
+              type="button"
+              onClick={() => navigate(`/app/ws/${workspaceId}`)}
+              className="text-blue-600 hover:text-blue-700 hover:underline"
+              title={workspace.name}
+            >
+              {workspace.name}
+            </button>
+            <span className="text-gray-400 px-1">/</span>
+            <span className="text-gray-700" title={system.name}>
+              {system.name}
+            </span>
+          </p>
         </div>
 
         <div className="flex items-center gap-2">
@@ -475,13 +506,15 @@ const Canvas = () => {
           </button>
         </div>
 
-        <button
-          onClick={() => navigate(`/app/ws/${workspaceId}`)}
-          type="button"
-          className="px-3 py-2 text-sm border border-gray-300 rounded-md text-gray-700"
-        >
-          Back
-        </button>
+        <div className="flex items-center gap-3 min-w-0">
+          <button
+            onClick={() => navigate(`/app/ws/${workspaceId}`)}
+            type="button"
+            className="px-3 py-2 text-sm border border-gray-300 rounded-md text-gray-700"
+          >
+            Back
+          </button>
+        </div>
       </header>
 
       <div className="flex-1 flex overflow-hidden">
@@ -531,9 +564,11 @@ const Canvas = () => {
           <section
             ref={canvasRef}
             onMouseDown={onCanvasMouseDown}
+            onContextMenu={(event) => event.preventDefault()}
             onDragOver={(event) => event.preventDefault()}
             onDrop={handleDropComponent}
-            onClick={() => {
+            onClick={(event) => {
+              if (event.target !== event.currentTarget) return;
               setSelectedNodeId(null);
               setSelectedEdgeId(null);
             }}
@@ -631,15 +666,26 @@ const Canvas = () => {
                     aria-label="Connect here"
                     className="absolute -left-2 top-1/2 -translate-y-1/2 w-4 h-4 rounded-full bg-gray-500 border-2 border-white"
                     onMouseUp={(event) => completeConnection(event, node.id)}
+                    onMouseDown={(event) => startConnection(event, node.id)}
                   />
 
-                  <div className="p-3">
-                    <div className="flex items-center gap-2 text-xs text-gray-500 uppercase tracking-wide">
-                      <Icon size={14} />
+                  <div style={{ padding: nodePadding }}>
+                    <div
+                      className="flex items-center gap-2 text-gray-500 uppercase tracking-wide"
+                      style={{ fontSize: nodeTypeFontSize, lineHeight: 1.15 }}
+                    >
+                      <Icon size={nodeIconSize} />
                       {node.type}
                     </div>
-                    <p className="mt-2 text-sm font-semibold text-gray-900 truncate">{node.label || 'Untitled'}</p>
-                    <p className="mt-1 text-xs text-gray-500">{node.id.slice(0, 8)}</p>
+                    <p
+                      className="mt-2 font-semibold text-gray-900 truncate"
+                      style={{ fontSize: nodeLabelFontSize, lineHeight: 1.15 }}
+                    >
+                      {node.label || 'Untitled'}
+                    </p>
+                  <p className="mt-1 text-gray-500" style={{ fontSize: nodeIdFontSize, lineHeight: 1.15 }}>
+                      {node.id.slice(0, 8)}
+                    </p>
                   </div>
                 </div>
               );
@@ -692,7 +738,7 @@ const Canvas = () => {
 
             <div className="text-xs text-gray-500 flex items-start gap-2">
               <Plus size={12} className="mt-0.5" />
-              Drag from component list, then use right handle to left handle for directional edges.
+              Blue and black dots are connection handles. Drag from one node handle to another to connect.
             </div>
           </aside>
         </main>
