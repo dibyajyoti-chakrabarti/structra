@@ -14,6 +14,7 @@ import {
   Trash2,
   ZoomIn,
   ZoomOut,
+  Lightbulb,
 } from 'lucide-react';
 import api from '../../api';
 
@@ -130,6 +131,248 @@ const worldToScreen = (worldX, worldY, viewport) => ({
   y: worldY * viewport.zoom + viewport.pan.y,
 });
 
+const INSIGHT_CATEGORIES = {
+  STRUCTURE: 'STRUCTURE',
+  COMMUNICATION: 'COMMUNICATION',
+  CLARITY: 'CLARITY',
+  COMPLETENESS: 'COMPLETENESS',
+};
+
+const PUBLIC_ENTRYPOINT_TYPES = new Set(['CLIENT', 'EXTERNAL_SERVICE']);
+const STATEFUL_TYPES = new Set(['DATABASE', 'CACHE', 'QUEUE']);
+
+const buildInsight = ({ category, message, relatedNodeIds = [], relatedEdgeIds = [] }) => ({
+  id: `${category}:${message}:${relatedNodeIds.join(',')}:${relatedEdgeIds.join(',')}`,
+  category,
+  message,
+  relatedNodeIds,
+  relatedEdgeIds,
+});
+
+const computeInsights = (canvasState) => {
+  const nodes = Array.isArray(canvasState?.nodes) ? canvasState.nodes : [];
+  const edges = Array.isArray(canvasState?.edges) ? canvasState.edges : [];
+  const systemMetadata = canvasState?.systemMetadata || {};
+  const nodeMap = new Map(nodes.map((node) => [node.id, node]));
+  const incomingCount = new Map(nodes.map((node) => [node.id, 0]));
+  const outgoingCount = new Map(nodes.map((node) => [node.id, 0]));
+
+  edges.forEach((edge) => {
+    if (incomingCount.has(edge.target)) {
+      incomingCount.set(edge.target, incomingCount.get(edge.target) + 1);
+    }
+    if (outgoingCount.has(edge.source)) {
+      outgoingCount.set(edge.source, outgoingCount.get(edge.source) + 1);
+    }
+  });
+
+  const insights = [];
+
+  nodes.forEach((node) => {
+    const inCount = incomingCount.get(node.id) || 0;
+    const outCount = outgoingCount.get(node.id) || 0;
+
+    if (inCount + outCount === 0) {
+      insights.push(
+        buildInsight({
+          category: INSIGHT_CATEGORIES.STRUCTURE,
+          message: `${node.label || node.type} has no incoming or outgoing connections.`,
+          relatedNodeIds: [node.id],
+        })
+      );
+    }
+
+    if (node.type === 'QUEUE') {
+      if (inCount === 0) {
+        insights.push(
+          buildInsight({
+            category: INSIGHT_CATEGORIES.STRUCTURE,
+            message: `${node.label || node.type} has no producer connected to it.`,
+            relatedNodeIds: [node.id],
+          })
+        );
+      }
+      if (outCount === 0) {
+        insights.push(
+          buildInsight({
+            category: INSIGHT_CATEGORIES.STRUCTURE,
+            message: `${node.label || node.type} has no consumer connected to it.`,
+            relatedNodeIds: [node.id],
+          })
+        );
+      }
+    }
+
+    if (!String(node?.metadata?.purpose || '').trim()) {
+      insights.push(
+        buildInsight({
+          category: INSIGHT_CATEGORIES.CLARITY,
+          message: `${node.label || node.type} has no stated purpose.`,
+          relatedNodeIds: [node.id],
+        })
+      );
+    }
+
+    const responsibilities = Array.isArray(node?.metadata?.responsibilities)
+      ? node.metadata.responsibilities.filter((item) => String(item || '').trim())
+      : [];
+    if (responsibilities.length === 0) {
+      insights.push(
+        buildInsight({
+          category: INSIGHT_CATEGORIES.CLARITY,
+          message: `${node.label || node.type} has no listed responsibilities.`,
+          relatedNodeIds: [node.id],
+        })
+      );
+    }
+
+    if (node.type === 'EXTERNAL_SERVICE' && !String(node?.metadata?.notes || '').trim()) {
+      insights.push(
+        buildInsight({
+          category: INSIGHT_CATEGORIES.COMPLETENESS,
+          message: `${node.label || node.type} is external but has no notes describing context.`,
+          relatedNodeIds: [node.id],
+        })
+      );
+    }
+  });
+
+  edges.forEach((edge) => {
+    const sourceNode = nodeMap.get(edge.source);
+    const targetNode = nodeMap.get(edge.target);
+    const protocol = String(edge?.metadata?.protocol || '').trim();
+
+    if (!protocol) {
+      insights.push(
+        buildInsight({
+          category: INSIGHT_CATEGORIES.COMMUNICATION,
+          message: `Connection ${sourceNode?.label || 'Unknown'} -> ${
+            targetNode?.label || 'Unknown'
+          } has no protocol metadata.`,
+          relatedNodeIds: [edge.source, edge.target],
+          relatedEdgeIds: [edge.id],
+        })
+      );
+    }
+
+    if (protocol === 'ASYNC') {
+      const hasQueueBoundary = sourceNode?.type === 'QUEUE' || targetNode?.type === 'QUEUE';
+      if (!hasQueueBoundary) {
+        insights.push(
+          buildInsight({
+            category: INSIGHT_CATEGORIES.COMMUNICATION,
+            message: `Async communication between ${sourceNode?.label || 'Unknown'} and ${
+              targetNode?.label || 'Unknown'
+            } has no queue-like boundary.`,
+            relatedNodeIds: [edge.source, edge.target],
+            relatedEdgeIds: [edge.id],
+          })
+        );
+      }
+    }
+  });
+
+  const edgeMap = new Map(edges.map((edge) => [`${edge.source}=>${edge.target}`, edge]));
+  edges.forEach((edge) => {
+    const reverse = edgeMap.get(`${edge.target}=>${edge.source}`);
+    if (!reverse || edge.id > reverse.id) return;
+
+    const edgeNotes = String(edge?.metadata?.notes || '').trim();
+    const reverseNotes = String(reverse?.metadata?.notes || '').trim();
+    if (!edgeNotes && !reverseNotes) {
+      const sourceNode = nodeMap.get(edge.source);
+      const targetNode = nodeMap.get(edge.target);
+      insights.push(
+        buildInsight({
+          category: INSIGHT_CATEGORIES.COMMUNICATION,
+          message: `Bidirectional communication exists between ${
+            sourceNode?.label || 'Unknown'
+          } and ${targetNode?.label || 'Unknown'} without explanatory notes.`,
+          relatedNodeIds: [edge.source, edge.target],
+          relatedEdgeIds: [edge.id, reverse.id],
+        })
+      );
+    }
+  });
+
+  const databaseNodes = nodes.filter((node) => node.type === 'DATABASE');
+  edges.forEach((edge) => {
+    const sourceNode = nodeMap.get(edge.source);
+    const targetNode = nodeMap.get(edge.target);
+    if (!sourceNode || !targetNode) return;
+    const connectsDbAndPublic =
+      (sourceNode.type === 'DATABASE' && PUBLIC_ENTRYPOINT_TYPES.has(targetNode.type)) ||
+      (targetNode.type === 'DATABASE' && PUBLIC_ENTRYPOINT_TYPES.has(sourceNode.type));
+    if (!connectsDbAndPublic) return;
+
+    insights.push(
+      buildInsight({
+        category: INSIGHT_CATEGORIES.STRUCTURE,
+        message: `Database ${sourceNode.type === 'DATABASE' ? sourceNode.label : targetNode.label} is directly connected to public entrypoint ${
+          PUBLIC_ENTRYPOINT_TYPES.has(sourceNode.type) ? sourceNode.label : targetNode.label
+        }.`,
+        relatedNodeIds: [sourceNode.id, targetNode.id],
+        relatedEdgeIds: [edge.id],
+      })
+    );
+  });
+
+  const authNodes = nodes.filter((node) => node.type === 'AUTH');
+  if (authNodes.length > 1) {
+    const explainedAuth = authNodes.some(
+      (node) =>
+        String(node?.metadata?.purpose || '').trim() || String(node?.metadata?.notes || '').trim()
+    );
+    if (!explainedAuth) {
+      insights.push(
+        buildInsight({
+          category: INSIGHT_CATEGORIES.STRUCTURE,
+          message: 'Multiple Auth components exist without explanation of their different roles.',
+          relatedNodeIds: authNodes.map((node) => node.id),
+        })
+      );
+    }
+  }
+
+  const hasPublicExposure = nodes.some((node) => PUBLIC_ENTRYPOINT_TYPES.has(node.type));
+  if (hasPublicExposure && authNodes.length === 0) {
+    insights.push(
+      buildInsight({
+        category: INSIGHT_CATEGORIES.COMPLETENESS,
+        message: 'System has public exposure but no Auth component is present.',
+        relatedNodeIds: nodes.filter((node) => PUBLIC_ENTRYPOINT_TYPES.has(node.type)).map((node) => node.id),
+      })
+    );
+  }
+
+  if (!String(systemMetadata?.goal || '').trim()) {
+    insights.push(
+      buildInsight({
+        category: INSIGHT_CATEGORIES.CLARITY,
+        message: 'System goal is not stated.',
+      })
+    );
+  }
+
+  const hasStatefulComponent = nodes.some((node) => STATEFUL_TYPES.has(node.type));
+  const hasDurableComponent = databaseNodes.length > 0;
+  if (hasStatefulComponent && !hasDurableComponent) {
+    insights.push(
+      buildInsight({
+        category: INSIGHT_CATEGORIES.COMPLETENESS,
+        message: 'Stateful components exist but no durable state component is described.',
+        relatedNodeIds: nodes.filter((node) => STATEFUL_TYPES.has(node.type)).map((node) => node.id),
+      })
+    );
+  }
+
+  const unique = new Map();
+  insights.forEach((insight) => {
+    unique.set(insight.id, insight);
+  });
+  return Array.from(unique.values());
+};
+
 const Canvas = () => {
   const navigate = useNavigate();
   const { workspaceId, systemId } = useParams();
@@ -151,6 +394,9 @@ const Canvas = () => {
   const [selectedEdgeId, setSelectedEdgeId] = useState(null);
   const [connectionDraft, setConnectionDraft] = useState(null);
   const [saveStatus, setSaveStatus] = useState('saved');
+  const [rightPanelMode, setRightPanelMode] = useState('design');
+  const [hoveredInsightId, setHoveredInsightId] = useState(null);
+  const [activeInsightId, setActiveInsightId] = useState(null);
 
   const lastSavedSignatureRef = useRef('');
   const retryAttemptRef = useRef(0);
@@ -263,6 +509,7 @@ const Canvas = () => {
   const onNodeMouseDown = (event, node) => {
     if (activeTool !== 'select') return;
     if (event.button !== 0) return;
+    setRightPanelMode('design');
 
     draggingNodeRef.current = {
       nodeId: node.id,
@@ -357,6 +604,7 @@ const Canvas = () => {
 
   const startConnection = (event, nodeId) => {
     event.stopPropagation();
+    setRightPanelMode('design');
     setSelectedNodeId(nodeId);
     setSelectedEdgeId(null);
     setConnectionDraft({ sourceId: nodeId, pointer: { x: event.clientX, y: event.clientY } });
@@ -374,7 +622,7 @@ const Canvas = () => {
     );
 
     if (!duplicate) {
-      const nextEdge = { id: makeUuid(), source, target };
+      const nextEdge = { id: makeUuid(), source, target, metadata: { protocol: '', notes: '' } };
       setCanvasState((prev) => ({ ...prev, edges: [...prev.edges, nextEdge] }));
       setSelectedEdgeId(nextEdge.id);
       setSelectedNodeId(null);
@@ -391,6 +639,37 @@ const Canvas = () => {
     () => canvasState.edges.find((edge) => edge.id === selectedEdgeId) || null,
     [canvasState.edges, selectedEdgeId]
   );
+  const insights = useMemo(() => computeInsights(canvasState), [canvasState]);
+  const insightsById = useMemo(
+    () => new Map(insights.map((insight) => [insight.id, insight])),
+    [insights]
+  );
+  const highlightedInsight = insightsById.get(hoveredInsightId) || insightsById.get(activeInsightId) || null;
+  const highlightedNodeIds = useMemo(
+    () => new Set(highlightedInsight?.relatedNodeIds || []),
+    [highlightedInsight]
+  );
+  const highlightedEdgeIds = useMemo(
+    () => new Set(highlightedInsight?.relatedEdgeIds || []),
+    [highlightedInsight]
+  );
+  const insightsByCategory = useMemo(
+    () =>
+      Object.values(INSIGHT_CATEGORIES).map((category) => ({
+        category,
+        items: insights.filter((insight) => insight.category === category),
+      })),
+    [insights]
+  );
+
+  useEffect(() => {
+    if (activeInsightId && !insightsById.has(activeInsightId)) {
+      setActiveInsightId(null);
+    }
+    if (hoveredInsightId && !insightsById.has(hoveredInsightId)) {
+      setHoveredInsightId(null);
+    }
+  }, [activeInsightId, hoveredInsightId, insightsById]);
 
   const setNodeLabel = (label) => {
     if (!selectedNodeId) return;
@@ -550,6 +829,72 @@ const Canvas = () => {
         },
       };
     });
+  };
+
+  const focusInsight = (insight) => {
+    if (!insight) return;
+    setActiveInsightId(insight.id);
+    setRightPanelMode('design');
+
+    const relatedNodeIds = Array.isArray(insight.relatedNodeIds) ? insight.relatedNodeIds : [];
+    const relatedEdgeIds = Array.isArray(insight.relatedEdgeIds) ? insight.relatedEdgeIds : [];
+
+    if (relatedNodeIds.length > 0) {
+      setSelectedNodeId(relatedNodeIds[0]);
+      setSelectedEdgeId(null);
+    } else if (relatedEdgeIds.length > 0) {
+      setSelectedEdgeId(relatedEdgeIds[0]);
+      setSelectedNodeId(null);
+    }
+
+    const relatedNodes = new Map();
+    canvasState.nodes.forEach((node) => {
+      if (relatedNodeIds.includes(node.id)) {
+        relatedNodes.set(node.id, node);
+      }
+    });
+
+    if (relatedNodes.size === 0 && relatedEdgeIds.length > 0) {
+      canvasState.edges.forEach((edge) => {
+        if (!relatedEdgeIds.includes(edge.id)) return;
+        const sourceNode = canvasState.nodes.find((node) => node.id === edge.source);
+        const targetNode = canvasState.nodes.find((node) => node.id === edge.target);
+        if (sourceNode) relatedNodes.set(sourceNode.id, sourceNode);
+        if (targetNode) relatedNodes.set(targetNode.id, targetNode);
+      });
+    }
+
+    if (relatedNodes.size === 0 || !canvasRef.current) return;
+
+    const nodesToFocus = Array.from(relatedNodes.values());
+    const minX = Math.min(...nodesToFocus.map((node) => node.position.x));
+    const minY = Math.min(...nodesToFocus.map((node) => node.position.y));
+    const maxX = Math.max(...nodesToFocus.map((node) => node.position.x + NODE_WIDTH));
+    const maxY = Math.max(...nodesToFocus.map((node) => node.position.y + NODE_HEIGHT));
+
+    const rect = canvasRef.current.getBoundingClientRect();
+    const padding = 80;
+    const fitWidth = Math.max(120, maxX - minX + padding * 2);
+    const fitHeight = Math.max(120, maxY - minY + padding * 2);
+    const zoomX = rect.width / fitWidth;
+    const zoomY = rect.height / fitHeight;
+    const nextZoom = Math.max(0.4, Math.min(2.5, Math.min(zoomX, zoomY)));
+
+    const centerX = (minX + maxX) / 2;
+    const centerY = (minY + maxY) / 2;
+    const nextPanX = rect.width / 2 - centerX * nextZoom;
+    const nextPanY = rect.height / 2 - centerY * nextZoom;
+
+    setCanvasState((prev) => ({
+      ...prev,
+      viewport: {
+        zoom: +nextZoom.toFixed(2),
+        pan: {
+          x: Math.round(nextPanX),
+          y: Math.round(nextPanY),
+        },
+      },
+    }));
   };
 
   const deleteSelectedEdge = () => {
@@ -763,6 +1108,7 @@ const Canvas = () => {
                 const sourceNode = canvasState.nodes.find((node) => node.id === edge.source);
                 const targetNode = canvasState.nodes.find((node) => node.id === edge.target);
                 if (!sourceNode || !targetNode) return null;
+                const edgeIsHighlighted = highlightedEdgeIds.has(edge.id);
 
                 const sourcePoint = getNodeScreenAnchor(sourceNode, 'source');
                 const targetPoint = getNodeScreenAnchor(targetNode, 'target');
@@ -772,8 +1118,9 @@ const Canvas = () => {
                   <g key={edge.id}>
                     <path
                       d={`M ${sourcePoint.x} ${sourcePoint.y} C ${midX} ${sourcePoint.y}, ${midX} ${targetPoint.y}, ${targetPoint.x} ${targetPoint.y}`}
-                      stroke={selectedEdgeId === edge.id ? '#1d4ed8' : '#475569'}
-                      strokeWidth={selectedEdgeId === edge.id ? 2.5 : 2}
+                      stroke={selectedEdgeId === edge.id ? '#1d4ed8' : edgeIsHighlighted ? '#0f766e' : '#475569'}
+                      strokeWidth={selectedEdgeId === edge.id ? 2.5 : edgeIsHighlighted ? 2.4 : 2}
+                      opacity={edgeIsHighlighted || selectedEdgeId === edge.id || !highlightedInsight ? 1 : 0.45}
                       fill="none"
                     />
                     <path
@@ -784,6 +1131,7 @@ const Canvas = () => {
                       className="pointer-events-auto cursor-pointer"
                       onClick={(event) => {
                         event.stopPropagation();
+                        setRightPanelMode('design');
                         setSelectedEdgeId(edge.id);
                         setSelectedNodeId(null);
                       }}
@@ -817,17 +1165,23 @@ const Canvas = () => {
               const screen = worldToScreen(node.position.x, node.position.y, canvasState.viewport);
               const component = COMPONENTS.find((item) => item.type === node.type);
               const Icon = component ? component.icon : Box;
+              const nodeIsHighlighted = highlightedNodeIds.has(node.id);
               return (
                 <div
                   key={node.id}
                   className={`absolute bg-white border rounded-lg shadow-sm ${
-                    selectedNodeId === node.id ? 'border-blue-500 ring-2 ring-blue-100' : 'border-gray-300'
+                    selectedNodeId === node.id
+                      ? 'border-blue-500 ring-2 ring-blue-100'
+                      : nodeIsHighlighted
+                      ? 'border-teal-500 ring-2 ring-teal-100'
+                      : 'border-gray-300'
                   }`}
                   style={{
                     width: NODE_WIDTH * canvasState.viewport.zoom,
                     height: NODE_HEIGHT * canvasState.viewport.zoom,
                     left: screen.x,
                     top: screen.y,
+                    opacity: nodeIsHighlighted || selectedNodeId === node.id || !highlightedInsight ? 1 : 0.58,
                   }}
                   onMouseDown={(event) => {
                     event.stopPropagation();
@@ -885,198 +1239,263 @@ const Canvas = () => {
 
           <aside className="w-72 border-l border-gray-200 bg-white p-4 space-y-4">
             <h2 className="text-sm font-semibold text-gray-900">Properties</h2>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setRightPanelMode('design')}
+                className={`px-2.5 py-1.5 text-xs rounded-md border ${
+                  rightPanelMode === 'design'
+                    ? 'bg-blue-50 text-blue-700 border-blue-200'
+                    : 'bg-white text-gray-600 border-gray-200'
+                }`}
+              >
+                Design
+              </button>
+              <button
+                type="button"
+                onClick={() => setRightPanelMode('insights')}
+                className={`px-2.5 py-1.5 text-xs rounded-md border inline-flex items-center gap-1 ${
+                  rightPanelMode === 'insights'
+                    ? 'bg-blue-50 text-blue-700 border-blue-200'
+                    : 'bg-white text-gray-600 border-gray-200'
+                }`}
+              >
+                <Lightbulb size={12} />
+                Insights
+                <span className="text-[10px] px-1.5 py-0.5 rounded bg-gray-100 text-gray-700">{insights.length}</span>
+              </button>
+            </div>
 
-            {selectedNode ? (
-              <>
+            {rightPanelMode === 'design' ? (
+              <div className="space-y-4 overflow-y-auto pr-1 max-h-[calc(100vh-220px)]">
+                <p className="text-xs font-semibold text-gray-600 uppercase tracking-wide">
+                  {selectedEdge ? 'Edge Metadata' : selectedNode ? 'Component Metadata' : 'System Metadata'}
+                </p>
+              {selectedEdge ? (
                 <div className="rounded-md border border-gray-200 p-3 space-y-3">
-                  <p className="text-[11px] font-semibold text-gray-500 uppercase tracking-wide">What It Is</p>
                   <div>
-                    <p className="text-xs text-gray-500">Type</p>
-                    <p className="text-sm text-gray-900 mt-1">{selectedNode.type}</p>
+                    <label className="text-xs text-gray-500 block mb-1">Protocol</label>
+                    <select
+                      value={selectedEdge?.metadata?.protocol || ''}
+                      onChange={(event) => setEdgeMetadataField('protocol', event.target.value)}
+                      className="w-full border border-gray-300 rounded-md px-2.5 py-2 text-sm bg-white"
+                    >
+                      {EDGE_PROTOCOL_OPTIONS.map((option) => (
+                        <option key={`protocol-${option || 'none'}`} value={option}>
+                          {option || 'None'}
+                        </option>
+                      ))}
+                    </select>
                   </div>
                   <div>
-                    <label className="text-xs text-gray-500 block mb-1">Label</label>
-                    <input
-                      type="text"
-                      value={selectedNode?.label || ''}
-                      onChange={(event) => setNodeLabel(event.target.value)}
-                      className="w-full border border-gray-300 rounded-md px-2.5 py-2 text-sm"
+                    <label className="text-xs text-gray-500 block mb-1">Notes</label>
+                    <textarea
+                      rows={3}
+                      value={selectedEdge?.metadata?.notes || ''}
+                      onChange={(event) => setEdgeMetadataField('notes', event.target.value)}
+                      className="w-full border border-gray-300 rounded-md px-2.5 py-2 text-sm resize-none"
+                      placeholder="Communication context"
                     />
                   </div>
                 </div>
+              ) : selectedNode ? (
+                <>
+                  <div className="rounded-md border border-gray-200 p-3 space-y-3">
+                    <p className="text-[11px] font-semibold text-gray-500 uppercase tracking-wide">What It Is</p>
+                    <div>
+                      <p className="text-xs text-gray-500">Type</p>
+                      <p className="text-sm text-gray-900 mt-1">{selectedNode.type}</p>
+                    </div>
+                    <div>
+                      <label className="text-xs text-gray-500 block mb-1">Label</label>
+                      <input
+                        type="text"
+                        value={selectedNode?.label || ''}
+                        onChange={(event) => setNodeLabel(event.target.value)}
+                        className="w-full border border-gray-300 rounded-md px-2.5 py-2 text-sm"
+                      />
+                    </div>
+                  </div>
 
+                  <div className="rounded-md border border-gray-200 p-3 space-y-3">
+                    <p className="text-[11px] font-semibold text-gray-500 uppercase tracking-wide">Why It Exists</p>
+                    <div>
+                      <label className="text-xs text-gray-500 block mb-1">Purpose</label>
+                      <textarea
+                        rows={3}
+                        value={selectedNode?.metadata?.purpose || ''}
+                        onChange={(event) => setNodeMetadataField('purpose', event.target.value)}
+                        className="w-full border border-gray-300 rounded-md px-2.5 py-2 text-sm resize-none"
+                        placeholder="Why this component exists"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-xs text-gray-500 block mb-1">Technology</label>
+                      <input
+                        type="text"
+                        value={selectedNode?.metadata?.techChoice || ''}
+                        onChange={(event) => setNodeMetadataField('techChoice', event.target.value)}
+                        className="w-full border border-gray-300 rounded-md px-2.5 py-2 text-sm"
+                        placeholder="Optional implementation choice"
+                      />
+                    </div>
+                    <div>
+                      <div className="flex items-center justify-between mb-1">
+                        <label className="text-xs text-gray-500">Responsibilities</label>
+                        <button
+                          type="button"
+                          onClick={addNodeResponsibility}
+                          className="inline-flex items-center justify-center w-6 h-6 rounded border border-blue-200 text-blue-600 hover:bg-blue-50"
+                          title="Add responsibility"
+                        >
+                          <Plus size={14} />
+                        </button>
+                      </div>
+                      <div className="space-y-2">
+                        {(selectedNode?.metadata?.responsibilities || []).map((item, index) => (
+                          <div key={`resp-${selectedNode.id}-${index}`} className="flex items-center gap-2">
+                            <input
+                              type="text"
+                              value={item}
+                              onChange={(event) => updateNodeResponsibility(index, event.target.value)}
+                              className="flex-1 border border-gray-300 rounded-md px-2.5 py-2 text-sm"
+                              placeholder="Responsibility"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => removeNodeResponsibility(index)}
+                              className="inline-flex items-center justify-center w-6 h-6 rounded border border-red-200 text-red-600 hover:bg-red-50"
+                              title="Remove responsibility"
+                            >
+                              <Trash2 size={14} />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                    <div>
+                      <label className="text-xs text-gray-500 block mb-1">Notes</label>
+                      <textarea
+                        rows={3}
+                        value={selectedNode?.metadata?.notes || ''}
+                        onChange={(event) => setNodeMetadataField('notes', event.target.value)}
+                        className="w-full border border-gray-300 rounded-md px-2.5 py-2 text-sm resize-none"
+                        placeholder="Free-form context"
+                      />
+                    </div>
+                  </div>
+                </>
+              ) : (
                 <div className="rounded-md border border-gray-200 p-3 space-y-3">
-                  <p className="text-[11px] font-semibold text-gray-500 uppercase tracking-wide">Why It Exists</p>
-
                   <div>
-                    <label className="text-xs text-gray-500 block mb-1">Purpose</label>
+                    <label className="text-xs text-gray-500 block mb-1">Goal</label>
                     <textarea
-                      rows={3}
-                      value={selectedNode?.metadata?.purpose || ''}
-                      onChange={(event) => setNodeMetadataField('purpose', event.target.value)}
+                      rows={2}
+                      value={canvasState?.systemMetadata?.goal || ''}
+                      onChange={(event) => setSystemMetadataField('goal', event.target.value)}
                       className="w-full border border-gray-300 rounded-md px-2.5 py-2 text-sm resize-none"
-                      placeholder="Why this component exists"
+                      placeholder="What this system is trying to achieve"
                     />
                   </div>
-
-                  <div>
-                    <label className="text-xs text-gray-500 block mb-1">Technology</label>
-                    <input
-                      type="text"
-                      value={selectedNode?.metadata?.techChoice || ''}
-                      onChange={(event) => setNodeMetadataField('techChoice', event.target.value)}
-                      className="w-full border border-gray-300 rounded-md px-2.5 py-2 text-sm"
-                      placeholder="Optional implementation choice"
-                    />
-                  </div>
-
                   <div>
                     <div className="flex items-center justify-between mb-1">
-                      <label className="text-xs text-gray-500">Responsibilities</label>
+                      <label className="text-xs text-gray-500">Assumptions</label>
                       <button
                         type="button"
-                        onClick={addNodeResponsibility}
-                        className="text-xs text-blue-600 hover:text-blue-700"
+                        onClick={addSystemAssumption}
+                        className="inline-flex items-center justify-center w-6 h-6 rounded border border-blue-200 text-blue-600 hover:bg-blue-50"
+                        title="Add assumption"
                       >
-                        Add
+                        <Plus size={14} />
                       </button>
                     </div>
                     <div className="space-y-2">
-                      {(selectedNode?.metadata?.responsibilities || []).map((item, index) => (
-                        <div key={`resp-${selectedNode.id}-${index}`} className="flex items-center gap-2">
+                      {(canvasState?.systemMetadata?.assumptions || []).map((item, index) => (
+                        <div key={`assump-${index}`} className="flex items-center gap-2">
                           <input
                             type="text"
                             value={item}
-                            onChange={(event) => updateNodeResponsibility(index, event.target.value)}
+                            onChange={(event) => updateSystemAssumption(index, event.target.value)}
                             className="flex-1 border border-gray-300 rounded-md px-2.5 py-2 text-sm"
-                            placeholder="Responsibility"
+                            placeholder="Assumption"
                           />
                           <button
                             type="button"
-                            onClick={() => removeNodeResponsibility(index)}
-                            className="text-xs text-red-600 hover:text-red-700"
+                            onClick={() => removeSystemAssumption(index)}
+                            className="inline-flex items-center justify-center w-6 h-6 rounded border border-red-200 text-red-600 hover:bg-red-50"
+                            title="Remove assumption"
                           >
-                            Remove
+                            <Trash2 size={14} />
                           </button>
                         </div>
                       ))}
                     </div>
                   </div>
-
                   <div>
-                    <label className="text-xs text-gray-500 block mb-1">Notes</label>
+                    <label className="text-xs text-gray-500 block mb-1">Constraints</label>
                     <textarea
                       rows={3}
-                      value={selectedNode?.metadata?.notes || ''}
-                      onChange={(event) => setNodeMetadataField('notes', event.target.value)}
+                      value={canvasState?.systemMetadata?.constraints || ''}
+                      onChange={(event) => setSystemMetadataField('constraints', event.target.value)}
                       className="w-full border border-gray-300 rounded-md px-2.5 py-2 text-sm resize-none"
-                      placeholder="Free-form context"
+                      placeholder="Known limitations or boundaries"
                     />
                   </div>
                 </div>
-              </>
+              )}
+
+              {!selectedEdge && (
+                <div className="rounded-md border border-gray-200 p-3 text-sm text-gray-600 space-y-1">
+                  <p>
+                    Nodes: <span className="font-semibold text-gray-900">{canvasState.nodes.length}</span>
+                  </p>
+                  <p>
+                    Edges: <span className="font-semibold text-gray-900">{canvasState.edges.length}</span>
+                  </p>
+                  <p>
+                    User: <span className="font-semibold text-gray-900">{user.full_name || user.email}</span>
+                  </p>
+                </div>
+              )}
+              </div>
             ) : (
-              <div className="rounded-md border border-gray-200 p-3 space-y-3">
-                <p className="text-[11px] font-semibold text-gray-500 uppercase tracking-wide">System Metadata</p>
-
-                <div>
-                  <label className="text-xs text-gray-500 block mb-1">Goal</label>
-                  <textarea
-                    rows={2}
-                    value={canvasState?.systemMetadata?.goal || ''}
-                    onChange={(event) => setSystemMetadataField('goal', event.target.value)}
-                    className="w-full border border-gray-300 rounded-md px-2.5 py-2 text-sm resize-none"
-                    placeholder="What this system is trying to achieve"
-                  />
-                </div>
-
-                <div>
-                  <div className="flex items-center justify-between mb-1">
-                    <label className="text-xs text-gray-500">Assumptions</label>
-                    <button
-                      type="button"
-                      onClick={addSystemAssumption}
-                      className="text-xs text-blue-600 hover:text-blue-700"
-                    >
-                      Add
-                    </button>
+              <div className="space-y-3 overflow-y-auto pr-1 max-h-[calc(100vh-220px)]">
+                <p className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Passive Insights</p>
+                {insights.length === 0 ? (
+                  <div className="rounded-md border border-gray-200 p-3 text-sm text-gray-600">
+                    No observations yet. Keep modeling and insights will update automatically.
                   </div>
-                  <div className="space-y-2">
-                    {(canvasState?.systemMetadata?.assumptions || []).map((item, index) => (
-                      <div key={`assump-${index}`} className="flex items-center gap-2">
-                        <input
-                          type="text"
-                          value={item}
-                          onChange={(event) => updateSystemAssumption(index, event.target.value)}
-                          className="flex-1 border border-gray-300 rounded-md px-2.5 py-2 text-sm"
-                          placeholder="Assumption"
-                        />
-                        <button
-                          type="button"
-                          onClick={() => removeSystemAssumption(index)}
-                          className="text-xs text-red-600 hover:text-red-700"
-                        >
-                          Remove
-                        </button>
+                ) : (
+                  insightsByCategory.map(({ category, items }) =>
+                    items.length === 0 ? null : (
+                      <div key={`insight-group-${category}`} className="rounded-md border border-gray-200 p-3 space-y-2">
+                        <p className="text-[11px] font-semibold text-gray-500 uppercase tracking-wide">{category}</p>
+                        {items.map((insight) => (
+                          <button
+                            key={insight.id}
+                            type="button"
+                            onMouseEnter={() => setHoveredInsightId(insight.id)}
+                            onMouseLeave={() => setHoveredInsightId(null)}
+                            onFocus={() => setHoveredInsightId(insight.id)}
+                            onBlur={() => setHoveredInsightId(null)}
+                            onClick={() => focusInsight(insight)}
+                            className={`w-full text-left px-2.5 py-2 rounded-md border text-xs leading-5 transition ${
+                              activeInsightId === insight.id
+                                ? 'border-teal-200 bg-teal-50 text-teal-900'
+                                : hoveredInsightId === insight.id
+                                ? 'border-gray-300 bg-gray-50 text-gray-800'
+                                : 'border-gray-200 bg-white text-gray-700'
+                            }`}
+                          >
+                            {insight.message}
+                          </button>
+                        ))}
                       </div>
-                    ))}
-                  </div>
-                </div>
-
-                <div>
-                  <label className="text-xs text-gray-500 block mb-1">Constraints</label>
-                  <textarea
-                    rows={3}
-                    value={canvasState?.systemMetadata?.constraints || ''}
-                    onChange={(event) => setSystemMetadataField('constraints', event.target.value)}
-                    className="w-full border border-gray-300 rounded-md px-2.5 py-2 text-sm resize-none"
-                    placeholder="Known limitations or boundaries"
-                  />
-                </div>
+                    )
+                  )
+                )}
               </div>
             )}
-
-            {selectedEdge && (
-              <div className="rounded-md border border-gray-200 p-3 space-y-3">
-                <p className="text-[11px] font-semibold text-gray-500 uppercase tracking-wide">Edge Metadata</p>
-                <div>
-                  <label className="text-xs text-gray-500 block mb-1">Protocol</label>
-                  <select
-                    value={selectedEdge?.metadata?.protocol || ''}
-                    onChange={(event) => setEdgeMetadataField('protocol', event.target.value)}
-                    className="w-full border border-gray-300 rounded-md px-2.5 py-2 text-sm bg-white"
-                  >
-                    {EDGE_PROTOCOL_OPTIONS.map((option) => (
-                      <option key={`protocol-${option || 'none'}`} value={option}>
-                        {option || 'None'}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="text-xs text-gray-500 block mb-1">Notes</label>
-                  <textarea
-                    rows={2}
-                    value={selectedEdge?.metadata?.notes || ''}
-                    onChange={(event) => setEdgeMetadataField('notes', event.target.value)}
-                    className="w-full border border-gray-300 rounded-md px-2.5 py-2 text-sm resize-none"
-                    placeholder="Communication context"
-                  />
-                </div>
-              </div>
-            )}
-
-            <div className="rounded-md border border-gray-200 p-3 text-sm text-gray-600 space-y-1">
-              <p>
-                Nodes: <span className="font-semibold text-gray-900">{canvasState.nodes.length}</span>
-              </p>
-              <p>
-                Edges: <span className="font-semibold text-gray-900">{canvasState.edges.length}</span>
-              </p>
-              <p>
-                User: <span className="font-semibold text-gray-900">{user.full_name || user.email}</span>
-              </p>
-            </div>
           </aside>
         </main>
       </div>
