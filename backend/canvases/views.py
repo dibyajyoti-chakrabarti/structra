@@ -3,15 +3,17 @@ from rest_framework import generics, status
 from rest_framework.exceptions import PermissionDenied, ValidationError
 from rest_framework.permissions import SAFE_METHODS, IsAuthenticated
 from rest_framework.response import Response
+from rest_framework.views import APIView
 from core.constants import CanvasRole
 from permissions.checks import (
     user_is_workspace_admin,
     user_is_workspace_member,
+    user_has_system_access,
 )
 from permissions.models import CanvasPermission, WorkspaceMember
 from workspaces.models import Workspace
 from .models import Canvas
-from .serializers import CanvasSerializer
+from .serializers import CanvasAutosaveSerializer, CanvasSerializer
 
 class CanvasListCreateView(generics.ListCreateAPIView):
     serializer_class = CanvasSerializer
@@ -137,3 +139,38 @@ class CanvasDetailView(generics.RetrieveUpdateDestroyAPIView):
     
     def perform_update(self, serializer):
         serializer.save(last_modified_by=self.request.user)
+
+
+class CanvasAutosaveView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def put(self, request, id):
+        system = get_object_or_404(Canvas, id=id)
+        workspace = system.workspace
+
+        if not user_is_workspace_member(workspace, request.user):
+            raise PermissionDenied("You do not have access to this workspace.")
+
+        can_edit = user_is_workspace_admin(workspace, request.user) or user_has_system_access(
+            system,
+            request.user,
+            allowed_roles=[CanvasRole.EDITOR],
+        )
+        if not can_edit:
+            raise PermissionDenied("You do not have permission to edit this system.")
+
+        serializer = CanvasAutosaveSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        system.canvas_state = serializer.validated_data["canvasState"]
+        system.last_modified_by = request.user
+        system.save(update_fields=["canvas_state", "last_modified_by", "updated_at"])
+
+        return Response(
+            {
+                "id": str(system.id),
+                "canvasState": system.canvas_state,
+                "updatedAt": system.updated_at,
+            },
+            status=status.HTTP_200_OK,
+        )

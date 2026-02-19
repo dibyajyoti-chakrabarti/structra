@@ -3,6 +3,17 @@ from django.conf import settings
 from workspaces.models import Workspace
 from core.utils import generate_alphanumeric_id
 
+
+def default_canvas_state():
+    return {
+        "nodes": [],
+        "edges": [],
+        "viewport": {
+            "zoom": 1,
+            "pan": {"x": 0, "y": 0},
+        },
+    }
+
 class Canvas(models.Model):
     id = models.CharField(max_length=8, primary_key=True, editable=False)
     name = models.CharField(max_length=255)
@@ -12,7 +23,7 @@ class Canvas(models.Model):
         on_delete=models.CASCADE,
         related_name='systems'
     )
-    canvas_data = models.JSONField(default=dict, blank=True)
+    canvas_state = models.JSONField(default=default_canvas_state, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     last_modified_by = models.ForeignKey(
