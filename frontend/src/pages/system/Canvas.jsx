@@ -1,187 +1,150 @@
-import React, { useState, useEffect } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { 
-  Search, 
+import {
   Database,
-  Server,
-  Cloud,
   Globe,
   Lock,
   Zap,
-  MessageSquare,
-  GitBranch,
   Layers,
   Box,
-  FileJson,
-  Undo,
-  Redo,
-  Play,
-  FileDown,
-  ChevronRight,
-  X,
-  AlertCircle,
-  Smartphone,
+  Monitor,
+  Hand,
+  MousePointer2,
+  Plus,
+  Trash2,
   ZoomIn,
   ZoomOut,
-  Maximize2,
-  Grid3x3,
-  MousePointer2,
-  Hand,
-  Users,
-  Share2,
-  Save,
-  RefreshCw,
-  ChevronDown,
-  Plus
 } from 'lucide-react';
 import api from '../../api';
 
-// Mobile Restriction Modal
-const MobileRestrictionModal = ({ onClose }) => {
-  return (
-    <div className="fixed inset-0 bg-gray-900/60 backdrop-blur-sm z-[200] flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl shadow-2xl p-6 md:p-8 max-w-md w-full animate-in fade-in zoom-in duration-200">
-        <div className="flex justify-between items-start mb-4">
-          <div className="flex items-center gap-3">
-            <div className="bg-blue-100 p-2 rounded-lg">
-              <Smartphone size={24} className="text-blue-600" />
-            </div>
-            <h3 className="text-xl font-extrabold text-gray-900">Desktop Required</h3>
-          </div>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
-            <X size={20} />
-          </button>
-        </div>
-        
-        <div className="space-y-4">
-          <div className="flex items-start gap-3 p-4 bg-blue-50 rounded-xl border border-blue-100">
-            <AlertCircle size={20} className="text-blue-600 flex-shrink-0 mt-0.5" />
-            <p className="text-sm text-gray-700 leading-relaxed">
-              The Canvas editor requires a <span className="font-bold">tablet or desktop</span> screen for the best experience. Please switch to a larger device to access this feature.
-            </p>
-          </div>
+const NODE_WIDTH = 180;
+const NODE_HEIGHT = 96;
+const AUTOSAVE_DEBOUNCE_MS = 650;
 
-          <p className="text-xs text-gray-500 text-center">
-            Minimum screen width: 768px (tablet)
-          </p>
+const COMPONENTS = [
+  { type: 'CLIENT', label: 'Client', icon: Monitor },
+  { type: 'API', label: 'API', icon: Globe },
+  { type: 'DATABASE', label: 'Database', icon: Database },
+  { type: 'CACHE', label: 'Cache', icon: Zap },
+  { type: 'QUEUE', label: 'Queue', icon: Layers },
+  { type: 'AUTH', label: 'Auth', icon: Lock },
+  { type: 'EXTERNAL_SERVICE', label: 'External Service', icon: Box },
+];
 
-          <button 
-            onClick={onClose}
-            className="w-full bg-blue-600 text-white py-3 rounded-xl font-bold hover:bg-blue-700 transition-all shadow-lg shadow-blue-100"
-          >
-            Got it
-          </button>
-        </div>
-      </div>
-    </div>
-  );
+const DEFAULT_CANVAS_STATE = {
+  nodes: [],
+  edges: [],
+  viewport: {
+    zoom: 1,
+    pan: { x: 0, y: 0 },
+  },
 };
 
-// Breadcrumb Component
-const Breadcrumb = ({ userName, workspaceName, systemName, workspaceId }) => {
-  const navigate = useNavigate();
+const toComponentLabel = (type) => {
+  const found = COMPONENTS.find((item) => item.type === type);
+  return found ? found.label : type;
+};
 
-  const truncate = (text, maxLength) => {
-    if (!text) return '';
-    return text.length > maxLength ? text.substring(0, maxLength) + '...' : text;
+const ensureCanvasState = (value) => {
+  if (!value || typeof value !== 'object') return DEFAULT_CANVAS_STATE;
+
+  return {
+    nodes: Array.isArray(value.nodes)
+      ? value.nodes.map((node) => ({
+          id: node.id,
+          type: node.type,
+          label: typeof node.label === 'string' ? node.label : toComponentLabel(node.type),
+          position: {
+            x: typeof node?.position?.x === 'number' ? node.position.x : 0,
+            y: typeof node?.position?.y === 'number' ? node.position.y : 0,
+          },
+          metadata: node?.metadata && typeof node.metadata === 'object' ? node.metadata : {},
+        }))
+      : [],
+    edges: Array.isArray(value.edges)
+      ? value.edges.map((edge) => ({
+          id: edge.id,
+          source: edge.source,
+          target: edge.target,
+        }))
+      : [],
+    viewport: {
+      zoom: typeof value?.viewport?.zoom === 'number' ? value.viewport.zoom : 1,
+      pan: {
+        x: typeof value?.viewport?.pan?.x === 'number' ? value.viewport.pan.x : 0,
+        y: typeof value?.viewport?.pan?.y === 'number' ? value.viewport.pan.y : 0,
+      },
+    },
   };
-
-  return (
-    <div className="flex items-center gap-2 text-sm">
-      <button
-        onClick={() => navigate('/app/profile')}
-        className="text-blue-600 hover:text-blue-700 font-medium hover:underline max-w-[120px] truncate"
-        title={userName}
-      >
-        {truncate(userName, 15)}
-      </button>
-      
-      <ChevronRight size={16} className="text-gray-400" />
-      
-      <button
-        onClick={() => navigate(`/app/ws/${workspaceId}`)}
-        className="text-blue-600 hover:text-blue-700 font-medium hover:underline max-w-[150px] truncate"
-        title={workspaceName}
-      >
-        {truncate(workspaceName, 20)}
-      </button>
-      
-      <ChevronRight size={16} className="text-gray-400" />
-      
-      <span className="text-gray-700 font-semibold max-w-[200px] truncate" title={systemName}>
-        {truncate(systemName, 25)}
-      </span>
-    </div>
-  );
 };
 
-// Tool Button Component
-const ToolButton = ({ icon: Icon, label, active, onClick, badge }) => {
-  return (
-    <button
-      onClick={onClick}
-      className={`group relative w-full flex items-center gap-2 px-2.5 py-2 rounded-md text-xs font-medium transition-colors ${
-        active
-          ? 'bg-blue-50 text-blue-700 border border-blue-200'
-          : 'text-gray-600 hover:bg-gray-100 border border-transparent'
-      }`}
-      title={label}
-    >
-      <Icon size={16} className={active ? 'text-blue-600' : 'text-gray-500 group-hover:text-gray-700'} />
-      <span>{label}</span>
-      {badge && (
-        <span className="ml-auto w-4 h-4 bg-red-500 text-white text-[8px] font-bold rounded-full flex items-center justify-center">
-          {badge}
-        </span>
-      )}
-    </button>
-  );
+const makeUuid = () => {
+  if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+    return crypto.randomUUID();
+  }
+  // RFC 4122 v4 fallback
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (ch) => {
+    const r = Math.floor(Math.random() * 16);
+    const v = ch === 'x' ? r : (r & 0x3) | 0x8;
+    return v.toString(16);
+  });
 };
+
+const canvasToWorld = (canvasX, canvasY, viewport) => ({
+  x: (canvasX - viewport.pan.x) / viewport.zoom,
+  y: (canvasY - viewport.pan.y) / viewport.zoom,
+});
+
+const worldToScreen = (worldX, worldY, viewport) => ({
+  x: worldX * viewport.zoom + viewport.pan.x,
+  y: worldY * viewport.zoom + viewport.pan.y,
+});
 
 const Canvas = () => {
   const navigate = useNavigate();
   const { workspaceId, systemId } = useParams();
-  
-  // State
+
+  const canvasRef = useRef(null);
+  const autosaveDebounceRef = useRef(null);
+  const retryTimeoutRef = useRef(null);
+  const draggingNodeRef = useRef(null);
+  const panningRef = useRef(null);
+
   const [loading, setLoading] = useState(true);
-  const [system, setSystem] = useState(null);
   const [workspace, setWorkspace] = useState(null);
+  const [system, setSystem] = useState(null);
   const [user, setUser] = useState(null);
   const [activeTool, setActiveTool] = useState('select');
-  const [showMobileModal, setShowMobileModal] = useState(false);
-  const [zoom, setZoom] = useState(100);
-  const [showGrid, setShowGrid] = useState(true);
-  const [activeComponent, setActiveComponent] = useState(null);
 
-  // Check if mobile on mount
-  useEffect(() => {
-    const checkScreenSize = () => {
-      if (window.innerWidth < 768) {
-        setShowMobileModal(true);
-      }
-    };
+  const [canvasState, setCanvasState] = useState(DEFAULT_CANVAS_STATE);
+  const [selectedNodeId, setSelectedNodeId] = useState(null);
+  const [selectedEdgeId, setSelectedEdgeId] = useState(null);
+  const [connectionDraft, setConnectionDraft] = useState(null);
+  const [saveStatus, setSaveStatus] = useState('saved');
 
-    checkScreenSize();
-    window.addEventListener('resize', checkScreenSize);
+  const lastSavedSignatureRef = useRef('');
+  const retryAttemptRef = useRef(0);
 
-    return () => window.removeEventListener('resize', checkScreenSize);
-  }, []);
-
-  // Fetch data
   useEffect(() => {
     const fetchData = async () => {
       try {
         const [systemRes, workspaceRes, userRes] = await Promise.all([
-          api.get(`workspaces/${workspaceId}/canvases/${systemId}/`),
-          api.get(`workspaces/${workspaceId}/`),
-          api.get('auth/profile/')
+          api.get(`workspaces/${workspaceId}/canvases/${systemId}/`, { cache: false }),
+          api.get(`workspaces/${workspaceId}/`, { cache: false }),
+          api.get('auth/profile/', { cache: false }),
         ]);
+
+        const serverCanvasState = ensureCanvasState(
+          systemRes.data.canvas_state || systemRes.data.canvas_data || DEFAULT_CANVAS_STATE
+        );
 
         setSystem(systemRes.data);
         setWorkspace(workspaceRes.data);
         setUser(userRes.data);
+        setCanvasState(serverCanvasState);
+        lastSavedSignatureRef.current = JSON.stringify(serverCanvasState);
       } catch (error) {
-        console.error("Failed to fetch canvas data", error);
+        console.error('Failed to load canvas', error);
       } finally {
         setLoading(false);
       }
@@ -190,323 +153,549 @@ const Canvas = () => {
     fetchData();
   }, [workspaceId, systemId]);
 
-  const handleEvaluate = () => {
-    navigate(`/app/ws/${workspaceId}/systems/${systemId}/evaluate`);
+  const saveCanvasState = useCallback(
+    async (nextState, signature) => {
+      setSaveStatus('saving');
+      try {
+        await api.put(`systems/${systemId}/canvas/`, { canvasState: nextState });
+        lastSavedSignatureRef.current = signature;
+        retryAttemptRef.current = 0;
+        setSaveStatus('saved');
+      } catch (error) {
+        retryAttemptRef.current += 1;
+        setSaveStatus('retrying');
+
+        const retryDelay = Math.min(5000, 1000 * retryAttemptRef.current);
+        clearTimeout(retryTimeoutRef.current);
+        retryTimeoutRef.current = setTimeout(() => {
+          saveCanvasState(nextState, signature);
+        }, retryDelay);
+      }
+    },
+    [systemId]
+  );
+
+  useEffect(() => {
+    if (loading || !system) return;
+
+    const signature = JSON.stringify(canvasState);
+    if (signature === lastSavedSignatureRef.current) return;
+
+    clearTimeout(autosaveDebounceRef.current);
+    autosaveDebounceRef.current = setTimeout(() => {
+      saveCanvasState(canvasState, signature);
+    }, AUTOSAVE_DEBOUNCE_MS);
+
+    return () => {
+      clearTimeout(autosaveDebounceRef.current);
+    };
+  }, [canvasState, loading, saveCanvasState, system]);
+
+  useEffect(() => {
+    return () => {
+      clearTimeout(autosaveDebounceRef.current);
+      clearTimeout(retryTimeoutRef.current);
+    };
+  }, []);
+
+  const updateViewport = useCallback((updater) => {
+    setCanvasState((prev) => ({
+      ...prev,
+      viewport: typeof updater === 'function' ? updater(prev.viewport) : updater,
+    }));
+  }, []);
+
+  const handleDropComponent = (event) => {
+    event.preventDefault();
+    const componentType = event.dataTransfer.getData('application/structra-component-type');
+    if (!componentType || !canvasRef.current) return;
+
+    const rect = canvasRef.current.getBoundingClientRect();
+    const world = canvasToWorld(
+      event.clientX - rect.left,
+      event.clientY - rect.top,
+      canvasState.viewport
+    );
+
+    const newNode = {
+      id: makeUuid(),
+      type: componentType,
+      label: toComponentLabel(componentType),
+      position: { x: world.x - NODE_WIDTH / 2, y: world.y - NODE_HEIGHT / 2 },
+      metadata: {},
+    };
+
+    setCanvasState((prev) => ({ ...prev, nodes: [...prev.nodes, newNode] }));
+    setSelectedNodeId(newNode.id);
+    setSelectedEdgeId(null);
   };
 
-  const handlePresent = () => {
-    navigate(`/app/ws/${workspaceId}/systems/${systemId}/present`);
+  const onNodeMouseDown = (event, node) => {
+    if (activeTool !== 'select') return;
+    if (event.button !== 0) return;
+
+    draggingNodeRef.current = {
+      nodeId: node.id,
+      startClientX: event.clientX,
+      startClientY: event.clientY,
+      startX: node.position.x,
+      startY: node.position.y,
+    };
+
+    setSelectedNodeId(node.id);
+    setSelectedEdgeId(null);
   };
 
-  const handleExport = () => {
-    // TODO: Implement export functionality
-    console.log('Export clicked');
+  const onCanvasMouseDown = (event) => {
+    if (activeTool !== 'pan' || event.button !== 0) return;
+
+    panningRef.current = {
+      startClientX: event.clientX,
+      startClientY: event.clientY,
+      startPanX: canvasState.viewport.pan.x,
+      startPanY: canvasState.viewport.pan.y,
+    };
+
+    setSelectedNodeId(null);
+    setSelectedEdgeId(null);
   };
 
-  if (showMobileModal) {
-    return <MobileRestrictionModal onClose={() => navigate(`/app/ws/${workspaceId}`)} />;
-  }
+  useEffect(() => {
+    const onMouseMove = (event) => {
+      if (draggingNodeRef.current) {
+        const drag = draggingNodeRef.current;
+        const deltaX = (event.clientX - drag.startClientX) / canvasState.viewport.zoom;
+        const deltaY = (event.clientY - drag.startClientY) / canvasState.viewport.zoom;
+
+        setCanvasState((prev) => ({
+          ...prev,
+          nodes: prev.nodes.map((node) =>
+            node.id === drag.nodeId
+              ? {
+                  ...node,
+                  position: {
+                    x: drag.startX + deltaX,
+                    y: drag.startY + deltaY,
+                  },
+                }
+              : node
+          ),
+        }));
+      }
+
+      if (panningRef.current) {
+        const pan = panningRef.current;
+        updateViewport((prevViewport) => ({
+          ...prevViewport,
+          pan: {
+            x: pan.startPanX + (event.clientX - pan.startClientX),
+            y: pan.startPanY + (event.clientY - pan.startClientY),
+          },
+        }));
+      }
+
+      if (connectionDraft) {
+        setConnectionDraft((prev) =>
+          prev
+            ? {
+                ...prev,
+                pointer: { x: event.clientX, y: event.clientY },
+              }
+            : prev
+        );
+      }
+    };
+
+    const onMouseUp = () => {
+      draggingNodeRef.current = null;
+      panningRef.current = null;
+      if (connectionDraft) {
+        setConnectionDraft(null);
+      }
+    };
+
+    window.addEventListener('mousemove', onMouseMove);
+    window.addEventListener('mouseup', onMouseUp);
+
+    return () => {
+      window.removeEventListener('mousemove', onMouseMove);
+      window.removeEventListener('mouseup', onMouseUp);
+    };
+  }, [canvasState.viewport.zoom, connectionDraft, updateViewport]);
+
+  const startConnection = (event, nodeId) => {
+    event.stopPropagation();
+    setSelectedNodeId(nodeId);
+    setSelectedEdgeId(null);
+    setConnectionDraft({ sourceId: nodeId, pointer: { x: event.clientX, y: event.clientY } });
+  };
+
+  const completeConnection = (event, targetNodeId) => {
+    event.stopPropagation();
+    if (!connectionDraft) return;
+
+    const source = connectionDraft.sourceId;
+    const target = targetNodeId;
+
+    const duplicate = canvasState.edges.some(
+      (edge) => edge.source === source && edge.target === target
+    );
+
+    if (!duplicate) {
+      const nextEdge = { id: makeUuid(), source, target };
+      setCanvasState((prev) => ({ ...prev, edges: [...prev.edges, nextEdge] }));
+      setSelectedEdgeId(nextEdge.id);
+      setSelectedNodeId(null);
+    }
+
+    setConnectionDraft(null);
+  };
+
+  const selectedNode = useMemo(
+    () => canvasState.nodes.find((node) => node.id === selectedNodeId) || null,
+    [canvasState.nodes, selectedNodeId]
+  );
+
+  const setNodeLabel = (label) => {
+    if (!selectedNodeId) return;
+    setCanvasState((prev) => ({
+      ...prev,
+      nodes: prev.nodes.map((node) =>
+        node.id === selectedNodeId
+          ? {
+              ...node,
+              label,
+            }
+          : node
+      ),
+    }));
+  };
+
+  const deleteSelectedEdge = () => {
+    if (!selectedEdgeId) return;
+    setCanvasState((prev) => ({
+      ...prev,
+      edges: prev.edges.filter((edge) => edge.id !== selectedEdgeId),
+    }));
+    setSelectedEdgeId(null);
+  };
+
+  const deleteSelectedNode = () => {
+    if (!selectedNodeId) return;
+    setCanvasState((prev) => ({
+      ...prev,
+      nodes: prev.nodes.filter((node) => node.id !== selectedNodeId),
+      edges: prev.edges.filter(
+        (edge) => edge.source !== selectedNodeId && edge.target !== selectedNodeId
+      ),
+    }));
+    setSelectedNodeId(null);
+    setSelectedEdgeId(null);
+  };
+
+  const zoomPercent = Math.round(canvasState.viewport.zoom * 100);
+
+  const getNodeScreenAnchor = (node, anchor) => {
+    const worldX = anchor === 'source' ? node.position.x + NODE_WIDTH : node.position.x;
+    const worldY = node.position.y + NODE_HEIGHT / 2;
+    return worldToScreen(worldX, worldY, canvasState.viewport);
+  };
+
+  const saveLabel =
+    saveStatus === 'saving'
+      ? 'Saving...'
+      : saveStatus === 'retrying'
+      ? 'Saving...'
+      : 'Saved';
 
   if (loading) {
-    return (
-      <div className="h-screen flex items-center justify-center bg-white">
-        <div className="animate-pulse text-gray-400 font-medium">Loading canvas...</div>
-      </div>
-    );
+    return <div className="h-screen flex items-center justify-center text-gray-500">Loading canvas...</div>;
   }
 
-  if (!system || !workspace || !user) {
-    return (
-      <div className="h-screen flex items-center justify-center bg-white">
-        <div className="text-red-500 font-medium">Failed to load canvas</div>
-      </div>
-    );
+  if (!workspace || !system || !user) {
+    return <div className="h-screen flex items-center justify-center text-red-600">Failed to load canvas.</div>;
   }
-
-  const tools = [
-    { id: 'select', icon: MousePointer2, label: 'Select' },
-    { id: 'pan', icon: Hand, label: 'Pan' },
-    { id: 'comment', icon: MessageSquare, label: 'Comment', badge: '3' },
-  ];
-
-  const components = [
-    { id: 'database', icon: Database, label: 'Database' },
-    { id: 'server', icon: Server, label: 'Server' },
-    { id: 'cloud', icon: Cloud, label: 'Cloud' },
-    { id: 'api', icon: Globe, label: 'API' },
-    { id: 'auth', icon: Lock, label: 'Auth' },
-    { id: 'queue', icon: Layers, label: 'Queue' },
-    { id: 'cache', icon: Zap, label: 'Cache' },
-    { id: 'service', icon: Box, label: 'Service' },
-    { id: 'flow', icon: GitBranch, label: 'Flow' },
-    { id: 'data', icon: FileJson, label: 'Data' },
-  ];
 
   return (
-    <div className="h-screen flex flex-col bg-gray-100 overflow-hidden">
-      {/* Top Navigation Bar */}
-      <header className="flex-shrink-0 border-b border-gray-200 bg-white">
-        <div className="px-5 py-3 flex items-center justify-between gap-4">
-          {/* Breadcrumb */}
-          <div className="flex items-center gap-4 min-w-0">
-            <Breadcrumb 
-              userName={user.full_name}
-              workspaceName={workspace.name}
-              systemName={system.name}
-              workspaceId={workspaceId}
-            />
-          </div>
-
-          {/* Center Controls */}
-          <div className="flex items-center gap-2 bg-white rounded-lg px-2 py-1.5 border border-gray-200">
-            <button
-              onClick={() => setZoom(Math.max(25, zoom - 10))}
-              className="p-1.5 hover:bg-gray-100 rounded transition-colors"
-              title="Zoom Out"
-            >
-              <ZoomOut size={16} className="text-gray-600" />
-            </button>
-            <span className="text-xs font-bold text-gray-700 min-w-[45px] text-center">
-              {zoom}%
-            </span>
-            <button
-              onClick={() => setZoom(Math.min(200, zoom + 10))}
-              className="p-1.5 hover:bg-gray-100 rounded transition-colors"
-              title="Zoom In"
-            >
-              <ZoomIn size={16} className="text-gray-600" />
-            </button>
-            <div className="w-px h-5 bg-gray-200 mx-1"></div>
-            <button
-              onClick={() => setZoom(100)}
-              className="p-1.5 hover:bg-gray-100 rounded transition-colors"
-              title="Reset Zoom"
-            >
-              <Maximize2 size={16} className="text-gray-600" />
-            </button>
-            <button
-              onClick={() => setShowGrid(!showGrid)}
-              className={`p-1.5 rounded-lg transition-colors ${
-                showGrid ? 'bg-blue-50 text-blue-600 border border-blue-200' : 'hover:bg-gray-100 text-gray-600'
-              }`}
-              title="Toggle Grid"
-            >
-              <Grid3x3 size={16} />
-            </button>
-          </div>
-
-          {/* Action Buttons */}
-          <div className="flex items-center gap-2 shrink-0">
-            <button className="p-2 hover:bg-gray-100 rounded-md transition-colors" title="Collaborators">
-              <Users size={18} className="text-gray-600" />
-            </button>
-            <button className="p-2 hover:bg-gray-100 rounded-md transition-colors" title="Share">
-              <Share2 size={18} className="text-gray-600" />
-            </button>
-            <div className="w-px h-6 bg-gray-200 mx-1"></div>
-            <button
-              onClick={handleEvaluate}
-              className="px-4 py-2 bg-gray-900 text-white rounded-md font-medium hover:bg-black transition-colors text-sm flex items-center gap-2"
-            >
-              <Play size={14} />
-              Evaluate
-            </button>
-            <button
-              onClick={handlePresent}
-              className="px-4 py-2 bg-blue-600 text-white rounded-md font-medium hover:bg-blue-700 transition-colors text-sm flex items-center gap-2"
-            >
-              <Play size={14} />
-              Present
-            </button>
-            <button
-              onClick={handleExport}
-              className="px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded-md font-medium hover:bg-gray-50 transition-colors text-sm flex items-center gap-2"
-            >
-              <FileDown size={14} />
-              Export
-            </button>
-          </div>
+    <div className="h-screen flex flex-col bg-white overflow-hidden">
+      <header className="border-b border-gray-200 bg-white px-5 py-3 flex items-center justify-between">
+        <div>
+          <p className="text-xs text-gray-500">{workspace.name}</p>
+          <h1 className="text-lg font-semibold text-gray-900">{system.name}</h1>
         </div>
+
+        <div className="flex items-center gap-2">
+          <button
+            className={`px-3 py-1.5 rounded-md text-sm border ${
+              activeTool === 'select' ? 'bg-blue-50 text-blue-700 border-blue-200' : 'text-gray-700 border-gray-300'
+            }`}
+            onClick={() => setActiveTool('select')}
+            type="button"
+          >
+            <MousePointer2 size={14} className="inline mr-1" />
+            Select
+          </button>
+          <button
+            className={`px-3 py-1.5 rounded-md text-sm border ${
+              activeTool === 'pan' ? 'bg-blue-50 text-blue-700 border-blue-200' : 'text-gray-700 border-gray-300'
+            }`}
+            onClick={() => setActiveTool('pan')}
+            type="button"
+          >
+            <Hand size={14} className="inline mr-1" />
+            Pan
+          </button>
+          <div className="w-px h-6 bg-gray-200 mx-1" />
+          <button
+            type="button"
+            onClick={() =>
+              updateViewport((prev) => ({
+                ...prev,
+                zoom: Math.max(0.4, +(prev.zoom - 0.1).toFixed(2)),
+              }))
+            }
+            className="p-2 rounded border border-gray-300 text-gray-700"
+            title="Zoom out"
+          >
+            <ZoomOut size={14} />
+          </button>
+          <span className="text-sm text-gray-700 min-w-[54px] text-center">{zoomPercent}%</span>
+          <button
+            type="button"
+            onClick={() =>
+              updateViewport((prev) => ({
+                ...prev,
+                zoom: Math.min(2.5, +(prev.zoom + 0.1).toFixed(2)),
+              }))
+            }
+            className="p-2 rounded border border-gray-300 text-gray-700"
+            title="Zoom in"
+          >
+            <ZoomIn size={14} />
+          </button>
+        </div>
+
+        <button
+          onClick={() => navigate(`/app/ws/${workspaceId}`)}
+          type="button"
+          className="px-3 py-2 text-sm border border-gray-300 rounded-md text-gray-700"
+        >
+          Back
+        </button>
       </header>
 
-      {/* Main Content Area */}
       <div className="flex-1 flex overflow-hidden">
-        {/* Left Sidebar - Tools */}
-        <aside className="w-60 border-r border-gray-200 bg-white flex flex-col">
-          {/* Tools Section */}
-          <div className="p-3 border-b border-gray-100">
-            <h3 className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2 px-1">
-              Tools
-            </h3>
-            <div className="space-y-1.5">
-              {tools.map((tool) => (
-                <ToolButton
-                  key={tool.id}
-                  icon={tool.icon}
-                  label={tool.label}
-                  badge={tool.badge}
-                  active={activeTool === tool.id}
-                  onClick={() => setActiveTool(tool.id)}
-                />
-              ))}
-            </div>
+        <aside className="w-64 border-r border-gray-200 bg-gray-50 p-3 overflow-y-auto">
+          <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Components</h2>
+          <div className="space-y-2">
+            {COMPONENTS.map((component) => {
+              const Icon = component.icon;
+              return (
+                <div
+                  key={component.type}
+                  draggable
+                  onDragStart={(event) =>
+                    event.dataTransfer.setData('application/structra-component-type', component.type)
+                  }
+                  className="w-full px-3 py-2 rounded-md border border-gray-200 bg-white text-sm text-gray-700 flex items-center gap-2 cursor-grab"
+                >
+                  <Icon size={14} className="text-gray-500" />
+                  {component.label}
+                </div>
+              );
+            })}
           </div>
 
-          {/* Components Section */}
-          <div className="flex-1 p-3 overflow-y-auto">
-            <h3 className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2 px-1">
-              Components
-            </h3>
-            <div className="space-y-1.5">
-              {components.map((comp) => (
-                <ToolButton
-                  key={comp.id}
-                  icon={comp.icon}
-                  label={comp.label}
-                  active={activeComponent === comp.id}
-                  onClick={() => setActiveComponent(comp.id)}
-                />
-              ))}
-            </div>
-          </div>
-
-          {/* History Controls */}
-          <div className="p-3 border-t border-gray-100 space-y-1.5">
-            <button className="w-full p-2 rounded-md hover:bg-gray-100 transition-colors flex items-center gap-2 text-xs text-gray-600" title="Undo">
-              <Undo size={14} className="text-gray-600" />
-              Undo
+          <div className="mt-5 pt-4 border-t border-gray-200 space-y-2">
+            <button
+              type="button"
+              disabled={!selectedNodeId}
+              onClick={deleteSelectedNode}
+              className="w-full px-3 py-2 rounded-md border border-gray-300 text-sm text-gray-700 disabled:opacity-40"
+            >
+              Delete Selected Node
             </button>
-            <button className="w-full p-2 rounded-md hover:bg-gray-100 transition-colors flex items-center gap-2 text-xs text-gray-600" title="Redo">
-              <Redo size={14} className="text-gray-600" />
-              Redo
+            <button
+              type="button"
+              disabled={!selectedEdgeId}
+              onClick={deleteSelectedEdge}
+              className="w-full px-3 py-2 rounded-md border border-gray-300 text-sm text-gray-700 disabled:opacity-40"
+            >
+              <Trash2 size={14} className="inline mr-1" />
+              Delete Selected Edge
             </button>
           </div>
         </aside>
 
-        <div className="flex-1 flex overflow-hidden">
-          {/* Canvas Area */}
-          <main className="flex-1 relative overflow-hidden bg-[#f8fafc]">
-            {/* Grid Background */}
-            {showGrid && (
-              <div 
-                className="absolute inset-0 opacity-70"
-                style={{
-                  backgroundImage: `
-                    linear-gradient(to right, #e5e7eb 1px, transparent 1px),
-                    linear-gradient(to bottom, #e5e7eb 1px, transparent 1px)
-                  `,
-                  backgroundSize: '24px 24px'
-                }}
-              />
+        <main className="flex-1 flex">
+          <section
+            ref={canvasRef}
+            onMouseDown={onCanvasMouseDown}
+            onDragOver={(event) => event.preventDefault()}
+            onDrop={handleDropComponent}
+            onClick={() => {
+              setSelectedNodeId(null);
+              setSelectedEdgeId(null);
+            }}
+            className="relative flex-1 overflow-hidden bg-slate-50"
+            style={{
+              backgroundImage:
+                'linear-gradient(to right, rgba(148,163,184,0.18) 1px, transparent 1px), linear-gradient(to bottom, rgba(148,163,184,0.18) 1px, transparent 1px)',
+              backgroundSize: '24px 24px',
+            }}
+          >
+            <svg className="absolute inset-0 pointer-events-none" width="100%" height="100%">
+              {canvasState.edges.map((edge) => {
+                const sourceNode = canvasState.nodes.find((node) => node.id === edge.source);
+                const targetNode = canvasState.nodes.find((node) => node.id === edge.target);
+                if (!sourceNode || !targetNode) return null;
+
+                const sourcePoint = getNodeScreenAnchor(sourceNode, 'source');
+                const targetPoint = getNodeScreenAnchor(targetNode, 'target');
+                const midX = (sourcePoint.x + targetPoint.x) / 2;
+
+                return (
+                  <g key={edge.id}>
+                    <path
+                      d={`M ${sourcePoint.x} ${sourcePoint.y} C ${midX} ${sourcePoint.y}, ${midX} ${targetPoint.y}, ${targetPoint.x} ${targetPoint.y}`}
+                      stroke={selectedEdgeId === edge.id ? '#1d4ed8' : '#475569'}
+                      strokeWidth={selectedEdgeId === edge.id ? 2.5 : 2}
+                      fill="none"
+                    />
+                    <path
+                      d={`M ${sourcePoint.x} ${sourcePoint.y} C ${midX} ${sourcePoint.y}, ${midX} ${targetPoint.y}, ${targetPoint.x} ${targetPoint.y}`}
+                      stroke="transparent"
+                      strokeWidth="12"
+                      fill="none"
+                      className="pointer-events-auto cursor-pointer"
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        setSelectedEdgeId(edge.id);
+                        setSelectedNodeId(null);
+                      }}
+                    />
+                  </g>
+                );
+              })}
+
+              {connectionDraft && (() => {
+                const sourceNode = canvasState.nodes.find((node) => node.id === connectionDraft.sourceId);
+                if (!sourceNode || !canvasRef.current) return null;
+                const rect = canvasRef.current.getBoundingClientRect();
+                const sourcePoint = getNodeScreenAnchor(sourceNode, 'source');
+                const targetX = connectionDraft.pointer.x - rect.left;
+                const targetY = connectionDraft.pointer.y - rect.top;
+                return (
+                  <line
+                    x1={sourcePoint.x}
+                    y1={sourcePoint.y}
+                    x2={targetX}
+                    y2={targetY}
+                    stroke="#2563eb"
+                    strokeWidth="2"
+                    strokeDasharray="4 4"
+                  />
+                );
+              })()}
+            </svg>
+
+            {canvasState.nodes.map((node) => {
+              const screen = worldToScreen(node.position.x, node.position.y, canvasState.viewport);
+              const component = COMPONENTS.find((item) => item.type === node.type);
+              const Icon = component ? component.icon : Box;
+              return (
+                <div
+                  key={node.id}
+                  className={`absolute bg-white border rounded-lg shadow-sm ${
+                    selectedNodeId === node.id ? 'border-blue-500 ring-2 ring-blue-100' : 'border-gray-300'
+                  }`}
+                  style={{
+                    width: NODE_WIDTH * canvasState.viewport.zoom,
+                    height: NODE_HEIGHT * canvasState.viewport.zoom,
+                    left: screen.x,
+                    top: screen.y,
+                  }}
+                  onMouseDown={(event) => {
+                    event.stopPropagation();
+                    onNodeMouseDown(event, node);
+                  }}
+                >
+                  <button
+                    type="button"
+                    aria-label="Start connection"
+                    className="absolute -right-2 top-1/2 -translate-y-1/2 w-4 h-4 rounded-full bg-blue-600 border-2 border-white"
+                    onMouseDown={(event) => startConnection(event, node.id)}
+                  />
+                  <button
+                    type="button"
+                    aria-label="Connect here"
+                    className="absolute -left-2 top-1/2 -translate-y-1/2 w-4 h-4 rounded-full bg-gray-500 border-2 border-white"
+                    onMouseUp={(event) => completeConnection(event, node.id)}
+                  />
+
+                  <div className="p-3">
+                    <div className="flex items-center gap-2 text-xs text-gray-500 uppercase tracking-wide">
+                      <Icon size={14} />
+                      {node.type}
+                    </div>
+                    <p className="mt-2 text-sm font-semibold text-gray-900 truncate">{node.label || 'Untitled'}</p>
+                    <p className="mt-1 text-xs text-gray-500">{node.id.slice(0, 8)}</p>
+                  </div>
+                </div>
+              );
+            })}
+
+            {canvasState.nodes.length === 0 && (
+              <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                <div className="bg-white/90 border border-dashed border-gray-300 rounded-xl px-5 py-4 text-center">
+                  <p className="text-sm font-medium text-gray-700">Drag components from the left panel to start.</p>
+                </div>
+              </div>
             )}
 
-            {/* Canvas Content */}
-            <div className="absolute inset-0">
-              <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-[45%] w-[720px] h-[420px] bg-white/70 border border-gray-200 rounded-xl shadow-sm">
-                <div className="absolute left-8 top-10 w-36 h-20 bg-white border border-gray-300 rounded-md shadow-sm p-3">
-                  <p className="text-xs font-semibold text-gray-700 mb-1">Web App</p>
-                  <p className="text-[11px] text-gray-500">React Client</p>
-                </div>
-                <div className="absolute left-[290px] top-10 w-36 h-20 bg-white border border-gray-300 rounded-md shadow-sm p-3">
-                  <p className="text-xs font-semibold text-gray-700 mb-1">API</p>
-                  <p className="text-[11px] text-gray-500">Gateway</p>
-                </div>
-                <div className="absolute right-8 top-10 w-36 h-20 bg-white border border-gray-300 rounded-md shadow-sm p-3">
-                  <p className="text-xs font-semibold text-gray-700 mb-1">Database</p>
-                  <p className="text-[11px] text-gray-500">PostgreSQL</p>
-                </div>
-                <div className="absolute left-[180px] top-[50px] w-[110px] h-[2px] bg-gray-400" />
-                <div className="absolute left-[430px] top-[50px] w-[110px] h-[2px] bg-gray-400" />
-              </div>
+            <div className="absolute bottom-3 right-3 px-3 py-1.5 rounded-md border border-gray-200 bg-white/90 text-xs text-gray-600">
+              {saveLabel}
+            </div>
+          </section>
 
-              <div className="absolute left-1/2 top-[64%] -translate-x-1/2 w-[460px] rounded-lg border border-dashed border-gray-300 bg-white/90 px-6 py-5 text-center shadow-sm">
-                <h2 className="text-lg font-semibold text-gray-800">Drop components to start modeling</h2>
-                <p className="mt-1 text-sm text-gray-500">
-                  Use the left panel to add nodes, then connect them to describe your system flow.
-                </p>
-                <div className="mt-4 flex items-center justify-center gap-2">
-                  <button className="px-3 py-2 bg-blue-600 text-white rounded-md font-medium hover:bg-blue-700 transition-colors text-sm flex items-center gap-1.5">
-                    <Plus size={14} />
-                    Add Component
-                  </button>
-                  <button className="px-3 py-2 bg-white border border-gray-300 text-gray-700 rounded-md font-medium hover:bg-gray-50 transition-colors text-sm flex items-center gap-1.5">
-                    <Search size={14} />
-                    Browse Templates
-                  </button>
-                </div>
-              </div>
+          <aside className="w-72 border-l border-gray-200 bg-white p-4 space-y-4">
+            <h2 className="text-sm font-semibold text-gray-900">Properties</h2>
+
+            <div className="rounded-md border border-gray-200 p-3">
+              <p className="text-xs text-gray-500">Selected Node</p>
+              <p className="text-sm text-gray-800 mt-1">{selectedNode ? selectedNode.type : 'None'}</p>
             </div>
 
-            {/* Mini Toolbar */}
-            <div className="absolute top-4 left-4 bg-white rounded-lg shadow-sm border border-gray-200 p-1.5 flex items-center gap-1">
-              <button className="p-2 hover:bg-gray-100 rounded-md transition-colors" title="Save">
-                <Save size={14} className="text-gray-600" />
-              </button>
-              <button className="p-2 hover:bg-gray-100 rounded-md transition-colors" title="Refresh">
-                <RefreshCw size={14} className="text-gray-600" />
-              </button>
-              <div className="w-px h-5 bg-gray-200 mx-1"></div>
-              <button className="px-3 py-1.5 hover:bg-gray-100 rounded-md transition-colors text-xs font-medium text-gray-700 flex items-center gap-1.5">
-                Layers
-                <ChevronDown size={14} />
-              </button>
+            <div className="rounded-md border border-gray-200 p-3">
+              <label className="text-xs text-gray-500 block mb-1">Label</label>
+              <input
+                type="text"
+                disabled={!selectedNode}
+                value={selectedNode?.label || ''}
+                onChange={(event) => setNodeLabel(event.target.value)}
+                className="w-full border border-gray-300 rounded-md px-2.5 py-2 text-sm disabled:bg-gray-100"
+                placeholder="Select a node"
+              />
             </div>
 
-            {/* Status Bar - Bottom */}
-            <div className="absolute bottom-0 left-0 right-0 bg-white border-t border-gray-200 px-4 py-2 flex items-center justify-between">
-              <div className="flex items-center gap-4 text-xs">
-                <span className="text-gray-500">
-                  <span className="font-semibold text-gray-700">System:</span> {system.name}
-                </span>
-                <div className="w-px h-4 bg-gray-300"></div>
-                <span className="text-gray-500">
-                  <span className="font-semibold text-gray-700">Components:</span> 3
-                </span>
-                <div className="w-px h-4 bg-gray-300"></div>
-                <span className="text-gray-500">
-                  <span className="font-semibold text-gray-700">Connections:</span> 2
-                </span>
-              </div>
-
-              <div className="flex items-center gap-3">
-                <div className="flex items-center gap-2 px-3 py-1.5 bg-green-50 border border-green-200 rounded-md">
-                  <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                  <span className="text-xs font-medium text-green-700">Live</span>
-                </div>
-                <span className="text-xs text-gray-400">Auto-saved just now</span>
-              </div>
+            <div className="rounded-md border border-gray-200 p-3 text-sm text-gray-600 space-y-1">
+              <p>
+                Nodes: <span className="font-semibold text-gray-900">{canvasState.nodes.length}</span>
+              </p>
+              <p>
+                Edges: <span className="font-semibold text-gray-900">{canvasState.edges.length}</span>
+              </p>
+              <p>
+                User: <span className="font-semibold text-gray-900">{user.full_name || user.email}</span>
+              </p>
             </div>
-          </main>
 
-          {/* Properties Panel */}
-          <aside className="w-72 border-l border-gray-200 bg-white p-4">
-            <h3 className="text-sm font-semibold text-gray-800 mb-3">Properties</h3>
-            <div className="space-y-3">
-              <div className="rounded-md border border-gray-200 p-3">
-                <p className="text-xs text-gray-500">Selected Item</p>
-                <p className="text-sm font-medium text-gray-800 mt-1">
-                  {activeComponent ? components.find((item) => item.id === activeComponent)?.label : "None"}
-                </p>
-              </div>
-              <div className="rounded-md border border-gray-200 p-3">
-                <label className="text-xs text-gray-500 block mb-1">Label</label>
-                <input
-                  type="text"
-                  placeholder="Component label"
-                  className="w-full border border-gray-300 rounded-md px-2.5 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200 focus:border-blue-400"
-                />
-              </div>
-              <div className="rounded-md border border-gray-200 p-3">
-                <label className="text-xs text-gray-500 block mb-1">Notes</label>
-                <textarea
-                  rows={4}
-                  placeholder="Describe this component..."
-                  className="w-full border border-gray-300 rounded-md px-2.5 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-blue-200 focus:border-blue-400"
-                />
-              </div>
+            <div className="text-xs text-gray-500 flex items-start gap-2">
+              <Plus size={12} className="mt-0.5" />
+              Drag from component list, then use right handle to left handle for directional edges.
             </div>
           </aside>
-        </div>
+        </main>
       </div>
     </div>
   );
