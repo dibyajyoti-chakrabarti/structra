@@ -18,6 +18,8 @@ import {
   ChevronLeft,
   ChevronRight,
   X,
+  Undo2,
+  Redo2,
 } from 'lucide-react';
 import api from '../../api';
 
@@ -43,6 +45,13 @@ const ANCHOR_OFFSETS = {
   bottom: { x: NODE_WIDTH / 2, y: NODE_HEIGHT },
   left: { x: 0, y: NODE_HEIGHT / 2 },
 };
+const ANCHOR_DIRECTIONS = {
+  top: { x: 0, y: -1 },
+  right: { x: 1, y: 0 },
+  bottom: { x: 0, y: 1 },
+  left: { x: -1, y: 0 },
+};
+const DEFAULT_EDGE_BREAKOUT = 42;
 
 const resolveAnchor = (value, fallback = 'right') => (NODE_ANCHORS.includes(value) ? value : fallback);
 
@@ -86,6 +95,21 @@ const buildOrthogonalPath = (points) => {
 
   return { points: orthPoints, segmentToRawIndex };
 };
+
+const collapseDuplicatePoints = (points) => {
+  if (!Array.isArray(points) || points.length === 0) return [];
+  const collapsed = [points[0]];
+  for (let index = 1; index < points.length; index += 1) {
+    const point = points[index];
+    const last = collapsed[collapsed.length - 1];
+    if (!last || last.x !== point.x || last.y !== point.y) {
+      collapsed.push(point);
+    }
+  }
+  return collapsed;
+};
+
+const cloneCanvasState = (value) => JSON.parse(JSON.stringify(value));
 
 const DEFAULT_CANVAS_STATE = {
   nodes: [],
@@ -448,7 +472,12 @@ const Canvas = () => {
   const retryTimeoutRef = useRef(null);
   const draggingNodeRef = useRef(null);
   const draggingBendRef = useRef(null);
+  const draggingSegmentRef = useRef(null);
   const panningRef = useRef(null);
+  const historyPastRef = useRef([]);
+  const historyFutureRef = useRef([]);
+  const previousCanvasRef = useRef(null);
+  const isHistoryTraversalRef = useRef(false);
 
   const [loading, setLoading] = useState(true);
   const [workspace, setWorkspace] = useState(null);
@@ -465,6 +494,7 @@ const Canvas = () => {
   const [isRightPanelHidden, setIsRightPanelHidden] = useState(false);
   const [isRightPanelExpanded, setIsRightPanelExpanded] = useState(false);
   const [isLeftPanelCollapsed, setIsLeftPanelCollapsed] = useState(false);
+  const [historyVersion, setHistoryVersion] = useState(0);
   const [hoveredInsightId, setHoveredInsightId] = useState(null);
   const [activeInsightId, setActiveInsightId] = useState(null);
 
@@ -488,6 +518,10 @@ const Canvas = () => {
         setWorkspace(workspaceRes.data);
         setUser(userRes.data);
         setCanvasState(serverCanvasState);
+        previousCanvasRef.current = cloneCanvasState(serverCanvasState);
+        historyPastRef.current = [];
+        historyFutureRef.current = [];
+        setHistoryVersion((value) => value + 1);
         lastSavedSignatureRef.current = JSON.stringify(serverCanvasState);
       } catch (error) {
         console.error('Failed to load canvas', error);
@@ -543,6 +577,32 @@ const Canvas = () => {
       clearTimeout(retryTimeoutRef.current);
     };
   }, []);
+
+  useEffect(() => {
+    if (loading) return;
+    if (!previousCanvasRef.current) {
+      previousCanvasRef.current = cloneCanvasState(canvasState);
+      return;
+    }
+
+    if (isHistoryTraversalRef.current) {
+      isHistoryTraversalRef.current = false;
+      previousCanvasRef.current = cloneCanvasState(canvasState);
+      return;
+    }
+
+    const previousSignature = JSON.stringify(previousCanvasRef.current);
+    const currentSignature = JSON.stringify(canvasState);
+    if (previousSignature === currentSignature) return;
+
+    historyPastRef.current.push(cloneCanvasState(previousCanvasRef.current));
+    if (historyPastRef.current.length > 80) {
+      historyPastRef.current.shift();
+    }
+    historyFutureRef.current = [];
+    previousCanvasRef.current = cloneCanvasState(canvasState);
+    setHistoryVersion((value) => value + 1);
+  }, [canvasState, loading]);
 
   const updateViewport = useCallback((updater) => {
     setCanvasState((prev) => ({
@@ -608,19 +668,55 @@ const Canvas = () => {
     draggingBendRef.current = { edgeId, bendIndex };
   };
 
+  const onEdgeSegmentMouseDown = (event, edge, segmentIndex) => {
+    event.stopPropagation();
+    if (event.button !== 0) return;
+    if (event.detail === 2) return;
+
+    const { pathPoints } = getEdgeScreenPath(edge);
+    const start = pathPoints[segmentIndex];
+    const end = pathPoints[segmentIndex + 1];
+    if (!start || !end) return;
+    if (segmentIndex <= 0 || segmentIndex >= pathPoints.length - 2) return;
+
+    const orientation = start.x === end.x ? 'vertical' : 'horizontal';
+    if (start.x !== end.x && start.y !== end.y) return;
+
+    const materializedBends = pathPoints
+      .slice(1, -1)
+      .map((point) => canvasToWorld(point.x, point.y, canvasState.viewport));
+
+    setCanvasState((prev) => ({
+      ...prev,
+      edges: prev.edges.map((item) =>
+        item.id === edge.id
+          ? {
+              ...item,
+              bends: materializedBends,
+            }
+          : item
+      ),
+    }));
+
+    setRightPanelMode('design');
+    openPropertiesPanel();
+    setSelectedEdgeId(edge.id);
+    setSelectedNodeId(null);
+
+    draggingSegmentRef.current = {
+      edgeId: edge.id,
+      segmentIndex,
+      orientation,
+      startClientX: event.clientX,
+      startClientY: event.clientY,
+      initialBends: materializedBends,
+    };
+  };
+
   const addEdgeBendAtSegment = (event, edge, segmentIndex) => {
     event.stopPropagation();
-    const sourceNode = canvasState.nodes.find((node) => node.id === edge.source);
-    const targetNode = canvasState.nodes.find((node) => node.id === edge.target);
+    const { sourceNode, targetNode, pathPoints, segmentToRawIndex } = getEdgeScreenPath(edge);
     if (!sourceNode || !targetNode) return;
-
-    const sourcePoint = getNodeScreenAnchor(sourceNode, edge.sourceAnchor);
-    const targetPoint = getNodeScreenAnchor(targetNode, edge.targetAnchor);
-    const bendPoints = Array.isArray(edge.bends)
-      ? edge.bends.map((bend) => worldToScreen(bend.x, bend.y, canvasState.viewport))
-      : [];
-    const rawPathPoints = [sourcePoint, ...bendPoints, targetPoint];
-    const { points: pathPoints, segmentToRawIndex } = buildOrthogonalPath(rawPathPoints);
     if (!pathPoints[segmentIndex] || !pathPoints[segmentIndex + 1] || !canvasRef.current) return;
 
     const midX = (pathPoints[segmentIndex].x + pathPoints[segmentIndex + 1].x) / 2;
@@ -682,6 +778,35 @@ const Canvas = () => {
 
   useEffect(() => {
     const onMouseMove = (event) => {
+      if (draggingSegmentRef.current) {
+        const drag = draggingSegmentRef.current;
+        const deltaX = (event.clientX - drag.startClientX) / canvasState.viewport.zoom;
+        const deltaY = (event.clientY - drag.startClientY) / canvasState.viewport.zoom;
+        const firstEndpointBendIndex = drag.segmentIndex - 1;
+        const secondEndpointBendIndex = drag.segmentIndex;
+
+        setCanvasState((prev) => ({
+          ...prev,
+          edges: prev.edges.map((edge) => {
+            if (edge.id !== drag.edgeId) return edge;
+            const nextBends = Array.isArray(drag.initialBends) ? [...drag.initialBends] : [];
+
+            const applyDelta = (index) => {
+              if (!nextBends[index]) return;
+              if (drag.orientation === 'vertical') {
+                nextBends[index] = { ...nextBends[index], x: nextBends[index].x + deltaX };
+              } else {
+                nextBends[index] = { ...nextBends[index], y: nextBends[index].y + deltaY };
+              }
+            };
+
+            applyDelta(firstEndpointBendIndex);
+            applyDelta(secondEndpointBendIndex);
+            return { ...edge, bends: nextBends };
+          }),
+        }));
+      }
+
       if (draggingBendRef.current && canvasRef.current) {
         const drag = draggingBendRef.current;
         const rect = canvasRef.current.getBoundingClientRect();
@@ -750,6 +875,7 @@ const Canvas = () => {
     const onMouseUp = () => {
       draggingNodeRef.current = null;
       draggingBendRef.current = null;
+      draggingSegmentRef.current = null;
       panningRef.current = null;
       if (connectionDraft) {
         setConnectionDraft(null);
@@ -1121,6 +1247,33 @@ const Canvas = () => {
     return () => window.removeEventListener('keydown', onKeyDown);
   }, [selectedEdgeId, selectedNodeId, deleteSelectedEdge, deleteSelectedNode]);
 
+  const undoCanvasChange = useCallback(() => {
+    if (historyPastRef.current.length === 0) return;
+    const previous = historyPastRef.current.pop();
+    if (!previous) return;
+    historyFutureRef.current.push(cloneCanvasState(canvasState));
+    isHistoryTraversalRef.current = true;
+    setCanvasState(cloneCanvasState(previous));
+    setSelectedNodeId(null);
+    setSelectedEdgeId(null);
+    setHistoryVersion((value) => value + 1);
+  }, [canvasState]);
+
+  const redoCanvasChange = useCallback(() => {
+    if (historyFutureRef.current.length === 0) return;
+    const next = historyFutureRef.current.pop();
+    if (!next) return;
+    historyPastRef.current.push(cloneCanvasState(canvasState));
+    isHistoryTraversalRef.current = true;
+    setCanvasState(cloneCanvasState(next));
+    setSelectedNodeId(null);
+    setSelectedEdgeId(null);
+    setHistoryVersion((value) => value + 1);
+  }, [canvasState]);
+
+  const canUndo = historyPastRef.current.length > 0;
+  const canRedo = historyFutureRef.current.length > 0;
+
   const zoomPercent = Math.round(canvasState.viewport.zoom * 100);
 
   const getNodeScreenAnchor = (node, anchor) => {
@@ -1129,6 +1282,55 @@ const Canvas = () => {
     const worldX = node.position.x + offset.x;
     const worldY = node.position.y + offset.y;
     return worldToScreen(worldX, worldY, canvasState.viewport);
+  };
+
+  const getEdgeScreenPath = (edge) => {
+    const sourceNode = canvasState.nodes.find((node) => node.id === edge.source);
+    const targetNode = canvasState.nodes.find((node) => node.id === edge.target);
+    if (!sourceNode || !targetNode) {
+      return { sourceNode: null, targetNode: null, pathPoints: [], segmentToRawIndex: [] };
+    }
+
+    const sourceAnchor = resolveAnchor(edge.sourceAnchor, 'right');
+    const targetAnchor = resolveAnchor(edge.targetAnchor, 'left');
+    const sourcePoint = getNodeScreenAnchor(sourceNode, sourceAnchor);
+    const targetPoint = getNodeScreenAnchor(targetNode, targetAnchor);
+    const bendPoints = Array.isArray(edge.bends)
+      ? edge.bends.map((bend) => worldToScreen(bend.x, bend.y, canvasState.viewport))
+      : [];
+
+    if (bendPoints.length > 0) {
+      const rawPathPoints = [sourcePoint, ...bendPoints, targetPoint];
+      const orthogonal = buildOrthogonalPath(rawPathPoints);
+      return {
+        sourceNode,
+        targetNode,
+        pathPoints: collapseDuplicatePoints(orthogonal.points),
+        segmentToRawIndex: orthogonal.segmentToRawIndex,
+      };
+    }
+
+    const sourceDirection = ANCHOR_DIRECTIONS[sourceAnchor];
+    const targetDirection = ANCHOR_DIRECTIONS[targetAnchor];
+    const sourceLead = {
+      x: sourcePoint.x + sourceDirection.x * DEFAULT_EDGE_BREAKOUT,
+      y: sourcePoint.y + sourceDirection.y * DEFAULT_EDGE_BREAKOUT,
+    };
+    const targetLead = {
+      x: targetPoint.x + targetDirection.x * DEFAULT_EDGE_BREAKOUT,
+      y: targetPoint.y + targetDirection.y * DEFAULT_EDGE_BREAKOUT,
+    };
+    const betweenLeadRaw =
+      Math.abs(sourceDirection.y) === 1
+        ? [sourceLead, { x: sourceLead.x, y: targetLead.y }, targetLead]
+        : [sourceLead, { x: targetLead.x, y: sourceLead.y }, targetLead];
+    const orthogonal = buildOrthogonalPath([sourcePoint, ...betweenLeadRaw, targetPoint]);
+    return {
+      sourceNode,
+      targetNode,
+      pathPoints: collapseDuplicatePoints(orthogonal.points),
+      segmentToRawIndex: orthogonal.segmentToRawIndex,
+    };
   };
 
   const saveLabel =
@@ -1337,19 +1539,9 @@ const Canvas = () => {
           >
             <svg className="absolute inset-0 pointer-events-none" width="100%" height="100%">
               {canvasState.edges.map((edge) => {
-                const sourceNode = canvasState.nodes.find((node) => node.id === edge.source);
-                const targetNode = canvasState.nodes.find((node) => node.id === edge.target);
-                if (!sourceNode || !targetNode) return null;
+                const { sourceNode, targetNode, pathPoints } = getEdgeScreenPath(edge);
+                if (!sourceNode || !targetNode || pathPoints.length < 2) return null;
                 const edgeIsHighlighted = highlightedEdgeIds.has(edge.id);
-                const sourceAnchor = resolveAnchor(edge.sourceAnchor, 'right');
-                const targetAnchor = resolveAnchor(edge.targetAnchor, 'left');
-                const sourcePoint = getNodeScreenAnchor(sourceNode, sourceAnchor);
-                const targetPoint = getNodeScreenAnchor(targetNode, targetAnchor);
-                const bendPoints = Array.isArray(edge.bends)
-                  ? edge.bends.map((bend) => worldToScreen(bend.x, bend.y, canvasState.viewport))
-                  : [];
-                const rawPathPoints = [sourcePoint, ...bendPoints, targetPoint];
-                const { points: pathPoints } = buildOrthogonalPath(rawPathPoints);
                 const pathDefinition = pathPoints.reduce(
                   (acc, point, index) =>
                     index === 0 ? `M ${point.x} ${point.y}` : `${acc} L ${point.x} ${point.y}`,
@@ -1393,11 +1585,17 @@ const Canvas = () => {
                       }}
                     />
                     {selectedEdgeId === edge.id &&
-                      bendPoints.map((bendPoint, bendIndex) => (
+                      (Array.isArray(edge.bends) ? edge.bends : []).map((bendPoint, bendIndex) => {
+                        const screenPoint = worldToScreen(
+                          bendPoint.x,
+                          bendPoint.y,
+                          canvasState.viewport
+                        );
+                        return (
                         <circle
                           key={`${edge.id}-bend-${bendIndex}`}
-                          cx={bendPoint.x}
-                          cy={bendPoint.y}
+                          cx={screenPoint.x}
+                          cy={screenPoint.y}
                           r={6}
                           fill="#ffffff"
                           stroke="#2563eb"
@@ -1406,12 +1604,15 @@ const Canvas = () => {
                           onMouseDown={(event) => onEdgeBendMouseDown(event, edge.id, bendIndex)}
                           onDoubleClick={(event) => removeEdgeBend(event, edge.id, bendIndex)}
                         />
-                      ))}
+                        );
+                      })}
                     {selectedEdgeId === edge.id &&
                       pathPoints.slice(0, -1).map((point, index) => {
+                        if (index <= 0 || index >= pathPoints.length - 2) return null;
                         const nextPoint = pathPoints[index + 1];
                         const midX = (point.x + nextPoint.x) / 2;
                         const midY = (point.y + nextPoint.y) / 2;
+                        const cursorClass = point.x === nextPoint.x ? 'cursor-ew-resize' : 'cursor-ns-resize';
                         return (
                           <circle
                             key={`${edge.id}-segment-${index}`}
@@ -1421,8 +1622,9 @@ const Canvas = () => {
                             fill="#bfdbfe"
                             stroke="#2563eb"
                             strokeWidth={1.5}
-                            className="pointer-events-auto cursor-copy"
-                            onMouseDown={(event) => addEdgeBendAtSegment(event, edge, index)}
+                            className={`pointer-events-auto ${cursorClass}`}
+                            onMouseDown={(event) => onEdgeSegmentMouseDown(event, edge, index)}
+                            onDoubleClick={(event) => addEdgeBendAtSegment(event, edge, index)}
                           />
                         );
                       })}
@@ -1528,6 +1730,31 @@ const Canvas = () => {
 
             <div className="absolute bottom-3 right-3 px-3 py-1.5 rounded-md border border-gray-200 bg-white/90 text-xs text-gray-600">
               {saveLabel}
+            </div>
+            <div
+              className="absolute bottom-3 left-3 inline-flex items-center gap-2"
+              data-history-version={historyVersion}
+            >
+              <button
+                type="button"
+                onClick={undoCanvasChange}
+                disabled={!canUndo}
+                className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md border border-gray-200 bg-white/95 text-xs text-gray-700 disabled:opacity-40"
+                title="Undo"
+              >
+                <Undo2 size={13} />
+                Undo
+              </button>
+              <button
+                type="button"
+                onClick={redoCanvasChange}
+                disabled={!canRedo}
+                className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md border border-gray-200 bg-white/95 text-xs text-gray-700 disabled:opacity-40"
+                title="Redo"
+              >
+                <Redo2 size={13} />
+                Redo
+              </button>
             </div>
           </section>
 
