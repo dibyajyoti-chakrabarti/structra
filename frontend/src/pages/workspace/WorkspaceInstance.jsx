@@ -317,9 +317,20 @@ export const WorkspaceOverview = () => {
             className="bg-white p-4 rounded-md border border-gray-200 flex justify-between items-center hover:border-blue-300 transition-colors cursor-pointer"
             >
               <div>
-                <h3 className="font-bold text-gray-900 text-sm md:text-base">
-                  {system.name}
-                </h3>
+                <div className="flex items-center gap-2 mb-0.5">
+                  <h3 className="font-bold text-gray-900 text-sm md:text-base">
+                    {system.name}
+                  </h3>
+                  <span
+                    className={`text-[11px] font-semibold px-2 py-0.5 rounded-md border ${
+                      system.visibility === "public"
+                        ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                        : "bg-gray-100 text-gray-700 border-gray-200"
+                    }`}
+                  >
+                    {system.visibility === "public" ? "Public" : "Private"}
+                  </span>
+                </div>
                 <p className="text-xs md:text-sm text-gray-500">
                   Last updated {formatTimeAgo(system.updated_at)}
                 </p>
