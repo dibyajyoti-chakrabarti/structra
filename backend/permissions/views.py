@@ -92,6 +92,7 @@ class WorkspaceSystemPermissionListView(APIView):
                 {
                     "system_id": system.id,
                     "system_name": system.name,
+                    "visibility": system.visibility,
                     "permissions": permissions_data,
                 }
             )

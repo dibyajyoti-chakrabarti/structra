@@ -1,5 +1,6 @@
 import uuid
 from rest_framework import serializers
+from core.constants import WorkspaceVisibility
 from .models import Canvas, default_canvas_state
 
 
@@ -103,6 +104,7 @@ class CanvasSerializer(serializers.ModelSerializer):
             "workspace",
             "name",
             "description",
+            "visibility",
             "canvas_state",
             "created_at",
             "updated_at",
@@ -110,10 +112,28 @@ class CanvasSerializer(serializers.ModelSerializer):
         read_only_fields = ["id", "workspace", "created_at", "updated_at"]
 
     def validate(self, attrs):
-        # Backward-compatible alias from old field name.
-        if "canvas_state" not in attrs:
+        workspace = (
+            attrs.get("workspace")
+            or self.context.get("workspace")
+            or getattr(self.instance, "workspace", None)
+        )
+
+        requested_visibility = attrs.get("visibility", getattr(self.instance, "visibility", None))
+        if requested_visibility is None:
+            requested_visibility = WorkspaceVisibility.PRIVATE
+
+        if workspace and workspace.visibility == WorkspaceVisibility.PRIVATE:
+            if requested_visibility == WorkspaceVisibility.PUBLIC:
+                raise serializers.ValidationError(
+                    {"visibility": "Canvases must be private within a private workspace."}
+                )
+            attrs["visibility"] = WorkspaceVisibility.PRIVATE
+
+        if "canvas_state" in attrs:
+            attrs["canvas_state"] = validate_canvas_state_shape(attrs["canvas_state"])
+        elif not self.instance:
             attrs["canvas_state"] = default_canvas_state()
-        attrs["canvas_state"] = validate_canvas_state_shape(attrs["canvas_state"])
+
         return attrs
 
 

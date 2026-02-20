@@ -1,6 +1,7 @@
 from django.db import models
 from django.conf import settings
 from workspaces.models import Workspace
+from core.constants import WorkspaceVisibility
 from core.utils import generate_alphanumeric_id
 
 
@@ -18,6 +19,11 @@ class Canvas(models.Model):
     id = models.CharField(max_length=8, primary_key=True, editable=False)
     name = models.CharField(max_length=255)
     description = models.TextField(blank=True, null=True)
+    visibility = models.CharField(
+        max_length=20,
+        choices=WorkspaceVisibility.CHOICES,
+        default=WorkspaceVisibility.PRIVATE,
+    )
     workspace = models.ForeignKey(
         Workspace,
         on_delete=models.CASCADE,

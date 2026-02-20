@@ -1,5 +1,6 @@
+from django.db.models import Q
 from .models import WorkspaceMember
-from core.constants import WorkspaceRole
+from core.constants import WorkspaceRole, WorkspaceVisibility
 from .models import CanvasPermission
 
 
@@ -23,8 +24,30 @@ def get_system_permission(system, user):
     return CanvasPermission.objects.filter(system=system, user=user).first()
 
 
+def user_has_system_read_access(system, user):
+    if system.visibility == WorkspaceVisibility.PUBLIC:
+        return True
+
+    if WorkspaceMember.objects.filter(workspace=system.workspace, user=user).exists():
+        return True
+
+    return CanvasPermission.objects.filter(system=system, user=user).exists()
+
+
+def system_read_access_q(user):
+    return (
+        Q(visibility=WorkspaceVisibility.PUBLIC) |
+        Q(permissions__user=user) |
+        Q(workspace__members__user=user)
+    )
+
+
 def user_has_system_access(system, user, allowed_roles=None):
-    query = CanvasPermission.objects.filter(system=system, user=user)
     if allowed_roles:
-        query = query.filter(role__in=allowed_roles)
-    return query.exists()
+        return CanvasPermission.objects.filter(
+            system=system,
+            user=user,
+            role__in=allowed_roles,
+        ).exists()
+
+    return user_has_system_read_access(system, user)
