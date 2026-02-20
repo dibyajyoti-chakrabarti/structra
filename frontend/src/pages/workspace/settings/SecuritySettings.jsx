@@ -3,6 +3,7 @@ import { useOutletContext, useParams } from 'react-router-dom';
 import { Shield, Globe, Lock, ChevronDown, ChevronUp, Plus, Trash2, Save, Search } from 'lucide-react';
 import api from '../../../api';
 
+// Keep Viewer available for every system, including public systems.
 const ROLE_OPTIONS = [
   { value: 'viewer', label: 'Viewer' },
   { value: 'commenter', label: 'Commenter' },
@@ -22,7 +23,10 @@ const SecuritySettings = () => {
   const [workspaceMembers, setWorkspaceMembers] = useState([]);
   const [currentUserId, setCurrentUserId] = useState('');
   const [visibility, setVisibility] = useState('private');
+  const [initialWorkspaceVisibility, setInitialWorkspaceVisibility] = useState('private');
   const [expandedSystem, setExpandedSystem] = useState(null);
+  const [systemVisibilityDrafts, setSystemVisibilityDrafts] = useState({});
+  const [systemVisibilitySaving, setSystemVisibilitySaving] = useState({});
   const [grantForms, setGrantForms] = useState({});
   const [loadingIam, setLoadingIam] = useState(false);
   const [error, setError] = useState('');
@@ -41,7 +45,9 @@ const SecuritySettings = () => {
   const fetchWorkspaceVisibility = async () => {
     try {
       const response = await api.get(`workspaces/${workspaceId}/`);
-      setVisibility(response.data?.visibility || 'private');
+      const workspaceVisibility = response.data?.visibility || 'private';
+      setVisibility(workspaceVisibility);
+      setInitialWorkspaceVisibility(workspaceVisibility);
     } catch {
       setError('Failed to load workspace visibility.');
     }
@@ -78,6 +84,12 @@ const SecuritySettings = () => {
       const response = await api.get(`workspaces/${workspaceId}/system-permissions/`);
       const fetchedSystems = response.data || [];
       setSystems(fetchedSystems);
+      setSystemVisibilityDrafts(
+        fetchedSystems.reduce((acc, system) => {
+          acc[system.system_id] = system.visibility || 'private';
+          return acc;
+        }, {})
+      );
       setExpandedSystem((current) => {
         if (current && fetchedSystems.some((system) => system.system_id === current)) {
           return current;
@@ -136,10 +148,44 @@ const SecuritySettings = () => {
 
     try {
       await api.patch(`workspaces/${workspaceId}/`, { visibility });
+      setInitialWorkspaceVisibility(visibility);
+      await fetchIamPolicies();
       setSuccess('Workspace visibility updated.');
       setTimeout(() => setSuccess(''), 2500);
     } catch (err) {
       setError(err.response?.data?.error || err.response?.data?.detail || 'Failed to update workspace visibility.');
+    }
+  };
+
+  const handleSystemVisibilityChange = (systemId, nextVisibility) => {
+    setSystemVisibilityDrafts((prev) => ({
+      ...prev,
+      [systemId]: nextVisibility,
+    }));
+  };
+
+  const saveSystemVisibility = async (systemId) => {
+    if (!isAdmin) {
+      showAdminOnlyError();
+      return;
+    }
+
+    const nextVisibility = systemVisibilityDrafts[systemId] || 'private';
+    setError('');
+    setSuccess('');
+    setSystemVisibilitySaving((prev) => ({ ...prev, [systemId]: true }));
+
+    try {
+      await api.patch(`workspaces/${workspaceId}/canvases/${systemId}/`, {
+        visibility: visibility === 'private' ? 'private' : nextVisibility,
+      });
+      setSuccess('System visibility updated.');
+      await fetchIamPolicies();
+      setTimeout(() => setSuccess(''), 2500);
+    } catch (err) {
+      setError(err.response?.data?.error || err.response?.data?.detail || 'Failed to update system visibility.');
+    } finally {
+      setSystemVisibilitySaving((prev) => ({ ...prev, [systemId]: false }));
     }
   };
 
@@ -257,40 +303,48 @@ const SecuritySettings = () => {
           <Globe size={20} className="text-blue-600" />
           Workspace Visibility
         </h3>
-        <div className="bg-gray-50 p-4 rounded-lg border border-gray-200 flex flex-col md:flex-row gap-4 items-end md:items-center justify-between">
-          <div className="flex-1 w-full">
-            <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2 block">
-              Access Level
-            </label>
-            <div className="relative">
-              <select
-                value={visibility}
-                onChange={(e) => setVisibility(e.target.value)}
-                disabled={!isAdmin}
-                className={`w-full appearance-none px-3.5 py-2.5 rounded-md border font-medium text-sm transition-all ${
-                  isAdmin
-                    ? 'bg-white border-gray-300 text-gray-700 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 focus:outline-none cursor-pointer'
-                    : 'bg-gray-100 border-gray-200 text-gray-400 cursor-not-allowed'
-                }`}
-              >
-                <option value="private">Private - Invite only</option>
-                <option value="public">Public - Visible to anyone</option>
-              </select>
-              <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" size={18} />
+        <div className="bg-gray-50 p-4 rounded-lg border border-gray-200 flex flex-col gap-4">
+          <div className="flex flex-col md:flex-row gap-4 items-end md:items-center justify-between">
+            <div className="flex-1 w-full">
+              <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2 block">
+                Access Level
+              </label>
+              <div className="relative">
+                <select
+                  value={visibility}
+                  onChange={(e) => setVisibility(e.target.value)}
+                  disabled={!isAdmin}
+                  className={`w-full appearance-none px-3.5 py-2.5 rounded-md border font-medium text-sm transition-all ${
+                    isAdmin
+                      ? 'bg-white border-gray-300 text-gray-700 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 focus:outline-none cursor-pointer'
+                      : 'bg-gray-100 border-gray-200 text-gray-400 cursor-not-allowed'
+                  }`}
+                >
+                  <option value="private">Private - Invite only</option>
+                  <option value="public">Public - Visible to anyone</option>
+                </select>
+                <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" size={18} />
+              </div>
             </div>
+            <button
+              type="button"
+              onClick={applyVisibilityChanges}
+              className={`w-full md:w-auto px-5 py-2.5 rounded-md text-sm font-medium transition-colors flex items-center justify-center gap-2 ${
+                isAdmin
+                  ? 'bg-gray-900 text-white hover:bg-black'
+                  : 'bg-gray-200 text-gray-500 cursor-not-allowed'
+              }`}
+            >
+              <Save size={16} />
+              Apply Changes
+            </button>
           </div>
-          <button
-            type="button"
-            onClick={applyVisibilityChanges}
-            className={`w-full md:w-auto px-5 py-2.5 rounded-md text-sm font-medium transition-colors flex items-center justify-center gap-2 ${
-              isAdmin
-                ? 'bg-gray-900 text-white hover:bg-black'
-                : 'bg-gray-200 text-gray-500 cursor-not-allowed'
-            }`}
-          >
-            <Save size={16} />
-            Apply Changes
-          </button>
+
+          {initialWorkspaceVisibility === 'public' && visibility === 'private' && (
+            <div className="rounded-md border border-amber-200 bg-amber-50 px-3.5 py-2.5 text-sm text-amber-800">
+              Warning: Changing this workspace to Private will automatically change all Public systems within it to Private.
+            </div>
+          )}
         </div>
       </div>
 
@@ -315,6 +369,8 @@ const SecuritySettings = () => {
                 const form = grantForms[system.system_id] || defaultForm;
                 const selectedMember = getSelectedMember(system.system_id);
                 const filteredMembers = getFilteredMembers(system.system_id);
+                const systemVisibility = systemVisibilityDrafts[system.system_id] || system.visibility || 'private';
+                const savingSystemVisibility = !!systemVisibilitySaving[system.system_id];
 
                 return (
                   <div
@@ -339,6 +395,15 @@ const SecuritySettings = () => {
                           }`}
                         >
                           {system.system_name}
+                        </span>
+                        <span
+                          className={`text-xs font-semibold px-2 py-1 rounded-md border ${
+                            systemVisibility === 'public'
+                              ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                              : 'bg-gray-100 text-gray-700 border-gray-200'
+                          }`}
+                        >
+                          {systemVisibility === 'public' ? 'Public' : 'Private'}
                         </span>
                       </div>
                       {expandedSystem === system.system_id ? (
@@ -383,9 +448,54 @@ const SecuritySettings = () => {
                             <div className="text-center py-6 border border-dashed border-gray-300 rounded-md">
                               <p className="text-sm text-gray-400 font-medium">No access policy set for this system.</p>
                               <p className="text-xs text-gray-400 mt-1">
-                                Workspace members without explicit policy cannot see this system.
+                                Public systems are visible to signed-in users. Private systems are visible to workspace members.
                               </p>
                             </div>
+                          )}
+                        </div>
+
+                        <div className="bg-white p-4 rounded-md border border-gray-200 mb-4">
+                          <h4 className="text-xs font-semibold text-gray-700 uppercase tracking-wider mb-3">
+                            System Visibility
+                          </h4>
+                          <div className="flex flex-col md:flex-row gap-3 md:items-center">
+                            <div className="relative w-full md:w-64">
+                              <select
+                                value={visibility === 'private' ? 'private' : systemVisibility}
+                                onChange={(e) => handleSystemVisibilityChange(system.system_id, e.target.value)}
+                                disabled={!isAdmin || visibility === 'private' || savingSystemVisibility}
+                                className={`w-full appearance-none px-3.5 pr-10 py-2.5 rounded-md border text-sm ${
+                                  !isAdmin || visibility === 'private' || savingSystemVisibility
+                                    ? 'bg-gray-100 border-gray-200 text-gray-500 cursor-not-allowed'
+                                    : 'bg-white border-gray-300 text-gray-700 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 focus:outline-none cursor-pointer'
+                                }`}
+                              >
+                                <option value="private">Private</option>
+                                <option value="public">Public</option>
+                              </select>
+                              <ChevronDown
+                                size={16}
+                                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"
+                              />
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => saveSystemVisibility(system.system_id)}
+                              disabled={!isAdmin || visibility === 'private' || savingSystemVisibility}
+                              className={`inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-md text-sm font-medium ${
+                                !isAdmin || visibility === 'private' || savingSystemVisibility
+                                  ? 'bg-gray-200 text-gray-500 cursor-not-allowed'
+                                  : 'bg-gray-900 text-white hover:bg-black'
+                              }`}
+                            >
+                              <Save size={15} />
+                              {savingSystemVisibility ? 'Saving...' : 'Save'}
+                            </button>
+                          </div>
+                          {visibility === 'private' && (
+                            <p className="mt-2 text-xs text-amber-700">
+                              Canvases must be private within a private workspace.
+                            </p>
                           )}
                         </div>
 

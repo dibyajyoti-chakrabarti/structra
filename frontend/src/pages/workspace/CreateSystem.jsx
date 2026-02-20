@@ -8,6 +8,7 @@ import {
   Circle,
   AlertCircle,
   ShieldAlert,
+  ChevronDown,
 } from "lucide-react";
 import api from "../../api";
 
@@ -23,6 +24,8 @@ const CreateSystem = () => {
 
   const [systemName, setSystemName] = useState("");
   const [description, setDescription] = useState("");
+  const [visibility, setVisibility] = useState("private");
+  const [workspaceVisibility, setWorkspaceVisibility] = useState("private");
   const [searchQuery, setSearchQuery] = useState("");
 
   const [workspaceMembers, setWorkspaceMembers] = useState([]);
@@ -44,6 +47,9 @@ const CreateSystem = () => {
           api.get("auth/profile/"),
         ]);
 
+        const parentVisibility = workspaceRes.data?.visibility || "private";
+        setWorkspaceVisibility(parentVisibility);
+        setVisibility("private");
         setIsAdmin(!!workspaceRes.data?.is_admin);
         const userId = profileRes.data?.user_id || "";
         setCurrentUserId(userId);
@@ -110,6 +116,7 @@ const CreateSystem = () => {
       const payload = {
         name: systemName.trim(),
         description: description.trim(),
+        visibility: workspaceVisibility === "private" ? "private" : visibility,
         member_permissions: memberPermissions,
       };
 
@@ -120,6 +127,8 @@ const CreateSystem = () => {
         const errorData = err.response.data;
         if (errorData.name) {
           setError(`Name: ${errorData.name[0]}`);
+        } else if (errorData.visibility) {
+          setError(Array.isArray(errorData.visibility) ? errorData.visibility[0] : errorData.visibility);
         } else if (errorData.detail) {
           setError(errorData.detail);
         } else if (errorData.error) {
@@ -201,6 +210,36 @@ const CreateSystem = () => {
               className="w-full px-4 py-3 rounded-md border border-gray-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none transition resize-none lg:flex-1"
               disabled={loading || !isAdmin}
             ></textarea>
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-xs lg:text-sm font-semibold text-gray-700 uppercase tracking-wider">
+              Visibility
+            </label>
+            <div className="relative">
+              <select
+                value={workspaceVisibility === "private" ? "private" : visibility}
+                onChange={(e) => setVisibility(e.target.value)}
+                disabled={loading || !isAdmin || workspaceVisibility === "private"}
+                className={`w-full appearance-none px-4 pr-10 py-3 rounded-md border outline-none transition text-sm font-medium ${
+                  loading || !isAdmin || workspaceVisibility === "private"
+                    ? "bg-gray-100 border-gray-200 text-gray-500 cursor-not-allowed"
+                    : "bg-white border-gray-300 text-gray-700 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 cursor-pointer"
+                }`}
+              >
+                <option value="private">Private</option>
+                <option value="public">Public</option>
+              </select>
+              <ChevronDown
+                size={16}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"
+              />
+            </div>
+            {workspaceVisibility === "private" && (
+              <p className="text-xs text-amber-700">
+                Canvases must be private within a private workspace.
+              </p>
+            )}
           </div>
         </form>
 
