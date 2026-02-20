@@ -478,6 +478,8 @@ const Canvas = () => {
   const historyFutureRef = useRef([]);
   const previousCanvasRef = useRef(null);
   const isHistoryTraversalRef = useRef(false);
+  const historyDragRef = useRef({ active: false, startState: null });
+  const canvasStateRef = useRef(DEFAULT_CANVAS_STATE);
 
   const [loading, setLoading] = useState(true);
   const [workspace, setWorkspace] = useState(null);
@@ -579,9 +581,48 @@ const Canvas = () => {
   }, []);
 
   useEffect(() => {
+    canvasStateRef.current = canvasState;
+  }, [canvasState]);
+
+  const beginDragHistory = useCallback(() => {
+    if (historyDragRef.current.active) return;
+    historyDragRef.current = {
+      active: true,
+      startState: cloneCanvasState(canvasStateRef.current),
+    };
+  }, []);
+
+  const commitDragHistory = useCallback(() => {
+    if (!historyDragRef.current.active) return;
+    const startState = historyDragRef.current.startState;
+    historyDragRef.current = { active: false, startState: null };
+
+    if (!startState) return;
+    const currentState = cloneCanvasState(canvasStateRef.current);
+    const startSignature = JSON.stringify(startState);
+    const currentSignature = JSON.stringify(currentState);
+    if (startSignature === currentSignature) {
+      previousCanvasRef.current = currentState;
+      return;
+    }
+
+    historyPastRef.current.push(startState);
+    if (historyPastRef.current.length > 80) {
+      historyPastRef.current.shift();
+    }
+    historyFutureRef.current = [];
+    previousCanvasRef.current = currentState;
+    setHistoryVersion((value) => value + 1);
+  }, []);
+
+  useEffect(() => {
     if (loading) return;
     if (!previousCanvasRef.current) {
       previousCanvasRef.current = cloneCanvasState(canvasState);
+      return;
+    }
+
+    if (historyDragRef.current.active) {
       return;
     }
 
@@ -656,6 +697,7 @@ const Canvas = () => {
 
     setSelectedNodeId(node.id);
     setSelectedEdgeId(null);
+    beginDragHistory();
   };
 
   const onEdgeBendMouseDown = (event, edgeId, bendIndex) => {
@@ -666,6 +708,7 @@ const Canvas = () => {
     setSelectedEdgeId(edgeId);
     setSelectedNodeId(null);
     draggingBendRef.current = { edgeId, bendIndex };
+    beginDragHistory();
   };
 
   const onEdgeSegmentMouseDown = (event, edge, segmentIndex) => {
@@ -677,26 +720,58 @@ const Canvas = () => {
     const start = pathPoints[segmentIndex];
     const end = pathPoints[segmentIndex + 1];
     if (!start || !end) return;
-    if (segmentIndex <= 0 || segmentIndex >= pathPoints.length - 2) return;
 
     const orientation = start.x === end.x ? 'vertical' : 'horizontal';
     if (start.x !== end.x && start.y !== end.y) return;
+    const lineCoordinate = orientation === 'vertical' ? start.x : start.y;
+    let minSegmentIndex = segmentIndex;
+    let maxSegmentIndex = segmentIndex;
+
+    while (minSegmentIndex > 0) {
+      const prevStart = pathPoints[minSegmentIndex - 1];
+      const prevEnd = pathPoints[minSegmentIndex];
+      if (!prevStart || !prevEnd) break;
+      const matchesOrientation =
+        orientation === 'vertical'
+          ? prevStart.x === prevEnd.x
+          : prevStart.y === prevEnd.y;
+      const onSameLine =
+        orientation === 'vertical' ? prevStart.x === lineCoordinate : prevStart.y === lineCoordinate;
+      if (!matchesOrientation || !onSameLine) break;
+      minSegmentIndex -= 1;
+    }
+
+    while (maxSegmentIndex < pathPoints.length - 2) {
+      const nextStart = pathPoints[maxSegmentIndex + 1];
+      const nextEnd = pathPoints[maxSegmentIndex + 2];
+      if (!nextStart || !nextEnd) break;
+      const matchesOrientation =
+        orientation === 'vertical'
+          ? nextStart.x === nextEnd.x
+          : nextStart.y === nextEnd.y;
+      const onSameLine =
+        orientation === 'vertical' ? nextStart.x === lineCoordinate : nextStart.y === lineCoordinate;
+      if (!matchesOrientation || !onSameLine) break;
+      maxSegmentIndex += 1;
+    }
+
+    if (minSegmentIndex <= 0 || maxSegmentIndex >= pathPoints.length - 2) return;
+
+    const bendIndicesToMove = [];
+    for (
+      let pointIndex = minSegmentIndex;
+      pointIndex <= maxSegmentIndex + 1;
+      pointIndex += 1
+    ) {
+      if (pointIndex > 0 && pointIndex < pathPoints.length - 1) {
+        bendIndicesToMove.push(pointIndex - 1);
+      }
+    }
+    if (bendIndicesToMove.length === 0) return;
 
     const materializedBends = pathPoints
       .slice(1, -1)
       .map((point) => canvasToWorld(point.x, point.y, canvasState.viewport));
-
-    setCanvasState((prev) => ({
-      ...prev,
-      edges: prev.edges.map((item) =>
-        item.id === edge.id
-          ? {
-              ...item,
-              bends: materializedBends,
-            }
-          : item
-      ),
-    }));
 
     setRightPanelMode('design');
     openPropertiesPanel();
@@ -710,7 +785,9 @@ const Canvas = () => {
       startClientX: event.clientX,
       startClientY: event.clientY,
       initialBends: materializedBends,
+      bendIndicesToMove,
     };
+    beginDragHistory();
   };
 
   const addEdgeBendAtSegment = (event, edge, segmentIndex) => {
@@ -774,6 +851,7 @@ const Canvas = () => {
       startPanX: canvasState.viewport.pan.x,
       startPanY: canvasState.viewport.pan.y,
     };
+    beginDragHistory();
   };
 
   useEffect(() => {
@@ -782,8 +860,6 @@ const Canvas = () => {
         const drag = draggingSegmentRef.current;
         const deltaX = (event.clientX - drag.startClientX) / canvasState.viewport.zoom;
         const deltaY = (event.clientY - drag.startClientY) / canvasState.viewport.zoom;
-        const firstEndpointBendIndex = drag.segmentIndex - 1;
-        const secondEndpointBendIndex = drag.segmentIndex;
 
         setCanvasState((prev) => ({
           ...prev,
@@ -800,8 +876,7 @@ const Canvas = () => {
               }
             };
 
-            applyDelta(firstEndpointBendIndex);
-            applyDelta(secondEndpointBendIndex);
+            drag.bendIndicesToMove.forEach(applyDelta);
             return { ...edge, bends: nextBends };
           }),
         }));
@@ -877,6 +952,7 @@ const Canvas = () => {
       draggingBendRef.current = null;
       draggingSegmentRef.current = null;
       panningRef.current = null;
+      commitDragHistory();
       if (connectionDraft) {
         setConnectionDraft(null);
       }
@@ -889,7 +965,7 @@ const Canvas = () => {
       window.removeEventListener('mousemove', onMouseMove);
       window.removeEventListener('mouseup', onMouseUp);
     };
-  }, [canvasState.viewport, connectionDraft, updateViewport]);
+  }, [canvasState.viewport, commitDragHistory, connectionDraft, updateViewport]);
 
   const startConnection = (event, nodeId) => {
     event.stopPropagation();
