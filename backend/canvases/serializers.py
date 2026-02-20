@@ -95,7 +95,6 @@ def validate_canvas_state_shape(canvas_state):
 
 class CanvasSerializer(serializers.ModelSerializer):
     canvas_state = serializers.JSONField(required=False)
-    canvas_data = serializers.JSONField(required=False, write_only=True)
 
     class Meta:
         model = Canvas
@@ -105,7 +104,6 @@ class CanvasSerializer(serializers.ModelSerializer):
             "name",
             "description",
             "canvas_state",
-            "canvas_data",
             "created_at",
             "updated_at",
         ]
@@ -113,8 +111,6 @@ class CanvasSerializer(serializers.ModelSerializer):
 
     def validate(self, attrs):
         # Backward-compatible alias from old field name.
-        if "canvas_data" in attrs and "canvas_state" not in attrs:
-            attrs["canvas_state"] = attrs.pop("canvas_data")
         if "canvas_state" not in attrs:
             attrs["canvas_state"] = default_canvas_state()
         attrs["canvas_state"] = validate_canvas_state_shape(attrs["canvas_state"])
