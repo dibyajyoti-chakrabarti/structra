@@ -15,6 +15,9 @@ import {
   ZoomIn,
   ZoomOut,
   Lightbulb,
+  ChevronLeft,
+  ChevronRight,
+  X,
 } from 'lucide-react';
 import api from '../../api';
 
@@ -33,6 +36,56 @@ const COMPONENTS = [
 ];
 
 const EDGE_PROTOCOL_OPTIONS = ['', 'HTTP', 'ASYNC', 'INTERNAL'];
+const NODE_ANCHORS = ['top', 'right', 'bottom', 'left'];
+const ANCHOR_OFFSETS = {
+  top: { x: NODE_WIDTH / 2, y: 0 },
+  right: { x: NODE_WIDTH, y: NODE_HEIGHT / 2 },
+  bottom: { x: NODE_WIDTH / 2, y: NODE_HEIGHT },
+  left: { x: 0, y: NODE_HEIGHT / 2 },
+};
+
+const resolveAnchor = (value, fallback = 'right') => (NODE_ANCHORS.includes(value) ? value : fallback);
+
+const isEditableElement = (target) => {
+  if (!(target instanceof HTMLElement)) return false;
+  if (target.isContentEditable) return true;
+  const tag = target.tagName;
+  return tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT';
+};
+
+const buildOrthogonalPath = (points) => {
+  if (!Array.isArray(points) || points.length < 2) {
+    return { points: Array.isArray(points) ? points : [], segmentToRawIndex: [] };
+  }
+
+  const orthPoints = [points[0]];
+  const segmentToRawIndex = [];
+
+  const pushPoint = (point, rawSegmentIndex) => {
+    const last = orthPoints[orthPoints.length - 1];
+    if (last && last.x === point.x && last.y === point.y) return;
+    orthPoints.push(point);
+    segmentToRawIndex.push(rawSegmentIndex);
+  };
+
+  for (let rawSegmentIndex = 0; rawSegmentIndex < points.length - 1; rawSegmentIndex += 1) {
+    const start = orthPoints[orthPoints.length - 1];
+    const end = points[rawSegmentIndex + 1];
+    if (!start || !end) continue;
+
+    if (start.x === end.x || start.y === end.y) {
+      pushPoint(end, rawSegmentIndex);
+      continue;
+    }
+
+    // Force orthogonal routing: horizontal leg then vertical leg.
+    const mid = { x: end.x, y: start.y };
+    pushPoint(mid, rawSegmentIndex);
+    pushPoint(end, rawSegmentIndex);
+  }
+
+  return { points: orthPoints, segmentToRawIndex };
+};
 
 const DEFAULT_CANVAS_STATE = {
   nodes: [],
@@ -51,6 +104,16 @@ const DEFAULT_CANVAS_STATE = {
 const normalizeStringArray = (value) => {
   if (!Array.isArray(value)) return [];
   return value.filter((item) => typeof item === 'string');
+};
+
+const normalizePointArray = (value) => {
+  if (!Array.isArray(value)) return [];
+  return value
+    .filter((item) => item && typeof item === 'object')
+    .map((item) => ({
+      x: typeof item.x === 'number' ? item.x : 0,
+      y: typeof item.y === 'number' ? item.y : 0,
+    }));
 };
 
 const toComponentLabel = (type) => {
@@ -88,6 +151,9 @@ const ensureCanvasState = (value) => {
           id: edge.id,
           source: edge.source,
           target: edge.target,
+          sourceAnchor: resolveAnchor(edge.sourceAnchor, 'right'),
+          targetAnchor: resolveAnchor(edge.targetAnchor, 'left'),
+          bends: normalizePointArray(edge.bends),
           metadata: {
             protocol: typeof edge?.metadata?.protocol === 'string' ? edge.metadata.protocol : '',
             notes: typeof edge?.metadata?.notes === 'string' ? edge.metadata.notes : '',
@@ -381,6 +447,7 @@ const Canvas = () => {
   const autosaveDebounceRef = useRef(null);
   const retryTimeoutRef = useRef(null);
   const draggingNodeRef = useRef(null);
+  const draggingBendRef = useRef(null);
   const panningRef = useRef(null);
 
   const [loading, setLoading] = useState(true);
@@ -395,6 +462,9 @@ const Canvas = () => {
   const [connectionDraft, setConnectionDraft] = useState(null);
   const [saveStatus, setSaveStatus] = useState('saved');
   const [rightPanelMode, setRightPanelMode] = useState('design');
+  const [isRightPanelHidden, setIsRightPanelHidden] = useState(false);
+  const [isRightPanelExpanded, setIsRightPanelExpanded] = useState(false);
+  const [isLeftPanelCollapsed, setIsLeftPanelCollapsed] = useState(false);
   const [hoveredInsightId, setHoveredInsightId] = useState(null);
   const [activeInsightId, setActiveInsightId] = useState(null);
 
@@ -437,7 +507,7 @@ const Canvas = () => {
         lastSavedSignatureRef.current = signature;
         retryAttemptRef.current = 0;
         setSaveStatus('saved');
-      } catch (error) {
+      } catch {
         retryAttemptRef.current += 1;
         setSaveStatus('retrying');
 
@@ -481,6 +551,10 @@ const Canvas = () => {
     }));
   }, []);
 
+  const openPropertiesPanel = useCallback(() => {
+    setIsRightPanelHidden(false);
+  }, []);
+
   const handleDropComponent = (event) => {
     event.preventDefault();
     const componentType = event.dataTransfer.getData('application/structra-component-type');
@@ -510,6 +584,7 @@ const Canvas = () => {
     if (activeTool !== 'select') return;
     if (event.button !== 0) return;
     setRightPanelMode('design');
+    openPropertiesPanel();
 
     draggingNodeRef.current = {
       nodeId: node.id,
@@ -521,6 +596,72 @@ const Canvas = () => {
 
     setSelectedNodeId(node.id);
     setSelectedEdgeId(null);
+  };
+
+  const onEdgeBendMouseDown = (event, edgeId, bendIndex) => {
+    event.stopPropagation();
+    if (event.button !== 0) return;
+    setRightPanelMode('design');
+    openPropertiesPanel();
+    setSelectedEdgeId(edgeId);
+    setSelectedNodeId(null);
+    draggingBendRef.current = { edgeId, bendIndex };
+  };
+
+  const addEdgeBendAtSegment = (event, edge, segmentIndex) => {
+    event.stopPropagation();
+    const sourceNode = canvasState.nodes.find((node) => node.id === edge.source);
+    const targetNode = canvasState.nodes.find((node) => node.id === edge.target);
+    if (!sourceNode || !targetNode) return;
+
+    const sourcePoint = getNodeScreenAnchor(sourceNode, edge.sourceAnchor);
+    const targetPoint = getNodeScreenAnchor(targetNode, edge.targetAnchor);
+    const bendPoints = Array.isArray(edge.bends)
+      ? edge.bends.map((bend) => worldToScreen(bend.x, bend.y, canvasState.viewport))
+      : [];
+    const rawPathPoints = [sourcePoint, ...bendPoints, targetPoint];
+    const { points: pathPoints, segmentToRawIndex } = buildOrthogonalPath(rawPathPoints);
+    if (!pathPoints[segmentIndex] || !pathPoints[segmentIndex + 1] || !canvasRef.current) return;
+
+    const midX = (pathPoints[segmentIndex].x + pathPoints[segmentIndex + 1].x) / 2;
+    const midY = (pathPoints[segmentIndex].y + pathPoints[segmentIndex + 1].y) / 2;
+    const worldPoint = canvasToWorld(midX, midY, canvasState.viewport);
+    const insertAt = Math.max(0, segmentToRawIndex[segmentIndex] ?? segmentIndex);
+
+    setCanvasState((prev) => ({
+      ...prev,
+      edges: prev.edges.map((item) => {
+        if (item.id !== edge.id) return item;
+        const nextBends = Array.isArray(item.bends) ? [...item.bends] : [];
+        nextBends.splice(insertAt, 0, worldPoint);
+        return {
+          ...item,
+          bends: nextBends,
+        };
+      }),
+    }));
+
+    setSelectedEdgeId(edge.id);
+    setSelectedNodeId(null);
+    openPropertiesPanel();
+    setRightPanelMode('design');
+
+    draggingBendRef.current = { edgeId: edge.id, bendIndex: insertAt };
+  };
+
+  const removeEdgeBend = (event, edgeId, bendIndex) => {
+    event.stopPropagation();
+    setCanvasState((prev) => ({
+      ...prev,
+      edges: prev.edges.map((edge) => {
+        if (edge.id !== edgeId) return edge;
+        const nextBends = Array.isArray(edge.bends) ? edge.bends : [];
+        return {
+          ...edge,
+          bends: nextBends.filter((_, index) => index !== bendIndex),
+        };
+      }),
+    }));
   };
 
   const onCanvasMouseDown = (event) => {
@@ -541,6 +682,27 @@ const Canvas = () => {
 
   useEffect(() => {
     const onMouseMove = (event) => {
+      if (draggingBendRef.current && canvasRef.current) {
+        const drag = draggingBendRef.current;
+        const rect = canvasRef.current.getBoundingClientRect();
+        const world = canvasToWorld(
+          event.clientX - rect.left,
+          event.clientY - rect.top,
+          canvasState.viewport
+        );
+
+        setCanvasState((prev) => ({
+          ...prev,
+          edges: prev.edges.map((edge) => {
+            if (edge.id !== drag.edgeId) return edge;
+            const nextBends = Array.isArray(edge.bends) ? [...edge.bends] : [];
+            if (!nextBends[drag.bendIndex]) return edge;
+            nextBends[drag.bendIndex] = world;
+            return { ...edge, bends: nextBends };
+          }),
+        }));
+      }
+
       if (draggingNodeRef.current) {
         const drag = draggingNodeRef.current;
         const deltaX = (event.clientX - drag.startClientX) / canvasState.viewport.zoom;
@@ -587,6 +749,7 @@ const Canvas = () => {
 
     const onMouseUp = () => {
       draggingNodeRef.current = null;
+      draggingBendRef.current = null;
       panningRef.current = null;
       if (connectionDraft) {
         setConnectionDraft(null);
@@ -600,32 +763,53 @@ const Canvas = () => {
       window.removeEventListener('mousemove', onMouseMove);
       window.removeEventListener('mouseup', onMouseUp);
     };
-  }, [canvasState.viewport.zoom, connectionDraft, updateViewport]);
+  }, [canvasState.viewport, connectionDraft, updateViewport]);
 
   const startConnection = (event, nodeId) => {
     event.stopPropagation();
     setRightPanelMode('design');
+    openPropertiesPanel();
     setSelectedNodeId(nodeId);
     setSelectedEdgeId(null);
-    setConnectionDraft({ sourceId: nodeId, pointer: { x: event.clientX, y: event.clientY } });
+    setConnectionDraft({
+      sourceId: nodeId,
+      sourceAnchor: resolveAnchor(event.currentTarget?.dataset?.anchor, 'right'),
+      pointer: { x: event.clientX, y: event.clientY },
+    });
   };
 
-  const completeConnection = (event, targetNodeId) => {
+  const completeConnection = (event, targetNodeId, targetAnchor) => {
     event.stopPropagation();
     if (!connectionDraft) return;
 
     const source = connectionDraft.sourceId;
     const target = targetNodeId;
+    const sourceAnchor = resolveAnchor(connectionDraft.sourceAnchor, 'right');
+    const nextTargetAnchor = resolveAnchor(targetAnchor, 'left');
+    if (source === target) {
+      setConnectionDraft(null);
+      return;
+    }
 
     const duplicate = canvasState.edges.some(
       (edge) => edge.source === source && edge.target === target
     );
 
     if (!duplicate) {
-      const nextEdge = { id: makeUuid(), source, target, metadata: { protocol: '', notes: '' } };
+      const nextEdge = {
+        id: makeUuid(),
+        source,
+        target,
+        sourceAnchor,
+        targetAnchor: nextTargetAnchor,
+        bends: [],
+        metadata: { protocol: '', notes: '' },
+      };
       setCanvasState((prev) => ({ ...prev, edges: [...prev.edges, nextEdge] }));
       setSelectedEdgeId(nextEdge.id);
       setSelectedNodeId(null);
+      setRightPanelMode('design');
+      openPropertiesPanel();
     }
 
     setConnectionDraft(null);
@@ -835,6 +1019,7 @@ const Canvas = () => {
     if (!insight) return;
     setActiveInsightId(insight.id);
     setRightPanelMode('design');
+    openPropertiesPanel();
 
     const relatedNodeIds = Array.isArray(insight.relatedNodeIds) ? insight.relatedNodeIds : [];
     const relatedEdgeIds = Array.isArray(insight.relatedEdgeIds) ? insight.relatedEdgeIds : [];
@@ -897,16 +1082,16 @@ const Canvas = () => {
     }));
   };
 
-  const deleteSelectedEdge = () => {
+  const deleteSelectedEdge = useCallback(() => {
     if (!selectedEdgeId) return;
     setCanvasState((prev) => ({
       ...prev,
       edges: prev.edges.filter((edge) => edge.id !== selectedEdgeId),
     }));
     setSelectedEdgeId(null);
-  };
+  }, [selectedEdgeId]);
 
-  const deleteSelectedNode = () => {
+  const deleteSelectedNode = useCallback(() => {
     if (!selectedNodeId) return;
     setCanvasState((prev) => ({
       ...prev,
@@ -917,13 +1102,32 @@ const Canvas = () => {
     }));
     setSelectedNodeId(null);
     setSelectedEdgeId(null);
-  };
+  }, [selectedNodeId]);
+
+  useEffect(() => {
+    const onKeyDown = (event) => {
+      if (event.key !== 'Backspace' && event.key !== 'Delete') return;
+      if (isEditableElement(event.target)) return;
+      if (!selectedEdgeId && !selectedNodeId) return;
+      event.preventDefault();
+      if (selectedEdgeId) {
+        deleteSelectedEdge();
+        return;
+      }
+      deleteSelectedNode();
+    };
+
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [selectedEdgeId, selectedNodeId, deleteSelectedEdge, deleteSelectedNode]);
 
   const zoomPercent = Math.round(canvasState.viewport.zoom * 100);
 
   const getNodeScreenAnchor = (node, anchor) => {
-    const worldX = anchor === 'source' ? node.position.x + NODE_WIDTH : node.position.x;
-    const worldY = node.position.y + NODE_HEIGHT / 2;
+    const resolvedAnchor = resolveAnchor(anchor, 'right');
+    const offset = ANCHOR_OFFSETS[resolvedAnchor];
+    const worldX = node.position.x + offset.x;
+    const worldY = node.position.y + offset.y;
     return worldToScreen(worldX, worldY, canvasState.viewport);
   };
 
@@ -1041,9 +1245,23 @@ const Canvas = () => {
         </div>
       </header>
 
-      <div className="flex-1 flex overflow-hidden">
-        <aside className="w-64 border-r border-gray-200 bg-gray-50 p-3 overflow-y-auto">
-          <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Components</h2>
+      <div className="flex-1 flex overflow-hidden relative">
+        <aside
+          className={`border-r border-gray-200 bg-gray-50 overflow-y-auto transition-all duration-300 ${
+            isLeftPanelCollapsed ? 'w-0 -translate-x-full p-0 border-r-0' : 'w-64 p-3 translate-x-0'
+          }`}
+        >
+          <div className="mb-2 flex items-center justify-between">
+            <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Components</h2>
+            <button
+              type="button"
+              onClick={() => setIsLeftPanelCollapsed(true)}
+              className="inline-flex items-center justify-center w-7 h-7 rounded border border-gray-200 bg-white text-gray-600 hover:text-gray-800"
+              title="Hide components panel"
+            >
+              <ChevronLeft size={14} />
+            </button>
+          </div>
           <div className="space-y-2">
             {COMPONENTS.map((component) => {
               const Icon = component.icon;
@@ -1084,6 +1302,18 @@ const Canvas = () => {
           </div>
         </aside>
 
+        {isLeftPanelCollapsed && (
+          <button
+            type="button"
+            onClick={() => setIsLeftPanelCollapsed(false)}
+            className="absolute top-3 left-3 z-20 inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md border border-gray-200 bg-white text-xs text-gray-700 shadow-sm"
+            title="Show components panel"
+          >
+            <ChevronRight size={14} />
+            Components
+          </button>
+        )}
+
         <main className="flex-1 flex">
           <section
             ref={canvasRef}
@@ -1095,6 +1325,8 @@ const Canvas = () => {
               if (event.target !== event.currentTarget) return;
               setSelectedNodeId(null);
               setSelectedEdgeId(null);
+              setRightPanelMode('design');
+              openPropertiesPanel();
             }}
             className="relative flex-1 overflow-hidden bg-slate-50"
             style={{
@@ -1109,22 +1341,45 @@ const Canvas = () => {
                 const targetNode = canvasState.nodes.find((node) => node.id === edge.target);
                 if (!sourceNode || !targetNode) return null;
                 const edgeIsHighlighted = highlightedEdgeIds.has(edge.id);
-
-                const sourcePoint = getNodeScreenAnchor(sourceNode, 'source');
-                const targetPoint = getNodeScreenAnchor(targetNode, 'target');
-                const midX = (sourcePoint.x + targetPoint.x) / 2;
+                const sourceAnchor = resolveAnchor(edge.sourceAnchor, 'right');
+                const targetAnchor = resolveAnchor(edge.targetAnchor, 'left');
+                const sourcePoint = getNodeScreenAnchor(sourceNode, sourceAnchor);
+                const targetPoint = getNodeScreenAnchor(targetNode, targetAnchor);
+                const bendPoints = Array.isArray(edge.bends)
+                  ? edge.bends.map((bend) => worldToScreen(bend.x, bend.y, canvasState.viewport))
+                  : [];
+                const rawPathPoints = [sourcePoint, ...bendPoints, targetPoint];
+                const { points: pathPoints } = buildOrthogonalPath(rawPathPoints);
+                const pathDefinition = pathPoints.reduce(
+                  (acc, point, index) =>
+                    index === 0 ? `M ${point.x} ${point.y}` : `${acc} L ${point.x} ${point.y}`,
+                  ''
+                );
+                const edgeOpacity =
+                  edgeIsHighlighted || selectedEdgeId === edge.id || !highlightedInsight ? 1 : 0.45;
+                const edgeStrokeWidth = selectedEdgeId === edge.id ? 2.7 : edgeIsHighlighted ? 2.4 : 2;
 
                 return (
                   <g key={edge.id}>
                     <path
-                      d={`M ${sourcePoint.x} ${sourcePoint.y} C ${midX} ${sourcePoint.y}, ${midX} ${targetPoint.y}, ${targetPoint.x} ${targetPoint.y}`}
-                      stroke={selectedEdgeId === edge.id ? '#1d4ed8' : edgeIsHighlighted ? '#0f766e' : '#475569'}
-                      strokeWidth={selectedEdgeId === edge.id ? 2.5 : edgeIsHighlighted ? 2.4 : 2}
-                      opacity={edgeIsHighlighted || selectedEdgeId === edge.id || !highlightedInsight ? 1 : 0.45}
+                      d={pathDefinition}
+                      stroke={selectedEdgeId === edge.id ? '#0f172a' : '#111827'}
+                      strokeWidth={edgeStrokeWidth}
+                      opacity={edgeOpacity}
                       fill="none"
+                      pathLength={100}
                     />
                     <path
-                      d={`M ${sourcePoint.x} ${sourcePoint.y} C ${midX} ${sourcePoint.y}, ${midX} ${targetPoint.y}, ${targetPoint.x} ${targetPoint.y}`}
+                      d={pathDefinition}
+                      stroke="#2563eb"
+                      strokeWidth={edgeStrokeWidth}
+                      opacity={edgeOpacity}
+                      fill="none"
+                      pathLength={100}
+                      strokeDasharray="20 80"
+                    />
+                    <path
+                      d={pathDefinition}
                       stroke="transparent"
                       strokeWidth="12"
                       fill="none"
@@ -1132,10 +1387,45 @@ const Canvas = () => {
                       onClick={(event) => {
                         event.stopPropagation();
                         setRightPanelMode('design');
+                        openPropertiesPanel();
                         setSelectedEdgeId(edge.id);
                         setSelectedNodeId(null);
                       }}
                     />
+                    {selectedEdgeId === edge.id &&
+                      bendPoints.map((bendPoint, bendIndex) => (
+                        <circle
+                          key={`${edge.id}-bend-${bendIndex}`}
+                          cx={bendPoint.x}
+                          cy={bendPoint.y}
+                          r={6}
+                          fill="#ffffff"
+                          stroke="#2563eb"
+                          strokeWidth={2}
+                          className="pointer-events-auto cursor-move"
+                          onMouseDown={(event) => onEdgeBendMouseDown(event, edge.id, bendIndex)}
+                          onDoubleClick={(event) => removeEdgeBend(event, edge.id, bendIndex)}
+                        />
+                      ))}
+                    {selectedEdgeId === edge.id &&
+                      pathPoints.slice(0, -1).map((point, index) => {
+                        const nextPoint = pathPoints[index + 1];
+                        const midX = (point.x + nextPoint.x) / 2;
+                        const midY = (point.y + nextPoint.y) / 2;
+                        return (
+                          <circle
+                            key={`${edge.id}-segment-${index}`}
+                            cx={midX}
+                            cy={midY}
+                            r={4}
+                            fill="#bfdbfe"
+                            stroke="#2563eb"
+                            strokeWidth={1.5}
+                            className="pointer-events-auto cursor-copy"
+                            onMouseDown={(event) => addEdgeBendAtSegment(event, edge, index)}
+                          />
+                        );
+                      })}
                   </g>
                 );
               })}
@@ -1144,7 +1434,7 @@ const Canvas = () => {
                 const sourceNode = canvasState.nodes.find((node) => node.id === connectionDraft.sourceId);
                 if (!sourceNode || !canvasRef.current) return null;
                 const rect = canvasRef.current.getBoundingClientRect();
-                const sourcePoint = getNodeScreenAnchor(sourceNode, 'source');
+                const sourcePoint = getNodeScreenAnchor(sourceNode, connectionDraft.sourceAnchor);
                 const targetX = connectionDraft.pointer.x - rect.left;
                 const targetY = connectionDraft.pointer.y - rect.top;
                 return (
@@ -1166,6 +1456,12 @@ const Canvas = () => {
               const component = COMPONENTS.find((item) => item.type === node.type);
               const Icon = component ? component.icon : Box;
               const nodeIsHighlighted = highlightedNodeIds.has(node.id);
+              const connectorClasses = {
+                top: 'absolute left-1/2 -translate-x-1/2 -top-2',
+                right: 'absolute top-1/2 -translate-y-1/2 -right-2',
+                bottom: 'absolute left-1/2 -translate-x-1/2 -bottom-2',
+                left: 'absolute top-1/2 -translate-y-1/2 -left-2',
+              };
               return (
                 <div
                   key={node.id}
@@ -1188,19 +1484,17 @@ const Canvas = () => {
                     onNodeMouseDown(event, node);
                   }}
                 >
-                  <button
-                    type="button"
-                    aria-label="Start connection"
-                    className="absolute -right-2 top-1/2 -translate-y-1/2 w-4 h-4 rounded-full bg-blue-600 border-2 border-white"
-                    onMouseDown={(event) => startConnection(event, node.id)}
-                  />
-                  <button
-                    type="button"
-                    aria-label="Connect here"
-                    className="absolute -left-2 top-1/2 -translate-y-1/2 w-4 h-4 rounded-full bg-gray-500 border-2 border-white"
-                    onMouseUp={(event) => completeConnection(event, node.id)}
-                    onMouseDown={(event) => startConnection(event, node.id)}
-                  />
+                  {NODE_ANCHORS.map((anchor) => (
+                    <button
+                      key={`${node.id}-${anchor}`}
+                      type="button"
+                      data-anchor={anchor}
+                      aria-label={`Connector ${anchor}`}
+                      className={`${connectorClasses[anchor]} w-4 h-4 rounded-full bg-blue-600 border-2 border-white`}
+                      onMouseDown={(event) => startConnection(event, node.id)}
+                      onMouseUp={(event) => completeConnection(event, node.id, anchor)}
+                    />
+                  ))}
 
                   <div style={{ padding: nodePadding }}>
                     <div
@@ -1237,8 +1531,45 @@ const Canvas = () => {
             </div>
           </section>
 
-          <aside className="w-72 border-l border-gray-200 bg-white p-4 space-y-4">
-            <h2 className="text-sm font-semibold text-gray-900">Properties</h2>
+          {isRightPanelHidden && (
+            <button
+              type="button"
+              onClick={() => setIsRightPanelHidden(false)}
+              className="absolute right-3 top-3 z-20 inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md border border-gray-200 bg-white text-xs text-gray-700 shadow-sm"
+              title="Show properties panel"
+            >
+              <ChevronLeft size={14} />
+              Properties
+            </button>
+          )}
+
+          {!isRightPanelHidden && (
+            <aside
+              className={`border-l border-gray-200 bg-white p-4 space-y-4 transition-all duration-300 ${
+                isRightPanelExpanded ? 'w-[50vw]' : 'w-72'
+              }`}
+            >
+              <div className="flex items-center justify-between">
+                <h2 className="text-sm font-semibold text-gray-900">Properties</h2>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setIsRightPanelExpanded((prev) => !prev)}
+                    className="inline-flex items-center justify-center w-7 h-7 rounded border border-gray-200 bg-white text-gray-600 hover:text-gray-800"
+                    title={isRightPanelExpanded ? 'Restore panel width' : 'Expand panel'}
+                  >
+                    {isRightPanelExpanded ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setIsRightPanelHidden(true)}
+                    className="inline-flex items-center justify-center w-7 h-7 rounded border border-gray-200 bg-white text-gray-600 hover:text-gray-800"
+                    title="Close properties panel"
+                  >
+                    <X size={14} />
+                  </button>
+                </div>
+              </div>
             <div className="flex items-center gap-2">
               <button
                 type="button"
@@ -1496,7 +1827,8 @@ const Canvas = () => {
                 )}
               </div>
             )}
-          </aside>
+            </aside>
+          )}
         </main>
       </div>
     </div>
