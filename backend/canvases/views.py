@@ -6,8 +6,8 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from core.constants import CanvasRole
 from permissions.checks import (
+    system_read_access_q,
     user_is_workspace_admin,
-    user_is_workspace_member,
     user_has_system_access,
 )
 from permissions.models import CanvasPermission, WorkspaceMember
@@ -19,18 +19,26 @@ class CanvasListCreateView(generics.ListCreateAPIView):
     serializer_class = CanvasSerializer
     permission_classes = [IsAuthenticated]
 
+    def _get_workspace(self):
+        if not hasattr(self, "_workspace_cache"):
+            workspace_id = self.kwargs["workspace_id"]
+            self._workspace_cache = get_object_or_404(Workspace, id=workspace_id)
+        return self._workspace_cache
+
+    def get_serializer_context(self):
+        context = super().get_serializer_context()
+        context["workspace"] = self._get_workspace()
+        return context
+
     def get_queryset(self):
-        workspace_id = self.kwargs['workspace_id']
-        workspace = get_object_or_404(Workspace, id=workspace_id)
-
-        if not user_is_workspace_member(workspace, self.request.user):
-            raise PermissionDenied("You do not have access to this workspace.")
-
+        workspace = self._get_workspace()
+        workspace_id = workspace.id
         base_queryset = Canvas.objects.filter(workspace_id=workspace_id)
+
         if user_is_workspace_admin(workspace, self.request.user):
             return base_queryset
 
-        return base_queryset.filter(permissions__user=self.request.user).distinct()
+        return base_queryset.filter(system_read_access_q(self.request.user)).distinct()
 
     def _validate_member_permissions(self, workspace):
         member_permissions = self.request.data.get("member_permissions", [])
@@ -73,8 +81,7 @@ class CanvasListCreateView(generics.ListCreateAPIView):
         return validated_entries
 
     def perform_create(self, serializer):
-        workspace_id = self.kwargs['workspace_id']
-        workspace = get_object_or_404(Workspace, id=workspace_id)
+        workspace = self._get_workspace()
 
         if not user_is_workspace_admin(workspace, self.request.user):
             raise PermissionDenied("Only workspace admins can create systems.")
@@ -82,7 +89,7 @@ class CanvasListCreateView(generics.ListCreateAPIView):
         validated_permissions = self._validate_member_permissions(workspace)
 
         system = serializer.save(
-            workspace_id=self.kwargs['workspace_id'],
+            workspace=workspace,
             last_modified_by=self.request.user
         )
 
@@ -116,21 +123,28 @@ class CanvasDetailView(generics.RetrieveUpdateDestroyAPIView):
     serializer_class = CanvasSerializer
     permission_classes = [IsAuthenticated]
     lookup_field = 'id'
+
+    def _get_workspace(self):
+        if not hasattr(self, "_workspace_cache"):
+            workspace_id = self.kwargs["workspace_id"]
+            self._workspace_cache = get_object_or_404(Workspace, id=workspace_id)
+        return self._workspace_cache
+
+    def get_serializer_context(self):
+        context = super().get_serializer_context()
+        context["workspace"] = self._get_workspace()
+        return context
     
     def get_queryset(self):
-        workspace_id = self.kwargs['workspace_id']
-        workspace = get_object_or_404(Workspace, id=workspace_id)
-
-        if not user_is_workspace_member(workspace, self.request.user):
-            raise PermissionDenied("You do not have access to this workspace.")
-
+        workspace = self._get_workspace()
+        workspace_id = workspace.id
         base_queryset = Canvas.objects.filter(workspace_id=workspace_id)
 
         if user_is_workspace_admin(workspace, self.request.user):
             return base_queryset
 
         if self.request.method in SAFE_METHODS:
-            return base_queryset.filter(permissions__user=self.request.user).distinct()
+            return base_queryset.filter(system_read_access_q(self.request.user)).distinct()
 
         return base_queryset.filter(
             permissions__user=self.request.user,
@@ -147,9 +161,6 @@ class CanvasAutosaveView(APIView):
     def put(self, request, id):
         system = get_object_or_404(Canvas, id=id)
         workspace = system.workspace
-
-        if not user_is_workspace_member(workspace, request.user):
-            raise PermissionDenied("You do not have access to this workspace.")
 
         can_edit = user_is_workspace_admin(workspace, request.user) or user_has_system_access(
             system,

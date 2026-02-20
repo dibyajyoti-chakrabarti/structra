@@ -21,9 +21,30 @@ class Workspace(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     def save(self, *args, **kwargs):
+        is_new = self._state.adding
+        previous_visibility = None
+        if not is_new:
+            previous_visibility = (
+                Workspace.objects.filter(pk=self.pk)
+                .values_list("visibility", flat=True)
+                .first()
+            )
+
         if not self.id:
             self.id = generate_alphanumeric_id()
         super().save(*args, **kwargs)
+
+        if (
+            not is_new
+            and previous_visibility == WorkspaceVisibility.PUBLIC
+            and self.visibility == WorkspaceVisibility.PRIVATE
+        ):
+            from canvases.models import Canvas
+
+            Canvas.objects.filter(
+                workspace=self,
+                visibility=WorkspaceVisibility.PUBLIC,
+            ).update(visibility=WorkspaceVisibility.PRIVATE)
 
     def __str__(self):
         return self.name
