@@ -1,13 +1,19 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import {
-  Database,
-  Globe,
-  Lock,
-  Zap,
-  Layers,
+  Activity,
+  Archive,
+  BarChart3,
   Box,
+  Cpu,
+  Database,
   Monitor,
+  Network,
+  Radio,
+  Scale,
+  Settings,
+  Shield,
+  Zap,
   Hand,
   MousePointer2,
   Plus,
@@ -27,15 +33,154 @@ const NODE_WIDTH = 180;
 const NODE_HEIGHT = 96;
 const AUTOSAVE_DEBOUNCE_MS = 650;
 
-const COMPONENTS = [
-  { type: 'CLIENT', label: 'Client', icon: Monitor },
-  { type: 'API', label: 'API', icon: Globe },
-  { type: 'DATABASE', label: 'Database', icon: Database },
-  { type: 'CACHE', label: 'Cache', icon: Zap },
-  { type: 'QUEUE', label: 'Queue', icon: Layers },
-  { type: 'AUTH', label: 'Auth', icon: Lock },
-  { type: 'EXTERNAL_SERVICE', label: 'External Service', icon: Box },
+const COMPONENT_CATEGORIES = [
+  {
+    key: 'CLIENT_ENTRY_LAYER',
+    label: 'Client & Entry Layer',
+    icon: Monitor,
+    components: [
+      { type: 'CLIENT', label: 'Client', description: 'End-user application that initiates requests into the system.' },
+      { type: 'DNS', label: 'DNS', description: 'Resolves domain names to system entry points.' },
+      { type: 'CDN_EDGE_CACHE', label: 'CDN / Edge Cache', description: 'Caches and serves content close to users to reduce latency.' },
+      { type: 'LOAD_BALANCER', label: 'Load Balancer', description: 'Distributes incoming traffic across multiple backend instances.' },
+    ],
+  },
+  {
+    key: 'SECURITY_IDENTITY',
+    label: 'Security & Identity',
+    icon: Shield,
+    components: [
+      { type: 'AUTHENTICATION_SERVICE', label: 'Authentication Service', description: 'Verifies user or service identity.' },
+      { type: 'AUTHORIZATION_SERVICE', label: 'Authorization Service', description: 'Determines permissions and access scopes.' },
+      { type: 'API_GATEWAY', label: 'API Gateway', description: 'Central ingress enforcing routing, auth, and traffic policies.' },
+      { type: 'WEB_APPLICATION_FIREWALL', label: 'Web Application Firewall (WAF)', description: 'Filters malicious or abusive traffic.' },
+      { type: 'SECRETS_MANAGER', label: 'Secrets Manager', description: 'Securely stores and rotates sensitive credentials.' },
+    ],
+  },
+  {
+    key: 'APPLICATION_COMPUTE',
+    label: 'Application & Compute',
+    icon: Cpu,
+    components: [
+      { type: 'API_BACKEND_SERVICE', label: 'API / Backend Service', description: 'Handles synchronous request-response business logic.' },
+      { type: 'MICROSERVICE', label: 'Microservice', description: 'Independently deployable service with a single responsibility.' },
+      { type: 'BACKGROUND_WORKER', label: 'Background Worker', description: 'Processes asynchronous or long-running tasks.' },
+      { type: 'SERVERLESS_FUNCTION', label: 'Serverless Function', description: 'Event-driven, ephemeral compute unit.' },
+      { type: 'BATCH_JOB', label: 'Batch Job', description: 'Finite or scheduled compute workload.' },
+    ],
+  },
+  {
+    key: 'DATA_STORAGE',
+    label: 'Data Storage',
+    icon: Database,
+    components: [
+      { type: 'RELATIONAL_DATABASE', label: 'Relational Database', description: 'Transactional, strongly consistent structured data store.' },
+      { type: 'NOSQL_DATABASE', label: 'NoSQL Database', description: 'Highly scalable, schema-flexible data store.' },
+      { type: 'OBJECT_STORAGE', label: 'Object Storage', description: 'Stores unstructured binary data (files, media, backups).' },
+      { type: 'TIME_SERIES_DATABASE', label: 'Time-Series Database', description: 'Optimized storage for time-indexed metrics and events.' },
+    ],
+  },
+  {
+    key: 'CACHING_PERFORMANCE',
+    label: 'Caching & Performance',
+    icon: Zap,
+    components: [
+      { type: 'CACHE', label: 'Cache', description: 'Stores frequently accessed data to reduce latency.' },
+      { type: 'IN_MEMORY_STORE', label: 'In-Memory Store', description: 'Fast, ephemeral store for sessions and counters.' },
+      { type: 'SEARCH_ENGINE', label: 'Search Engine', description: 'Indexes data for fast text and filtered queries.' },
+    ],
+  },
+  {
+    key: 'MESSAGING_EVENTING',
+    label: 'Messaging & Eventing',
+    icon: Radio,
+    components: [
+      { type: 'MESSAGE_QUEUE', label: 'Message Queue', description: 'Buffers and decouples asynchronous workloads.' },
+      { type: 'EVENT_BUS', label: 'Event Bus', description: 'Publishes events to multiple subscribers.' },
+      { type: 'STREAM_PROCESSOR', label: 'Stream Processor', description: 'Processes continuous ordered event streams.' },
+    ],
+  },
+  {
+    key: 'NETWORKING_CONNECTIVITY',
+    label: 'Networking & Connectivity',
+    icon: Network,
+    components: [
+      { type: 'INTERNAL_NETWORK', label: 'Internal Network', description: 'Private communication layer between system components.' },
+      { type: 'SERVICE_MESH', label: 'Service Mesh', description: 'Manages service-to-service communication and policies.' },
+      { type: 'EXTERNAL_SERVICE', label: 'External Service', description: 'Third-party dependency outside system control.' },
+    ],
+  },
+  {
+    key: 'OBSERVABILITY_RELIABILITY',
+    label: 'Observability & Reliability',
+    icon: Activity,
+    components: [
+      { type: 'LOGGING_SYSTEM', label: 'Logging System', description: 'Collects and stores structured application logs.' },
+      { type: 'METRICS_SYSTEM', label: 'Metrics System', description: 'Tracks performance, capacity, and health signals.' },
+      { type: 'TRACING_SYSTEM', label: 'Tracing System', description: 'Follows requests across distributed services.' },
+      { type: 'ALERTING_SYSTEM', label: 'Alerting System', description: 'Notifies operators of failures or anomalies.' },
+    ],
+  },
+  {
+    key: 'DEPLOYMENT_OPERATIONS',
+    label: 'Deployment & Operations',
+    icon: Settings,
+    components: [
+      { type: 'CI_CD_PIPELINE', label: 'CI/CD Pipeline', description: 'Automates build, test, and deployment processes.' },
+      { type: 'CONTAINER_RUNTIME', label: 'Container Runtime', description: 'Executes application containers.' },
+      { type: 'ORCHESTRATOR', label: 'Orchestrator', description: 'Schedules, scales, and heals workloads.' },
+      { type: 'CONFIGURATION_SERVICE', label: 'Configuration Service', description: 'Manages runtime configuration values.' },
+    ],
+  },
+  {
+    key: 'DATA_PROTECTION_RECOVERY',
+    label: 'Data Protection & Recovery',
+    icon: Archive,
+    components: [
+      { type: 'BACKUP_SERVICE', label: 'Backup Service', description: 'Creates recoverable copies of data.' },
+      { type: 'REPLICATION_SYSTEM', label: 'Replication System', description: 'Maintains redundant data copies.' },
+      { type: 'DISASTER_RECOVERY_SYSTEM', label: 'Disaster Recovery System', description: 'Restores system after major failures.' },
+    ],
+  },
+  {
+    key: 'GOVERNANCE_COMPLIANCE',
+    label: 'Governance & Compliance',
+    icon: Scale,
+    components: [
+      { type: 'AUDIT_LOG', label: 'Audit Log', description: 'Records security-sensitive actions.' },
+      { type: 'POLICY_ENGINE', label: 'Policy Engine', description: 'Evaluates and enforces system rules.' },
+      { type: 'ACCESS_CONTROL_SYSTEM', label: 'Access Control System', description: 'Defines permissions across system resources.' },
+    ],
+  },
+  {
+    key: 'ANALYTICS_INTELLIGENCE',
+    label: 'Analytics & Intelligence',
+    icon: BarChart3,
+    components: [
+      { type: 'ANALYTICS_ENGINE', label: 'Analytics Engine', description: 'Aggregates and analyzes system or business data.' },
+      { type: 'FEATURE_STORE', label: 'Feature Store', description: 'Stores reusable features for ML or experimentation.' },
+      { type: 'RECOMMENDATION_ENGINE', label: 'Recommendation Engine', description: 'Generates optimized or personalized outputs.' },
+    ],
+  },
 ];
+
+const COMPONENTS = COMPONENT_CATEGORIES.flatMap((category) =>
+  category.components.map((component) => ({
+    ...component,
+    categoryKey: category.key,
+    categoryLabel: category.label,
+    icon: category.icon,
+  }))
+);
+const COMPONENT_BY_TYPE = new Map(COMPONENTS.map((component) => [component.type, component]));
+const ALLOWED_COMPONENT_TYPES = new Set(COMPONENTS.map((component) => component.type));
+
+const LEGACY_NODE_TYPE_ALIASES = {
+  API: 'API_BACKEND_SERVICE',
+  DATABASE: 'RELATIONAL_DATABASE',
+  QUEUE: 'MESSAGE_QUEUE',
+  AUTH: 'AUTHENTICATION_SERVICE',
+};
 
 const EDGE_PROTOCOL_OPTIONS = ['', 'HTTP', 'ASYNC', 'INTERNAL'];
 const NODE_ANCHORS = ['top', 'right', 'bottom', 'left'];
@@ -140,8 +285,13 @@ const normalizePointArray = (value) => {
     }));
 };
 
+const normalizeNodeType = (type) => {
+  const nextType = LEGACY_NODE_TYPE_ALIASES[type] || type;
+  return ALLOWED_COMPONENT_TYPES.has(nextType) ? nextType : 'MICROSERVICE';
+};
+
 const toComponentLabel = (type) => {
-  const found = COMPONENTS.find((item) => item.type === type);
+  const found = COMPONENT_BY_TYPE.get(type);
   return found ? found.label : type;
 };
 
@@ -156,8 +306,11 @@ const ensureCanvasState = (value) => {
     nodes: Array.isArray(value.nodes)
       ? value.nodes.map((node) => ({
           id: node.id,
-          type: node.type,
-          label: typeof node.label === 'string' ? node.label : toComponentLabel(node.type),
+          type: normalizeNodeType(node.type),
+          label:
+            typeof node.label === 'string' && node.label.trim()
+              ? node.label
+              : toComponentLabel(normalizeNodeType(node.type)),
           position: {
             x: typeof node?.position?.x === 'number' ? node.position.x : 0,
             y: typeof node?.position?.y === 'number' ? node.position.y : 0,
@@ -222,14 +375,51 @@ const worldToScreen = (worldX, worldY, viewport) => ({
 });
 
 const INSIGHT_CATEGORIES = {
-  STRUCTURE: 'STRUCTURE',
-  COMMUNICATION: 'COMMUNICATION',
-  CLARITY: 'CLARITY',
-  COMPLETENESS: 'COMPLETENESS',
+  CONNECTIVITY: 'CONNECTIVITY',
+  COMPUTE: 'COMPUTE',
+  DATA: 'DATA',
+  SECURITY: 'SECURITY',
+  RELIABILITY: 'RELIABILITY',
+  OBSERVABILITY: 'OBSERVABILITY',
+  CANVAS_INTEGRITY: 'CANVAS_INTEGRITY',
 };
 
-const PUBLIC_ENTRYPOINT_TYPES = new Set(['CLIENT', 'EXTERNAL_SERVICE']);
-const STATEFUL_TYPES = new Set(['DATABASE', 'CACHE', 'QUEUE']);
+const PUBLIC_ENTRY_TYPES = new Set(['CLIENT', 'EXTERNAL_SERVICE']);
+const CLIENT_GUARD_TYPES = new Set([
+  'CDN_EDGE_CACHE',
+  'API_GATEWAY',
+  'LOAD_BALANCER',
+  'WEB_APPLICATION_FIREWALL',
+]);
+const DATA_STORAGE_TYPES = new Set([
+  'RELATIONAL_DATABASE',
+  'NOSQL_DATABASE',
+  'OBJECT_STORAGE',
+  'TIME_SERIES_DATABASE',
+]);
+const COMPUTE_TYPES = new Set([
+  'API_BACKEND_SERVICE',
+  'MICROSERVICE',
+  'BACKGROUND_WORKER',
+  'SERVERLESS_FUNCTION',
+  'BATCH_JOB',
+]);
+const WORKER_TYPES = new Set(['BACKGROUND_WORKER', 'BATCH_JOB']);
+const ASYNC_BOUNDARY_TYPES = new Set(['MESSAGE_QUEUE', 'EVENT_BUS', 'STREAM_PROCESSOR']);
+const ANALYTICS_TYPES = new Set(['ANALYTICS_ENGINE', 'FEATURE_STORE', 'RECOMMENDATION_ENGINE']);
+const OBSERVABILITY_TYPES = new Set([
+  'LOGGING_SYSTEM',
+  'METRICS_SYSTEM',
+  'TRACING_SYSTEM',
+  'ALERTING_SYSTEM',
+]);
+const AUTH_GUARD_TYPES = new Set([
+  'AUTHENTICATION_SERVICE',
+  'AUTHORIZATION_SERVICE',
+  'API_GATEWAY',
+  'WEB_APPLICATION_FIREWALL',
+  'ACCESS_CONTROL_SYSTEM',
+]);
 
 const buildInsight = ({ category, message, relatedNodeIds = [], relatedEdgeIds = [] }) => ({
   id: `${category}:${message}:${relatedNodeIds.join(',')}:${relatedEdgeIds.join(',')}`,
@@ -242,10 +432,10 @@ const buildInsight = ({ category, message, relatedNodeIds = [], relatedEdgeIds =
 const computeInsights = (canvasState) => {
   const nodes = Array.isArray(canvasState?.nodes) ? canvasState.nodes : [];
   const edges = Array.isArray(canvasState?.edges) ? canvasState.edges : [];
-  const systemMetadata = canvasState?.systemMetadata || {};
   const nodeMap = new Map(nodes.map((node) => [node.id, node]));
   const incomingCount = new Map(nodes.map((node) => [node.id, 0]));
   const outgoingCount = new Map(nodes.map((node) => [node.id, 0]));
+  const outgoingByNode = new Map(nodes.map((node) => [node.id, []]));
 
   edges.forEach((edge) => {
     if (incomingCount.has(edge.target)) {
@@ -254,130 +444,129 @@ const computeInsights = (canvasState) => {
     if (outgoingCount.has(edge.source)) {
       outgoingCount.set(edge.source, outgoingCount.get(edge.source) + 1);
     }
+    if (outgoingByNode.has(edge.source)) {
+      outgoingByNode.get(edge.source).push(edge);
+    }
   });
 
   const insights = [];
+  const hasMetadataKeyword = (node, patterns) => {
+    const text = `${node?.metadata?.purpose || ''} ${node?.metadata?.techChoice || ''} ${
+      node?.metadata?.notes || ''
+    }`.toLowerCase();
+    return patterns.some((pattern) => text.includes(pattern));
+  };
 
+  // G.1: Isolated components are flagged.
   nodes.forEach((node) => {
     const inCount = incomingCount.get(node.id) || 0;
     const outCount = outgoingCount.get(node.id) || 0;
-
     if (inCount + outCount === 0) {
       insights.push(
         buildInsight({
-          category: INSIGHT_CATEGORIES.STRUCTURE,
-          message: `${node.label || node.type} has no incoming or outgoing connections.`,
-          relatedNodeIds: [node.id],
-        })
-      );
-    }
-
-    if (node.type === 'QUEUE') {
-      if (inCount === 0) {
-        insights.push(
-          buildInsight({
-            category: INSIGHT_CATEGORIES.STRUCTURE,
-            message: `${node.label || node.type} has no producer connected to it.`,
-            relatedNodeIds: [node.id],
-          })
-        );
-      }
-      if (outCount === 0) {
-        insights.push(
-          buildInsight({
-            category: INSIGHT_CATEGORIES.STRUCTURE,
-            message: `${node.label || node.type} has no consumer connected to it.`,
-            relatedNodeIds: [node.id],
-          })
-        );
-      }
-    }
-
-    if (!String(node?.metadata?.purpose || '').trim()) {
-      insights.push(
-        buildInsight({
-          category: INSIGHT_CATEGORIES.CLARITY,
-          message: `${node.label || node.type} has no stated purpose.`,
-          relatedNodeIds: [node.id],
-        })
-      );
-    }
-
-    const responsibilities = Array.isArray(node?.metadata?.responsibilities)
-      ? node.metadata.responsibilities.filter((item) => String(item || '').trim())
-      : [];
-    if (responsibilities.length === 0) {
-      insights.push(
-        buildInsight({
-          category: INSIGHT_CATEGORIES.CLARITY,
-          message: `${node.label || node.type} has no listed responsibilities.`,
-          relatedNodeIds: [node.id],
-        })
-      );
-    }
-
-    if (node.type === 'EXTERNAL_SERVICE' && !String(node?.metadata?.notes || '').trim()) {
-      insights.push(
-        buildInsight({
-          category: INSIGHT_CATEGORIES.COMPLETENESS,
-          message: `${node.label || node.type} is external but has no notes describing context.`,
+          category: INSIGHT_CATEGORIES.CANVAS_INTEGRITY,
+          message: `${node.label || node.type} is isolated with no incoming or outgoing connections.`,
           relatedNodeIds: [node.id],
         })
       );
     }
   });
 
+  // G.2: Missing metadata reduces confidence.
+  const nodesMissingPurpose = nodes.filter((node) => !String(node?.metadata?.purpose || '').trim());
+  const nodesMissingResponsibilities = nodes.filter((node) => {
+    const responsibilities = Array.isArray(node?.metadata?.responsibilities)
+      ? node.metadata.responsibilities.filter((item) => String(item || '').trim())
+      : [];
+    return responsibilities.length === 0;
+  });
+  if (nodesMissingPurpose.length > 0) {
+    insights.push(
+      buildInsight({
+        category: INSIGHT_CATEGORIES.CANVAS_INTEGRITY,
+        message: `${nodesMissingPurpose.length} component(s) have no stated purpose. Insight confidence is reduced.`,
+        relatedNodeIds: nodesMissingPurpose.map((node) => node.id),
+      })
+    );
+  }
+  if (nodesMissingResponsibilities.length > 0) {
+    insights.push(
+      buildInsight({
+        category: INSIGHT_CATEGORIES.CANVAS_INTEGRITY,
+        message: `${nodesMissingResponsibilities.length} component(s) have no listed responsibilities.`,
+        relatedNodeIds: nodesMissingResponsibilities.map((node) => node.id),
+      })
+    );
+  }
+
+  // A.1 + A.2 + A.3
   edges.forEach((edge) => {
     const sourceNode = nodeMap.get(edge.source);
     const targetNode = nodeMap.get(edge.target);
-    const protocol = String(edge?.metadata?.protocol || '').trim();
+    if (!sourceNode || !targetNode) return;
 
-    if (!protocol) {
+    if (sourceNode.type === 'CLIENT' && DATA_STORAGE_TYPES.has(targetNode.type)) {
       insights.push(
         buildInsight({
-          category: INSIGHT_CATEGORIES.COMMUNICATION,
-          message: `Connection ${sourceNode?.label || 'Unknown'} -> ${
-            targetNode?.label || 'Unknown'
-          } has no protocol metadata.`,
-          relatedNodeIds: [edge.source, edge.target],
+          category: INSIGHT_CATEGORIES.CONNECTIVITY,
+          message: `Client traffic should not directly connect to data storage (${targetNode.label || targetNode.type}).`,
+          relatedNodeIds: [sourceNode.id, targetNode.id],
           relatedEdgeIds: [edge.id],
         })
       );
     }
 
-    if (protocol === 'ASYNC') {
-      const hasQueueBoundary = sourceNode?.type === 'QUEUE' || targetNode?.type === 'QUEUE';
-      if (!hasQueueBoundary) {
-        insights.push(
-          buildInsight({
-            category: INSIGHT_CATEGORIES.COMMUNICATION,
-            message: `Async communication between ${sourceNode?.label || 'Unknown'} and ${
-              targetNode?.label || 'Unknown'
-            } has no queue-like boundary.`,
-            relatedNodeIds: [edge.source, edge.target],
-            relatedEdgeIds: [edge.id],
-          })
-        );
-      }
+    if (sourceNode.type === 'CLIENT' && !CLIENT_GUARD_TYPES.has(targetNode.type)) {
+      insights.push(
+        buildInsight({
+          category: INSIGHT_CATEGORIES.CONNECTIVITY,
+          message: `Client traffic should pass through Edge, Gateway, or Load Balancer before reaching ${targetNode.label || targetNode.type}.`,
+          relatedNodeIds: [sourceNode.id, targetNode.id],
+          relatedEdgeIds: [edge.id],
+        })
+      );
+    }
+
+    const touchesExternal = sourceNode.type === 'EXTERNAL_SERVICE' || targetNode.type === 'EXTERNAL_SERVICE';
+    const edgeNotes = String(edge?.metadata?.notes || '').trim();
+    if (touchesExternal && !edgeNotes) {
+      insights.push(
+        buildInsight({
+          category: INSIGHT_CATEGORIES.CONNECTIVITY,
+          message: `Connection ${sourceNode.label || sourceNode.type} -> ${targetNode.label || targetNode.type} crosses a trust boundary. Add notes for trust assumptions.`,
+          relatedNodeIds: [edge.source, edge.target],
+          relatedEdgeIds: [edge.id],
+        })
+      );
     }
   });
 
+  nodes
+    .filter((node) => node.type === 'EXTERNAL_SERVICE' && !String(node?.metadata?.notes || '').trim())
+    .forEach((node) => {
+      insights.push(
+        buildInsight({
+          category: INSIGHT_CATEGORIES.CONNECTIVITY,
+          message: `${node.label || node.type} should describe its trust boundary in notes.`,
+          relatedNodeIds: [node.id],
+        })
+      );
+    });
+
+  // A.4: Bidirectional connections require explicit justification.
   const edgeMap = new Map(edges.map((edge) => [`${edge.source}=>${edge.target}`, edge]));
   edges.forEach((edge) => {
     const reverse = edgeMap.get(`${edge.target}=>${edge.source}`);
     if (!reverse || edge.id > reverse.id) return;
-
-    const edgeNotes = String(edge?.metadata?.notes || '').trim();
-    const reverseNotes = String(reverse?.metadata?.notes || '').trim();
-    if (!edgeNotes && !reverseNotes) {
+    if (!String(edge?.metadata?.notes || '').trim() && !String(reverse?.metadata?.notes || '').trim()) {
       const sourceNode = nodeMap.get(edge.source);
       const targetNode = nodeMap.get(edge.target);
       insights.push(
         buildInsight({
-          category: INSIGHT_CATEGORIES.COMMUNICATION,
-          message: `Bidirectional communication exists between ${
-            sourceNode?.label || 'Unknown'
-          } and ${targetNode?.label || 'Unknown'} without explanatory notes.`,
+          category: INSIGHT_CATEGORIES.CONNECTIVITY,
+          message: `Bidirectional traffic between ${sourceNode?.label || 'Unknown'} and ${
+            targetNode?.label || 'Unknown'
+          } should include explicit justification.`,
           relatedNodeIds: [edge.source, edge.target],
           relatedEdgeIds: [edge.id, reverse.id],
         })
@@ -385,77 +574,310 @@ const computeInsights = (canvasState) => {
     }
   });
 
-  const databaseNodes = nodes.filter((node) => node.type === 'DATABASE');
+  // B.2 + B.3
   edges.forEach((edge) => {
     const sourceNode = nodeMap.get(edge.source);
     const targetNode = nodeMap.get(edge.target);
     if (!sourceNode || !targetNode) return;
-    const connectsDbAndPublic =
-      (sourceNode.type === 'DATABASE' && PUBLIC_ENTRYPOINT_TYPES.has(targetNode.type)) ||
-      (targetNode.type === 'DATABASE' && PUBLIC_ENTRYPOINT_TYPES.has(sourceNode.type));
-    if (!connectsDbAndPublic) return;
 
-    insights.push(
-      buildInsight({
-        category: INSIGHT_CATEGORIES.STRUCTURE,
-        message: `Database ${sourceNode.type === 'DATABASE' ? sourceNode.label : targetNode.label} is directly connected to public entrypoint ${
-          PUBLIC_ENTRYPOINT_TYPES.has(sourceNode.type) ? sourceNode.label : targetNode.label
-        }.`,
-        relatedNodeIds: [sourceNode.id, targetNode.id],
-        relatedEdgeIds: [edge.id],
-      })
-    );
-  });
-
-  const authNodes = nodes.filter((node) => node.type === 'AUTH');
-  if (authNodes.length > 1) {
-    const explainedAuth = authNodes.some(
-      (node) =>
-        String(node?.metadata?.purpose || '').trim() || String(node?.metadata?.notes || '').trim()
-    );
-    if (!explainedAuth) {
+    if (sourceNode.type === 'CLIENT' && WORKER_TYPES.has(targetNode.type)) {
       insights.push(
         buildInsight({
-          category: INSIGHT_CATEGORIES.STRUCTURE,
-          message: 'Multiple Auth components exist without explanation of their different roles.',
-          relatedNodeIds: authNodes.map((node) => node.id),
+          category: INSIGHT_CATEGORIES.COMPUTE,
+          message: `${targetNode.label || targetNode.type} should not directly serve client traffic.`,
+          relatedNodeIds: [sourceNode.id, targetNode.id],
+          relatedEdgeIds: [edge.id],
         })
       );
     }
-  }
 
-  const hasPublicExposure = nodes.some((node) => PUBLIC_ENTRYPOINT_TYPES.has(node.type));
-  if (hasPublicExposure && authNodes.length === 0) {
+    if (targetNode.type === 'CLIENT' && WORKER_TYPES.has(sourceNode.type)) {
+      insights.push(
+        buildInsight({
+          category: INSIGHT_CATEGORIES.COMPUTE,
+          message: `${sourceNode.label || sourceNode.type} should not directly return traffic to clients.`,
+          relatedNodeIds: [sourceNode.id, targetNode.id],
+          relatedEdgeIds: [edge.id],
+        })
+      );
+    }
+  });
+
+  nodes
+    .filter((node) => node.type === 'SERVERLESS_FUNCTION')
+    .forEach((node) => {
+      if (hasMetadataKeyword(node, ['stateful', 'sticky session', 'in-memory session'])) {
+        insights.push(
+          buildInsight({
+            category: INSIGHT_CATEGORIES.COMPUTE,
+            message: `${node.label || node.type} appears to hold persistent state. Serverless functions should stay ephemeral.`,
+            relatedNodeIds: [node.id],
+          })
+        );
+      }
+    });
+
+  // B.1
+  const statelessUnspecified = nodes.filter(
+    (node) =>
+      COMPUTE_TYPES.has(node.type) &&
+      !hasMetadataKeyword(node, ['stateless', 'session', 'state strategy', 'externalized state'])
+  );
+  if (statelessUnspecified.length > 0) {
     insights.push(
       buildInsight({
-        category: INSIGHT_CATEGORIES.COMPLETENESS,
-        message: 'System has public exposure but no Auth component is present.',
-        relatedNodeIds: nodes.filter((node) => PUBLIC_ENTRYPOINT_TYPES.has(node.type)).map((node) => node.id),
+        category: INSIGHT_CATEGORIES.COMPUTE,
+        message: `${statelessUnspecified.length} compute component(s) do not document statelessness/session strategy.`,
+        relatedNodeIds: statelessUnspecified.map((node) => node.id),
       })
     );
   }
 
-  if (!String(systemMetadata?.goal || '').trim()) {
+  // B.4: Synchronous dependency chain risk (> 3 hops).
+  const synchronousEdges = edges.filter(
+    (edge) => String(edge?.metadata?.protocol || '').toUpperCase() !== 'ASYNC'
+  );
+  const syncAdjacency = new Map(nodes.map((node) => [node.id, []]));
+  synchronousEdges.forEach((edge) => {
+    if (!syncAdjacency.has(edge.source)) return;
+    syncAdjacency.get(edge.source).push(edge.target);
+  });
+  const maxSyncDepthFrom = (startId, visited = new Set()) => {
+    if (visited.has(startId)) return 0;
+    visited.add(startId);
+    const children = syncAdjacency.get(startId) || [];
+    let best = 0;
+    children.forEach((childId) => {
+      const depth = 1 + maxSyncDepthFrom(childId, new Set(visited));
+      if (depth > best) best = depth;
+    });
+    return best;
+  };
+  const maxSyncHops = nodes.reduce((maxDepth, node) => Math.max(maxDepth, maxSyncDepthFrom(node.id)), 0);
+  if (maxSyncHops > 3) {
     insights.push(
       buildInsight({
-        category: INSIGHT_CATEGORIES.CLARITY,
-        message: 'System goal is not stated.',
+        category: INSIGHT_CATEGORIES.COMPUTE,
+        message: `Synchronous dependency chain reaches ${maxSyncHops} hops. Chains longer than 3 hops are risky.`,
       })
     );
   }
 
-  const hasStatefulComponent = nodes.some((node) => STATEFUL_TYPES.has(node.type));
-  const hasDurableComponent = databaseNodes.length > 0;
-  if (hasStatefulComponent && !hasDurableComponent) {
+  // C.1 + C.2 + C.3
+  edges.forEach((edge) => {
+    const sourceNode = nodeMap.get(edge.source);
+    const targetNode = nodeMap.get(edge.target);
+    if (!sourceNode || !targetNode) return;
+
+    if (DATA_STORAGE_TYPES.has(sourceNode.type) && COMPUTE_TYPES.has(targetNode.type)) {
+      insights.push(
+        buildInsight({
+          category: INSIGHT_CATEGORIES.DATA,
+          message: `${sourceNode.label || sourceNode.type} should not depend on compute component ${targetNode.label || targetNode.type}.`,
+          relatedNodeIds: [sourceNode.id, targetNode.id],
+          relatedEdgeIds: [edge.id],
+        })
+      );
+    }
+  });
+
+  nodes
+    .filter((node) => node.type === 'CACHE' || node.type === 'IN_MEMORY_STORE')
+    .forEach((node) => {
+      const hasBackingStore = edges.some(
+        (edge) =>
+          (edge.source === node.id && DATA_STORAGE_TYPES.has(nodeMap.get(edge.target)?.type)) ||
+          (edge.target === node.id && DATA_STORAGE_TYPES.has(nodeMap.get(edge.source)?.type))
+      );
+      if (!hasBackingStore) {
+        insights.push(
+          buildInsight({
+            category: INSIGHT_CATEGORIES.DATA,
+            message: `${node.label || node.type} has no connection to a backing data store.`,
+            relatedNodeIds: [node.id],
+          })
+        );
+      }
+    });
+
+  edges.forEach((edge) => {
+    const sourceNode = nodeMap.get(edge.source);
+    const targetNode = nodeMap.get(edge.target);
+    if (!sourceNode || !targetNode) return;
+    if (ANALYTICS_TYPES.has(sourceNode.type) && PUBLIC_ENTRY_TYPES.has(targetNode.type)) {
+      insights.push(
+        buildInsight({
+          category: INSIGHT_CATEGORIES.DATA,
+          message: `${sourceNode.label || sourceNode.type} should not be on request-critical paths.`,
+          relatedNodeIds: [sourceNode.id, targetNode.id],
+          relatedEdgeIds: [edge.id],
+        })
+      );
+    }
+  });
+
+  // D.1 + D.2 + D.3
+  edges.forEach((edge) => {
+    const sourceNode = nodeMap.get(edge.source);
+    const targetNode = nodeMap.get(edge.target);
+    if (!sourceNode || !targetNode) return;
+    if (sourceNode.type === 'CLIENT' && COMPUTE_TYPES.has(targetNode.type)) {
+      insights.push(
+        buildInsight({
+          category: INSIGHT_CATEGORIES.SECURITY,
+          message: `Client requests should be authenticated/guarded before reaching ${targetNode.label || targetNode.type}.`,
+          relatedNodeIds: [sourceNode.id, targetNode.id],
+          relatedEdgeIds: [edge.id],
+        })
+      );
+    }
+  });
+
+  const hasPublicExposure = nodes.some((node) => PUBLIC_ENTRY_TYPES.has(node.type));
+  const hasAuthGuard = nodes.some((node) => AUTH_GUARD_TYPES.has(node.type));
+  if (hasPublicExposure && !hasAuthGuard) {
     insights.push(
       buildInsight({
-        category: INSIGHT_CATEGORIES.COMPLETENESS,
-        message: 'Stateful components exist but no durable state component is described.',
-        relatedNodeIds: nodes.filter((node) => STATEFUL_TYPES.has(node.type)).map((node) => node.id),
+        category: INSIGHT_CATEGORIES.SECURITY,
+        message: 'Public-facing system has no authentication/authorization guard component.',
+        relatedNodeIds: nodes.filter((node) => PUBLIC_ENTRY_TYPES.has(node.type)).map((node) => node.id),
       })
     );
   }
 
+  nodes
+    .filter((node) => COMPUTE_TYPES.has(node.type))
+    .forEach((node) => {
+      if (hasMetadataKeyword(node, ['password', 'secret', 'api key', 'token', 'credential'])) {
+        insights.push(
+          buildInsight({
+            category: INSIGHT_CATEGORIES.SECURITY,
+            message: `${node.label || node.type} metadata suggests embedded secrets. Use a Secrets Manager.`,
+            relatedNodeIds: [node.id],
+          })
+        );
+      }
+    });
+
+  const internalServiceCount = nodes.filter(
+    (node) => COMPUTE_TYPES.has(node.type) || DATA_STORAGE_TYPES.has(node.type)
+  ).length;
+  const hasZeroTrustControl = nodes.some(
+    (node) =>
+      node.type === 'SERVICE_MESH' ||
+      node.type === 'POLICY_ENGINE' ||
+      node.type === 'ACCESS_CONTROL_SYSTEM'
+  );
+  if (internalServiceCount >= 4 && !hasZeroTrustControl) {
+    insights.push(
+      buildInsight({
+        category: INSIGHT_CATEGORIES.SECURITY,
+        message: 'Internal services are present without explicit zero-trust controls (Service Mesh / Policy / Access Control).',
+        relatedNodeIds: nodes
+          .filter((node) => COMPUTE_TYPES.has(node.type) || DATA_STORAGE_TYPES.has(node.type))
+          .map((node) => node.id),
+      })
+    );
+  }
+
+  // E.1 + E.2 + E.3
+  const criticalPathNodes = new Set();
+  const queue = [...nodes.filter((node) => PUBLIC_ENTRY_TYPES.has(node.type)).map((node) => node.id)];
+  const visited = new Set(queue);
+  while (queue.length > 0) {
+    const currentId = queue.shift();
+    const outgoing = outgoingByNode.get(currentId) || [];
+    outgoing.forEach((edge) => {
+      if (visited.has(edge.target)) return;
+      visited.add(edge.target);
+      queue.push(edge.target);
+      criticalPathNodes.add(edge.target);
+    });
+  }
+  const singleComputeOnPath = nodes.filter(
+    (node) => COMPUTE_TYPES.has(node.type) && criticalPathNodes.has(node.id)
+  );
+  if (singleComputeOnPath.length === 1) {
+    insights.push(
+      buildInsight({
+        category: INSIGHT_CATEGORIES.RELIABILITY,
+        message: `${singleComputeOnPath[0].label || singleComputeOnPath[0].type} appears to be a single compute instance on a critical path.`,
+        relatedNodeIds: [singleComputeOnPath[0].id],
+      })
+    );
+  }
+
+  edges.forEach((edge) => {
+    const sourceNode = nodeMap.get(edge.source);
+    const targetNode = nodeMap.get(edge.target);
+    if (!sourceNode || !targetNode) return;
+    if (ASYNC_BOUNDARY_TYPES.has(sourceNode.type) && COMPUTE_TYPES.has(targetNode.type)) {
+      if (!hasMetadataKeyword(targetNode, ['idempotent', 'dedupe', 'exactly once', 'at least once'])) {
+        insights.push(
+          buildInsight({
+            category: INSIGHT_CATEGORIES.RELIABILITY,
+            message: `${targetNode.label || targetNode.type} consumes async work from ${
+              sourceNode.label || sourceNode.type
+            } but idempotency is not documented.`,
+            relatedNodeIds: [sourceNode.id, targetNode.id],
+            relatedEdgeIds: [edge.id],
+          })
+        );
+      }
+    }
+  });
+
+  const hasAsyncBoundary = nodes.some((node) => ASYNC_BOUNDARY_TYPES.has(node.type));
+  if (hasPublicExposure && edges.length > 5 && !hasAsyncBoundary) {
+    insights.push(
+      buildInsight({
+        category: INSIGHT_CATEGORIES.RELIABILITY,
+        message: 'No async boundary is modeled. Consider isolating failure domains with queue/event boundaries.',
+      })
+    );
+  }
+
+  // F.1 + F.2 + F.3
+  const hasLogging = nodes.some((node) => node.type === 'LOGGING_SYSTEM');
+  const hasMetrics = nodes.some((node) => node.type === 'METRICS_SYSTEM');
+  const hasTracing = nodes.some((node) => node.type === 'TRACING_SYSTEM');
+  const hasAlerting = nodes.some((node) => node.type === 'ALERTING_SYSTEM');
+
+  if (nodes.some((node) => COMPUTE_TYPES.has(node.type)) && (!hasLogging || !hasMetrics)) {
+    insights.push(
+      buildInsight({
+        category: INSIGHT_CATEGORIES.OBSERVABILITY,
+        message: 'Compute components should emit logs and metrics. Logging and Metrics systems are incomplete.',
+        relatedNodeIds: nodes.filter((node) => COMPUTE_TYPES.has(node.type)).map((node) => node.id),
+      })
+    );
+  }
+
+  const crossServiceCallCount = edges.filter((edge) => {
+    const sourceNode = nodeMap.get(edge.source);
+    const targetNode = nodeMap.get(edge.target);
+    return sourceNode && targetNode && sourceNode.id !== targetNode.id;
+  }).length;
+  if (crossServiceCallCount > 0 && !hasTracing) {
+    insights.push(
+      buildInsight({
+        category: INSIGHT_CATEGORIES.OBSERVABILITY,
+        message: 'Cross-service calls exist but no Tracing System is modeled.',
+      })
+    );
+  }
+
+  if (hasPublicExposure && !hasAlerting) {
+    insights.push(
+      buildInsight({
+        category: INSIGHT_CATEGORIES.OBSERVABILITY,
+        message: 'Public-facing systems should include alerting mapped to user-visible impact.',
+        relatedNodeIds: nodes.filter((node) => PUBLIC_ENTRY_TYPES.has(node.type)).map((node) => node.id),
+      })
+    );
+  }
+
+  // G.3: Insights are passive and never block design actions.
   const unique = new Map();
   insights.forEach((insight) => {
     unique.set(insight.id, insight);
@@ -496,6 +918,7 @@ const Canvas = () => {
   const [isRightPanelHidden, setIsRightPanelHidden] = useState(false);
   const [isRightPanelExpanded, setIsRightPanelExpanded] = useState(false);
   const [isLeftPanelCollapsed, setIsLeftPanelCollapsed] = useState(false);
+  const [expandedComponentCategories, setExpandedComponentCategories] = useState(() => new Set());
   const [historyVersion, setHistoryVersion] = useState(0);
   const [hoveredInsightId, setHoveredInsightId] = useState(null);
   const [activeInsightId, setActiveInsightId] = useState(null);
@@ -658,8 +1081,9 @@ const Canvas = () => {
 
   const handleDropComponent = (event) => {
     event.preventDefault();
-    const componentType = event.dataTransfer.getData('application/structra-component-type');
-    if (!componentType || !canvasRef.current) return;
+    const rawComponentType = event.dataTransfer.getData('application/structra-component-type');
+    const componentType = normalizeNodeType(rawComponentType);
+    if (!componentType || !ALLOWED_COMPONENT_TYPES.has(componentType) || !canvasRef.current) return;
 
     const rect = canvasRef.current.getBoundingClientRect();
     const world = canvasToWorld(
@@ -1349,6 +1773,17 @@ const Canvas = () => {
 
   const canUndo = historyPastRef.current.length > 0;
   const canRedo = historyFutureRef.current.length > 0;
+  const toggleComponentCategory = useCallback((categoryKey) => {
+    setExpandedComponentCategories((prev) => {
+      const next = new Set(prev);
+      if (next.has(categoryKey)) {
+        next.delete(categoryKey);
+      } else {
+        next.add(categoryKey);
+      }
+      return next;
+    });
+  }, []);
 
   const zoomPercent = Math.round(canvasState.viewport.zoom * 100);
 
@@ -1540,20 +1975,44 @@ const Canvas = () => {
               <ChevronLeft size={14} />
             </button>
           </div>
-          <div className="space-y-2">
-            {COMPONENTS.map((component) => {
-              const Icon = component.icon;
+          <div className="space-y-3">
+            {COMPONENT_CATEGORIES.map((category) => {
+              const CategoryIcon = category.icon;
+              const isExpanded = expandedComponentCategories.has(category.key);
               return (
-                <div
-                  key={component.type}
-                  draggable
-                  onDragStart={(event) =>
-                    event.dataTransfer.setData('application/structra-component-type', component.type)
-                  }
-                  className="w-full px-3 py-2 rounded-md border border-gray-200 bg-white text-sm text-gray-700 flex items-center gap-2 cursor-grab"
-                >
-                  <Icon size={14} className="text-gray-500" />
-                  {component.label}
+                <div key={category.key} className="rounded-md border border-gray-200 bg-white p-2">
+                  <button
+                    type="button"
+                    onClick={() => toggleComponentCategory(category.key)}
+                    className="w-full mb-1.5 flex items-center justify-between text-[10px] font-semibold text-gray-500 uppercase tracking-wide"
+                  >
+                    <span className="flex items-center gap-1.5">
+                      <CategoryIcon size={12} />
+                      {category.label}
+                    </span>
+                    <ChevronRight
+                      size={12}
+                      className={`transition-transform ${isExpanded ? 'rotate-90' : ''}`}
+                    />
+                  </button>
+                  {isExpanded && (
+                    <div className="space-y-1.5">
+                      {category.components.map((component) => (
+                        <div
+                          key={component.type}
+                          draggable
+                          onDragStart={(event) =>
+                            event.dataTransfer.setData('application/structra-component-type', component.type)
+                          }
+                          className="w-full px-2.5 py-2 rounded-md border border-gray-200 bg-gray-50 text-gray-700 cursor-grab"
+                          title={component.description}
+                        >
+                          <p className="text-xs font-medium text-gray-800 leading-4">{component.label}</p>
+                          <p className="text-[10px] text-gray-500 mt-0.5 leading-4">{component.description}</p>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               );
             })}
@@ -1731,7 +2190,7 @@ const Canvas = () => {
 
             {canvasState.nodes.map((node) => {
               const screen = worldToScreen(node.position.x, node.position.y, canvasState.viewport);
-              const component = COMPONENTS.find((item) => item.type === node.type);
+              const component = COMPONENT_BY_TYPE.get(node.type);
               const Icon = component ? component.icon : Box;
               const nodeIsHighlighted = highlightedNodeIds.has(node.id);
               const connectorClasses = {
@@ -1780,7 +2239,7 @@ const Canvas = () => {
                       style={{ fontSize: nodeTypeFontSize, lineHeight: 1.15 }}
                     >
                       <Icon size={nodeIconSize} />
-                      {node.type}
+                      {component?.label || node.type}
                     </div>
                     <p
                       className="mt-2 font-semibold text-gray-900 truncate"
@@ -1936,10 +2395,22 @@ const Canvas = () => {
                 <>
                   <div className="rounded-md border border-gray-200 p-3 space-y-3">
                     <p className="text-[11px] font-semibold text-gray-500 uppercase tracking-wide">What It Is</p>
-                    <div>
-                      <p className="text-xs text-gray-500">Type</p>
-                      <p className="text-sm text-gray-900 mt-1">{selectedNode.type}</p>
-                    </div>
+                    {(() => {
+                      const selectedComponent = COMPONENT_BY_TYPE.get(selectedNode.type);
+                      return (
+                        <div>
+                          <p className="text-xs text-gray-500">Type</p>
+                          <p className="text-sm text-gray-900 mt-1">
+                            {selectedComponent?.label || selectedNode.type}
+                          </p>
+                          {selectedComponent?.description && (
+                            <p className="text-xs text-gray-500 mt-1 leading-4">
+                              {selectedComponent.description}
+                            </p>
+                          )}
+                        </div>
+                      );
+                    })()}
                     <div>
                       <label className="text-xs text-gray-500 block mb-1">Label</label>
                       <input
