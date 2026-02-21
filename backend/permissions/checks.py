@@ -1,6 +1,6 @@
 from django.db.models import Q
 from .models import WorkspaceMember
-from core.constants import WorkspaceRole, WorkspaceVisibility
+from core.constants import CanvasRole, WorkspaceRole, WorkspaceVisibility
 from .models import CanvasPermission
 
 
@@ -51,3 +51,26 @@ def user_has_system_access(system, user, allowed_roles=None):
         ).exists()
 
     return user_has_system_read_access(system, user)
+
+
+def resolve_canvas_role(system, user):
+    if not user or user.is_anonymous:
+        return None
+
+    if user_is_workspace_admin(system.workspace, user):
+        return CanvasRole.EDITOR
+
+    direct_permission = CanvasPermission.objects.filter(
+        system=system,
+        user=user,
+    ).values_list("role", flat=True).first()
+    if direct_permission:
+        return direct_permission
+
+    if WorkspaceMember.objects.filter(workspace=system.workspace, user=user).exists():
+        return CanvasRole.VIEWER
+
+    if system.visibility == WorkspaceVisibility.PUBLIC:
+        return CanvasRole.VIEWER
+
+    return None

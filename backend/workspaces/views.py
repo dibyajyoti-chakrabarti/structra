@@ -9,10 +9,11 @@ from django.db.models.functions import Coalesce, Greatest
 from rest_framework import generics, permissions
 from rest_framework.exceptions import PermissionDenied
 from rest_framework.pagination import LimitOffsetPagination
+from rest_framework.permissions import SAFE_METHODS
 from .models import Workspace
 from permissions.models import WorkspaceMember
 from permissions.checks import user_is_workspace_admin
-from .serializers import WorkspaceSerializer, PublicWorkspaceSerializer
+from .serializers import WorkspaceSerializer, PublicWorkspaceSerializer, WorkspaceDetailSerializer
 from core.constants import WorkspaceRole, WorkspaceVisibility
 
 
@@ -37,11 +38,16 @@ class WorkspaceListCreateView(generics.ListCreateAPIView):
         )
 
 class WorkspaceDetailView(generics.RetrieveUpdateDestroyAPIView):
-    serializer_class = WorkspaceSerializer
+    serializer_class = WorkspaceDetailSerializer
     permission_classes = [permissions.IsAuthenticated]
     lookup_field = 'id'
 
     def get_queryset(self):
+        if self.request.method in SAFE_METHODS:
+            return Workspace.objects.filter(
+                Q(members__user=self.request.user)
+                | Q(visibility=WorkspaceVisibility.PUBLIC)
+            ).distinct()
         return Workspace.objects.filter(members__user=self.request.user).distinct()
 
     def _assert_admin(self, workspace):

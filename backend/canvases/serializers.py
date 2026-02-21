@@ -1,7 +1,8 @@
 import uuid
 from rest_framework import serializers
-from core.constants import WorkspaceVisibility
-from .models import Canvas, default_canvas_state
+from core.constants import CanvasRole, WorkspaceVisibility
+from permissions.checks import resolve_canvas_role
+from .models import Canvas, CanvasComment, default_canvas_state
 
 
 ALLOWED_COMPONENT_TYPES = {
@@ -133,6 +134,7 @@ def validate_canvas_state_shape(canvas_state):
 
 class CanvasSerializer(serializers.ModelSerializer):
     canvas_state = serializers.JSONField(required=False)
+    current_user_canvas_role = serializers.SerializerMethodField()
 
     class Meta:
         model = Canvas
@@ -143,6 +145,7 @@ class CanvasSerializer(serializers.ModelSerializer):
             "description",
             "visibility",
             "canvas_state",
+            "current_user_canvas_role",
             "created_at",
             "updated_at",
         ]
@@ -173,9 +176,60 @@ class CanvasSerializer(serializers.ModelSerializer):
 
         return attrs
 
+    def get_current_user_canvas_role(self, obj):
+        request = self.context.get("request")
+        if not request:
+            return None
+        role = resolve_canvas_role(obj, request.user)
+        if role is None:
+            return None
+        if role not in {CanvasRole.EDITOR, CanvasRole.COMMENTER, CanvasRole.VIEWER}:
+            return CanvasRole.VIEWER
+        return role
+
 
 class CanvasAutosaveSerializer(serializers.Serializer):
     canvasState = serializers.JSONField()
 
     def validate_canvasState(self, value):
         return validate_canvas_state_shape(value)
+
+
+class CanvasCommentSerializer(serializers.ModelSerializer):
+    author_name = serializers.ReadOnlyField(source="author.full_name")
+    is_author = serializers.SerializerMethodField()
+    replies = serializers.SerializerMethodField()
+
+    class Meta:
+        model = CanvasComment
+        fields = [
+            "id",
+            "system",
+            "author_name",
+            "body",
+            "parent",
+            "is_author",
+            "replies",
+            "created_at",
+            "updated_at",
+        ]
+        read_only_fields = fields
+
+    def get_is_author(self, obj):
+        request = self.context.get("request")
+        if not request or request.user.is_anonymous:
+            return False
+        return obj.author_id == request.user.user_id
+
+    def get_replies(self, obj):
+        replies = obj.replies.select_related("author").order_by("created_at")
+        return CanvasCommentSerializer(
+            replies,
+            many=True,
+            context=self.context,
+        ).data
+
+
+class CanvasCommentCreateSerializer(serializers.Serializer):
+    body = serializers.CharField(max_length=5000, trim_whitespace=True)
+    parent = serializers.UUIDField(required=False, allow_null=True)

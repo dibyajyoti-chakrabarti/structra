@@ -74,3 +74,38 @@ class PublicWorkspaceSerializer(serializers.ModelSerializer):
         if score is None:
             return None
         return round(float(score), 6)
+
+
+class WorkspaceDetailSerializer(WorkspaceSerializer):
+    is_member = serializers.SerializerMethodField()
+    workspace_role = serializers.SerializerMethodField()
+    team_members = serializers.SerializerMethodField()
+
+    class Meta(WorkspaceSerializer.Meta):
+        fields = WorkspaceSerializer.Meta.fields + [
+            "is_member",
+            "workspace_role",
+            "team_members",
+        ]
+
+    def get_is_member(self, obj):
+        membership = self._get_membership(obj)
+        return bool(membership)
+
+    def get_workspace_role(self, obj):
+        membership = self._get_membership(obj)
+        return membership.role if membership else None
+
+    def get_team_members(self, obj):
+        members = (
+            WorkspaceMember.objects.filter(workspace=obj)
+            .select_related("user")
+            .order_by("added_at")
+        )
+        return [
+            {
+                "full_name": member.user.full_name,
+                "role": member.role,
+            }
+            for member in members
+        ]

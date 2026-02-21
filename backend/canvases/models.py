@@ -1,5 +1,6 @@
 from django.db import models
 from django.conf import settings
+import uuid
 from workspaces.models import Workspace
 from core.constants import WorkspaceVisibility
 from core.utils import generate_alphanumeric_id
@@ -57,3 +58,38 @@ class Canvas(models.Model):
                 name='unique_canvas_per_workspace'
             )
         ]
+
+
+class CanvasComment(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    system = models.ForeignKey(
+        Canvas,
+        on_delete=models.CASCADE,
+        related_name="comments",
+    )
+    author = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="canvas_comments",
+    )
+    body = models.TextField()
+    parent = models.ForeignKey(
+        "self",
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="replies",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "system_comments"
+        ordering = ["created_at"]
+        indexes = [
+            models.Index(fields=["system", "created_at"]),
+            models.Index(fields=["parent"]),
+        ]
+
+    def __str__(self):
+        return f"Comment by {self.author_id} on {self.system_id}"
