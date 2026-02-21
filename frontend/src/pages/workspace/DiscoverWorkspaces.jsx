@@ -1,11 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Search, Globe, Clock } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import AuthenticatedNavbar from '../../components/AuthenticatedNavbar';
 import api from '../../api';
 
 const DiscoverWorkspaces = () => {
+  const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const [queryInput, setQueryInput] = useState(searchParams.get('q') || '');
   const [isLoading, setIsLoading] = useState(true);
@@ -110,7 +111,8 @@ const DiscoverWorkspaces = () => {
               {workspaces.map((workspace) => (
                 <div
                   key={workspace.id}
-                  className="rounded-xl border border-gray-200 p-5 bg-white hover:border-blue-300 transition-colors"
+                  onClick={() => navigate(`/app/ws/${workspace.id}`)}
+                  className="rounded-xl border border-gray-200 p-5 bg-white hover:border-blue-300 transition-colors cursor-pointer"
                 >
                   <div className="flex items-start justify-between gap-3 mb-3">
                     <div>

@@ -185,15 +185,19 @@ export default function AuthenticatedNavbar() {
                 <>
                   <div className="max-h-80 overflow-y-auto">
                     {searchResults.map((workspace) => (
-                      <div
+                      <button
                         key={workspace.id}
-                        className="px-4 py-3 border-b border-gray-100 last:border-b-0"
+                        onClick={() => {
+                          setIsSearchDropdownOpen(false);
+                          navigate(`/app/ws/${workspace.id}`);
+                        }}
+                        className="w-full text-left px-4 py-3 border-b border-gray-100 last:border-b-0 hover:bg-gray-50 transition-colors"
                       >
                         <div className="text-sm font-semibold text-gray-900 truncate">{workspace.name}</div>
                         <div className="text-xs text-gray-500 mt-0.5 truncate">
                           {workspace.description || 'No description'}
                         </div>
-                      </div>
+                      </button>
                     ))}
                   </div>
                   <button
