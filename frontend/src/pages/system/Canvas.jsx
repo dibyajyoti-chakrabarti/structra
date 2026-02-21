@@ -976,9 +976,9 @@ const Canvas = () => {
     const fetchData = async () => {
       try {
         const [systemRes, workspaceRes, userRes] = await Promise.all([
-          api.get(`workspaces/${workspaceId}/canvases/${systemId}/`, { cache: false }),
-          api.get(`workspaces/${workspaceId}/`, { cache: false }),
-          api.get('auth/profile/', { cache: false }),
+          api.get(`workspaces/${workspaceId}/canvases/${systemId}/`),
+          api.get(`workspaces/${workspaceId}/`),
+          api.get('auth/profile/'),
         ]);
 
         const serverCanvasState = ensureCanvasState(
@@ -1008,7 +1008,7 @@ const Canvas = () => {
     setAreCommentsLoading(true);
     setCommentError('');
     try {
-      const response = await api.get(`systems/${systemId}/comments/`, { cache: false });
+      const response = await api.get(`systems/${systemId}/comments/`);
       setComments(response.data || []);
     } catch (error) {
       console.error('Failed to load comments', error);
