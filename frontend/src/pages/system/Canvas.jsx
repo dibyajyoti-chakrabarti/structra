@@ -26,6 +26,7 @@ import {
   X,
   Undo2,
   Redo2,
+  MessageSquare,
 } from 'lucide-react';
 import api from '../../api';
 
@@ -922,9 +923,22 @@ const Canvas = () => {
   const [historyVersion, setHistoryVersion] = useState(0);
   const [hoveredInsightId, setHoveredInsightId] = useState(null);
   const [activeInsightId, setActiveInsightId] = useState(null);
+  const [comments, setComments] = useState([]);
+  const [areCommentsLoading, setAreCommentsLoading] = useState(true);
+  const [commentError, setCommentError] = useState('');
+  const [newCommentBody, setNewCommentBody] = useState('');
+  const [replyDrafts, setReplyDrafts] = useState({});
+  const [activeReplyParentId, setActiveReplyParentId] = useState(null);
+  const [editingCommentId, setEditingCommentId] = useState(null);
+  const [editingCommentBody, setEditingCommentBody] = useState('');
 
   const lastSavedSignatureRef = useRef('');
   const retryAttemptRef = useRef(0);
+  const currentUserCanvasRole = (system?.current_user_canvas_role || 'viewer').toLowerCase();
+  const isWorkspaceMember = Boolean(workspace?.is_member);
+  const canEditStructure = isWorkspaceMember && currentUserCanvasRole === 'editor';
+  const canComment = isWorkspaceMember && (currentUserCanvasRole === 'editor' || currentUserCanvasRole === 'commenter');
+  const isReadOnlyStructure = !canEditStructure;
 
   useEffect(() => {
     const fetchData = async () => {
@@ -958,6 +972,25 @@ const Canvas = () => {
     fetchData();
   }, [workspaceId, systemId]);
 
+  const fetchComments = useCallback(async () => {
+    setAreCommentsLoading(true);
+    setCommentError('');
+    try {
+      const response = await api.get(`systems/${systemId}/comments/`, { cache: false });
+      setComments(response.data || []);
+    } catch (error) {
+      console.error('Failed to load comments', error);
+      setCommentError('Failed to load comments.');
+      setComments([]);
+    } finally {
+      setAreCommentsLoading(false);
+    }
+  }, [systemId]);
+
+  useEffect(() => {
+    fetchComments();
+  }, [fetchComments]);
+
   const saveCanvasState = useCallback(
     async (nextState, signature) => {
       setSaveStatus('saving');
@@ -981,7 +1014,7 @@ const Canvas = () => {
   );
 
   useEffect(() => {
-    if (loading || !system) return;
+    if (loading || !system || isReadOnlyStructure) return;
 
     const signature = JSON.stringify(canvasState);
     if (signature === lastSavedSignatureRef.current) return;
@@ -994,7 +1027,7 @@ const Canvas = () => {
     return () => {
       clearTimeout(autosaveDebounceRef.current);
     };
-  }, [canvasState, loading, saveCanvasState, system]);
+  }, [canvasState, isReadOnlyStructure, loading, saveCanvasState, system]);
 
   useEffect(() => {
     return () => {
@@ -1081,6 +1114,7 @@ const Canvas = () => {
 
   const handleDropComponent = (event) => {
     event.preventDefault();
+    if (!canEditStructure) return;
     const rawComponentType = event.dataTransfer.getData('application/structra-component-type');
     const componentType = normalizeNodeType(rawComponentType);
     if (!componentType || !ALLOWED_COMPONENT_TYPES.has(componentType) || !canvasRef.current) return;
@@ -1106,6 +1140,7 @@ const Canvas = () => {
   };
 
   const onNodeMouseDown = (event, node) => {
+    if (!canEditStructure) return;
     if (activeTool !== 'select') return;
     if (event.button !== 0) return;
     setRightPanelMode('design');
@@ -1125,6 +1160,7 @@ const Canvas = () => {
   };
 
   const onEdgeBendMouseDown = (event, edgeId, bendIndex) => {
+    if (!canEditStructure) return;
     event.stopPropagation();
     if (event.button !== 0) return;
     setRightPanelMode('design');
@@ -1136,6 +1172,7 @@ const Canvas = () => {
   };
 
   const onEdgeSegmentMouseDown = (event, edge, segmentIndex) => {
+    if (!canEditStructure) return;
     event.stopPropagation();
     if (event.button !== 0) return;
     if (event.detail === 2) return;
@@ -1215,6 +1252,7 @@ const Canvas = () => {
   };
 
   const addEdgeBendAtSegment = (event, edge, segmentIndex) => {
+    if (!canEditStructure) return;
     event.stopPropagation();
     const { sourceNode, targetNode, pathPoints, segmentToRawIndex } = getEdgeScreenPath(edge);
     if (!sourceNode || !targetNode) return;
@@ -1247,6 +1285,7 @@ const Canvas = () => {
   };
 
   const removeEdgeBend = (event, edgeId, bendIndex) => {
+    if (!canEditStructure) return;
     event.stopPropagation();
     setCanvasState((prev) => ({
       ...prev,
@@ -1392,6 +1431,7 @@ const Canvas = () => {
   }, [canvasState.viewport, commitDragHistory, connectionDraft, updateViewport]);
 
   const startConnection = (event, nodeId) => {
+    if (!canEditStructure) return;
     event.stopPropagation();
     setRightPanelMode('design');
     openPropertiesPanel();
@@ -1405,6 +1445,7 @@ const Canvas = () => {
   };
 
   const completeConnection = (event, targetNodeId, targetAnchor) => {
+    if (!canEditStructure) return;
     event.stopPropagation();
     if (!connectionDraft) return;
 
@@ -1482,6 +1523,7 @@ const Canvas = () => {
   }, [activeInsightId, hoveredInsightId, insightsById]);
 
   const setNodeLabel = (label) => {
+    if (!canEditStructure) return;
     if (!selectedNodeId) return;
     setCanvasState((prev) => ({
       ...prev,
@@ -1497,6 +1539,7 @@ const Canvas = () => {
   };
 
   const setNodeMetadataField = (field, value) => {
+    if (!canEditStructure) return;
     if (!selectedNodeId) return;
     setCanvasState((prev) => ({
       ...prev,
@@ -1515,6 +1558,7 @@ const Canvas = () => {
   };
 
   const addNodeResponsibility = () => {
+    if (!canEditStructure) return;
     if (!selectedNodeId) return;
     setCanvasState((prev) => ({
       ...prev,
@@ -1533,6 +1577,7 @@ const Canvas = () => {
   };
 
   const updateNodeResponsibility = (index, value) => {
+    if (!canEditStructure) return;
     if (!selectedNodeId) return;
     setCanvasState((prev) => ({
       ...prev,
@@ -1551,6 +1596,7 @@ const Canvas = () => {
   };
 
   const removeNodeResponsibility = (index) => {
+    if (!canEditStructure) return;
     if (!selectedNodeId) return;
     setCanvasState((prev) => ({
       ...prev,
@@ -1569,6 +1615,7 @@ const Canvas = () => {
   };
 
   const setEdgeMetadataField = (field, value) => {
+    if (!canEditStructure) return;
     if (!selectedEdgeId) return;
     setCanvasState((prev) => ({
       ...prev,
@@ -1587,6 +1634,7 @@ const Canvas = () => {
   };
 
   const setSystemMetadataField = (field, value) => {
+    if (!canEditStructure) return;
     setCanvasState((prev) => ({
       ...prev,
       systemMetadata: {
@@ -1597,6 +1645,7 @@ const Canvas = () => {
   };
 
   const addSystemAssumption = () => {
+    if (!canEditStructure) return;
     setCanvasState((prev) => {
       const assumptions = Array.isArray(prev?.systemMetadata?.assumptions)
         ? prev.systemMetadata.assumptions
@@ -1612,6 +1661,7 @@ const Canvas = () => {
   };
 
   const updateSystemAssumption = (index, value) => {
+    if (!canEditStructure) return;
     setCanvasState((prev) => {
       const assumptions = Array.isArray(prev?.systemMetadata?.assumptions)
         ? prev.systemMetadata.assumptions
@@ -1627,6 +1677,7 @@ const Canvas = () => {
   };
 
   const removeSystemAssumption = (index) => {
+    if (!canEditStructure) return;
     setCanvasState((prev) => {
       const assumptions = Array.isArray(prev?.systemMetadata?.assumptions)
         ? prev.systemMetadata.assumptions
@@ -1709,15 +1760,17 @@ const Canvas = () => {
   };
 
   const deleteSelectedEdge = useCallback(() => {
+    if (!canEditStructure) return;
     if (!selectedEdgeId) return;
     setCanvasState((prev) => ({
       ...prev,
       edges: prev.edges.filter((edge) => edge.id !== selectedEdgeId),
     }));
     setSelectedEdgeId(null);
-  }, [selectedEdgeId]);
+  }, [canEditStructure, selectedEdgeId]);
 
   const deleteSelectedNode = useCallback(() => {
+    if (!canEditStructure) return;
     if (!selectedNodeId) return;
     setCanvasState((prev) => ({
       ...prev,
@@ -1728,10 +1781,11 @@ const Canvas = () => {
     }));
     setSelectedNodeId(null);
     setSelectedEdgeId(null);
-  }, [selectedNodeId]);
+  }, [canEditStructure, selectedNodeId]);
 
   useEffect(() => {
     const onKeyDown = (event) => {
+      if (!canEditStructure) return;
       if (event.key !== 'Backspace' && event.key !== 'Delete') return;
       if (isEditableElement(event.target)) return;
       if (!selectedEdgeId && !selectedNodeId) return;
@@ -1745,9 +1799,10 @@ const Canvas = () => {
 
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [selectedEdgeId, selectedNodeId, deleteSelectedEdge, deleteSelectedNode]);
+  }, [canEditStructure, selectedEdgeId, selectedNodeId, deleteSelectedEdge, deleteSelectedNode]);
 
   const undoCanvasChange = useCallback(() => {
+    if (!canEditStructure) return;
     if (historyPastRef.current.length === 0) return;
     const previous = historyPastRef.current.pop();
     if (!previous) return;
@@ -1757,9 +1812,10 @@ const Canvas = () => {
     setSelectedNodeId(null);
     setSelectedEdgeId(null);
     setHistoryVersion((value) => value + 1);
-  }, [canvasState]);
+  }, [canEditStructure, canvasState]);
 
   const redoCanvasChange = useCallback(() => {
+    if (!canEditStructure) return;
     if (historyFutureRef.current.length === 0) return;
     const next = historyFutureRef.current.pop();
     if (!next) return;
@@ -1769,10 +1825,66 @@ const Canvas = () => {
     setSelectedNodeId(null);
     setSelectedEdgeId(null);
     setHistoryVersion((value) => value + 1);
-  }, [canvasState]);
+  }, [canEditStructure, canvasState]);
 
   const canUndo = historyPastRef.current.length > 0;
   const canRedo = historyFutureRef.current.length > 0;
+  const handleCreateComment = useCallback(async () => {
+    if (!canComment) return;
+    const body = newCommentBody.trim();
+    if (!body) return;
+    try {
+      await api.post(`systems/${systemId}/comments/`, { body });
+      setNewCommentBody('');
+      await fetchComments();
+    } catch (error) {
+      console.error('Failed to create comment', error);
+    }
+  }, [canComment, fetchComments, newCommentBody, systemId]);
+
+  const handleCreateReply = useCallback(
+    async (parentId) => {
+      if (!canComment) return;
+      const body = (replyDrafts[parentId] || '').trim();
+      if (!body) return;
+      try {
+        await api.post(`systems/${systemId}/comments/`, { body, parent: parentId });
+        setReplyDrafts((prev) => ({ ...prev, [parentId]: '' }));
+        setActiveReplyParentId(null);
+        await fetchComments();
+      } catch (error) {
+        console.error('Failed to create reply', error);
+      }
+    },
+    [canComment, fetchComments, replyDrafts, systemId]
+  );
+
+  const handleSaveCommentEdit = useCallback(async () => {
+    if (!editingCommentId) return;
+    const body = editingCommentBody.trim();
+    if (!body) return;
+    try {
+      await api.patch(`systems/${systemId}/comments/${editingCommentId}/`, { body });
+      setEditingCommentId(null);
+      setEditingCommentBody('');
+      await fetchComments();
+    } catch (error) {
+      console.error('Failed to edit comment', error);
+    }
+  }, [editingCommentBody, editingCommentId, fetchComments, systemId]);
+
+  const handleDeleteComment = useCallback(
+    async (commentId) => {
+      try {
+        await api.delete(`systems/${systemId}/comments/${commentId}/`);
+        await fetchComments();
+      } catch (error) {
+        console.error('Failed to delete comment', error);
+      }
+    },
+    [fetchComments, systemId]
+  );
+
   const toggleComponentCategory = useCallback((categoryKey) => {
     setExpandedComponentCategories((prev) => {
       const next = new Set(prev);
@@ -1845,7 +1957,11 @@ const Canvas = () => {
   };
 
   const saveLabel =
-    saveStatus === 'saving'
+    isReadOnlyStructure
+      ? currentUserCanvasRole === 'commenter'
+        ? 'Comment mode'
+        : 'Read only'
+      : saveStatus === 'saving'
       ? 'Saving...'
       : saveStatus === 'retrying'
       ? 'Saving...'
@@ -1866,6 +1982,123 @@ const Canvas = () => {
   }
 
   const creatorName = user.full_name || user.email;
+  const renderCommentNode = (comment, depth = 0) => (
+    <div key={comment.id} className="space-y-2" style={{ marginLeft: `${depth * 14}px` }}>
+      <div className="rounded-md border border-gray-200 bg-white p-3">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <p className="text-sm font-semibold text-gray-900">{comment.author_name || 'Unknown'}</p>
+            <p className="text-xs text-gray-500">
+              {new Date(comment.created_at).toLocaleString()}
+            </p>
+          </div>
+          {(comment.is_author || workspace.is_admin) && (
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setEditingCommentId(comment.id);
+                  setEditingCommentBody(comment.body || '');
+                }}
+                className="text-xs text-blue-700 hover:text-blue-800"
+              >
+                Edit
+              </button>
+              <button
+                type="button"
+                onClick={() => handleDeleteComment(comment.id)}
+                className="text-xs text-red-600 hover:text-red-700"
+              >
+                Delete
+              </button>
+            </div>
+          )}
+        </div>
+
+        {editingCommentId === comment.id ? (
+          <div className="mt-3 space-y-2">
+            <textarea
+              value={editingCommentBody}
+              onChange={(event) => setEditingCommentBody(event.target.value)}
+              rows={3}
+              className="w-full border border-gray-300 rounded-md px-2.5 py-2 text-sm resize-none"
+            />
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={handleSaveCommentEdit}
+                className="px-3 py-1.5 text-xs font-semibold rounded-md bg-blue-600 text-white hover:bg-blue-700"
+              >
+                Save
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setEditingCommentId(null);
+                  setEditingCommentBody('');
+                }}
+                className="px-3 py-1.5 text-xs font-semibold rounded-md border border-gray-300 text-gray-700"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        ) : (
+          <p className="mt-2 text-sm text-gray-700 whitespace-pre-wrap">{comment.body}</p>
+        )}
+
+        <div className="mt-3 flex items-center gap-2">
+          {canComment && (
+            <button
+              type="button"
+              onClick={() =>
+                setActiveReplyParentId((prev) => (prev === comment.id ? null : comment.id))
+              }
+              className="text-xs text-blue-700 hover:text-blue-800"
+            >
+              Reply
+            </button>
+          )}
+        </div>
+
+        {canComment && activeReplyParentId === comment.id && (
+          <div className="mt-2 space-y-2">
+            <textarea
+              value={replyDrafts[comment.id] || ''}
+              onChange={(event) =>
+                setReplyDrafts((prev) => ({ ...prev, [comment.id]: event.target.value }))
+              }
+              rows={2}
+              placeholder="Write a reply..."
+              className="w-full border border-gray-300 rounded-md px-2.5 py-2 text-sm resize-none"
+            />
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => handleCreateReply(comment.id)}
+                className="px-3 py-1.5 text-xs font-semibold rounded-md bg-blue-600 text-white hover:bg-blue-700"
+              >
+                Post Reply
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveReplyParentId(null)}
+                className="px-3 py-1.5 text-xs font-semibold rounded-md border border-gray-300 text-gray-700"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {Array.isArray(comment.replies) && comment.replies.length > 0 && (
+        <div className="space-y-2">
+          {comment.replies.map((reply) => renderCommentNode(reply, depth + 1))}
+        </div>
+      )}
+    </div>
+  );
 
   return (
     <div className="h-screen flex flex-col bg-white overflow-hidden">
@@ -1948,6 +2181,11 @@ const Canvas = () => {
         </div>
 
         <div className="flex items-center gap-3 min-w-0">
+          {isReadOnlyStructure && (
+            <span className="px-2.5 py-1 text-xs font-semibold rounded-md border border-amber-200 bg-amber-50 text-amber-800">
+              {currentUserCanvasRole === 'commenter' ? 'Commenter Mode' : 'View Only'}
+            </span>
+          )}
           <button
             onClick={() => navigate(`/app/ws/${workspaceId}`)}
             type="button"
@@ -1959,11 +2197,12 @@ const Canvas = () => {
       </header>
 
       <div className="flex-1 flex overflow-hidden relative">
-        <aside
-          className={`border-r border-gray-200 bg-gray-50 overflow-y-auto transition-all duration-300 ${
-            isLeftPanelCollapsed ? 'w-0 -translate-x-full p-0 border-r-0' : 'w-64 p-3 translate-x-0'
-          }`}
-        >
+        {canEditStructure && (
+          <aside
+            className={`border-r border-gray-200 bg-gray-50 overflow-y-auto transition-all duration-300 ${
+              isLeftPanelCollapsed ? 'w-0 -translate-x-full p-0 border-r-0' : 'w-64 p-3 translate-x-0'
+            }`}
+          >
           <div className="mb-2 flex items-center justify-between">
             <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Components</h2>
             <button
@@ -2037,9 +2276,10 @@ const Canvas = () => {
               Delete Selected Edge
             </button>
           </div>
-        </aside>
+          </aside>
+        )}
 
-        {isLeftPanelCollapsed && (
+        {canEditStructure && isLeftPanelCollapsed && (
           <button
             type="button"
             onClick={() => setIsLeftPanelCollapsed(false)}
@@ -2119,7 +2359,8 @@ const Canvas = () => {
                         setSelectedNodeId(null);
                       }}
                     />
-                    {selectedEdgeId === edge.id &&
+                    {canEditStructure &&
+                      selectedEdgeId === edge.id &&
                       (Array.isArray(edge.bends) ? edge.bends : []).map((bendPoint, bendIndex) => {
                         const screenPoint = worldToScreen(
                           bendPoint.x,
@@ -2141,7 +2382,8 @@ const Canvas = () => {
                         />
                         );
                       })}
-                    {selectedEdgeId === edge.id &&
+                    {canEditStructure &&
+                      selectedEdgeId === edge.id &&
                       pathPoints.slice(0, -1).map((point, index) => {
                         if (index <= 0 || index >= pathPoints.length - 2) return null;
                         const nextPoint = pathPoints[index + 1];
@@ -2221,17 +2463,18 @@ const Canvas = () => {
                     onNodeMouseDown(event, node);
                   }}
                 >
-                  {NODE_ANCHORS.map((anchor) => (
-                    <button
-                      key={`${node.id}-${anchor}`}
-                      type="button"
-                      data-anchor={anchor}
-                      aria-label={`Connector ${anchor}`}
-                      className={`${connectorClasses[anchor]} w-4 h-4 rounded-full bg-blue-600 border-2 border-white`}
-                      onMouseDown={(event) => startConnection(event, node.id)}
-                      onMouseUp={(event) => completeConnection(event, node.id, anchor)}
-                    />
-                  ))}
+                  {canEditStructure &&
+                    NODE_ANCHORS.map((anchor) => (
+                      <button
+                        key={`${node.id}-${anchor}`}
+                        type="button"
+                        data-anchor={anchor}
+                        aria-label={`Connector ${anchor}`}
+                        className={`${connectorClasses[anchor]} w-4 h-4 rounded-full bg-blue-600 border-2 border-white`}
+                        onMouseDown={(event) => startConnection(event, node.id)}
+                        onMouseUp={(event) => completeConnection(event, node.id, anchor)}
+                      />
+                    ))}
 
                   <div style={{ padding: nodePadding }}>
                     <div
@@ -2273,7 +2516,7 @@ const Canvas = () => {
               <button
                 type="button"
                 onClick={undoCanvasChange}
-                disabled={!canUndo}
+                disabled={!canEditStructure || !canUndo}
                 className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md border border-gray-200 bg-white/95 text-xs text-gray-700 disabled:opacity-40"
                 title="Undo"
               >
@@ -2283,7 +2526,7 @@ const Canvas = () => {
               <button
                 type="button"
                 onClick={redoCanvasChange}
-                disabled={!canRedo}
+                disabled={!canEditStructure || !canRedo}
                 className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md border border-gray-200 bg-white/95 text-xs text-gray-700 disabled:opacity-40"
                 title="Redo"
               >
@@ -2357,6 +2600,19 @@ const Canvas = () => {
                 Insights
                 <span className="text-[10px] px-1.5 py-0.5 rounded bg-gray-100 text-gray-700">{insights.length}</span>
               </button>
+              <button
+                type="button"
+                onClick={() => setRightPanelMode('comments')}
+                className={`px-2.5 py-1.5 text-xs rounded-md border inline-flex items-center gap-1 ${
+                  rightPanelMode === 'comments'
+                    ? 'bg-blue-50 text-blue-700 border-blue-200'
+                    : 'bg-white text-gray-600 border-gray-200'
+                }`}
+              >
+                <MessageSquare size={12} />
+                Comments
+                <span className="text-[10px] px-1.5 py-0.5 rounded bg-gray-100 text-gray-700">{comments.length}</span>
+              </button>
             </div>
 
             {rightPanelMode === 'design' ? (
@@ -2371,6 +2627,7 @@ const Canvas = () => {
                     <select
                       value={selectedEdge?.metadata?.protocol || ''}
                       onChange={(event) => setEdgeMetadataField('protocol', event.target.value)}
+                      disabled={!canEditStructure}
                       className="w-full border border-gray-300 rounded-md px-2.5 py-2 text-sm bg-white"
                     >
                       {EDGE_PROTOCOL_OPTIONS.map((option) => (
@@ -2386,6 +2643,7 @@ const Canvas = () => {
                       rows={3}
                       value={selectedEdge?.metadata?.notes || ''}
                       onChange={(event) => setEdgeMetadataField('notes', event.target.value)}
+                      readOnly={!canEditStructure}
                       className="w-full border border-gray-300 rounded-md px-2.5 py-2 text-sm resize-none"
                       placeholder="Communication context"
                     />
@@ -2417,6 +2675,7 @@ const Canvas = () => {
                         type="text"
                         value={selectedNode?.label || ''}
                         onChange={(event) => setNodeLabel(event.target.value)}
+                        readOnly={!canEditStructure}
                         className="w-full border border-gray-300 rounded-md px-2.5 py-2 text-sm"
                       />
                     </div>
@@ -2430,6 +2689,7 @@ const Canvas = () => {
                         rows={3}
                         value={selectedNode?.metadata?.purpose || ''}
                         onChange={(event) => setNodeMetadataField('purpose', event.target.value)}
+                        readOnly={!canEditStructure}
                         className="w-full border border-gray-300 rounded-md px-2.5 py-2 text-sm resize-none"
                         placeholder="Why this component exists"
                       />
@@ -2440,6 +2700,7 @@ const Canvas = () => {
                         type="text"
                         value={selectedNode?.metadata?.techChoice || ''}
                         onChange={(event) => setNodeMetadataField('techChoice', event.target.value)}
+                        readOnly={!canEditStructure}
                         className="w-full border border-gray-300 rounded-md px-2.5 py-2 text-sm"
                         placeholder="Optional implementation choice"
                       />
@@ -2450,6 +2711,7 @@ const Canvas = () => {
                         <button
                           type="button"
                           onClick={addNodeResponsibility}
+                          disabled={!canEditStructure}
                           className="inline-flex items-center justify-center w-6 h-6 rounded border border-blue-200 text-blue-600 hover:bg-blue-50"
                           title="Add responsibility"
                         >
@@ -2463,12 +2725,14 @@ const Canvas = () => {
                               type="text"
                               value={item}
                               onChange={(event) => updateNodeResponsibility(index, event.target.value)}
+                              readOnly={!canEditStructure}
                               className="flex-1 border border-gray-300 rounded-md px-2.5 py-2 text-sm"
                               placeholder="Responsibility"
                             />
                             <button
                               type="button"
                               onClick={() => removeNodeResponsibility(index)}
+                              disabled={!canEditStructure}
                               className="inline-flex items-center justify-center w-6 h-6 rounded border border-red-200 text-red-600 hover:bg-red-50"
                               title="Remove responsibility"
                             >
@@ -2484,6 +2748,7 @@ const Canvas = () => {
                         rows={3}
                         value={selectedNode?.metadata?.notes || ''}
                         onChange={(event) => setNodeMetadataField('notes', event.target.value)}
+                        readOnly={!canEditStructure}
                         className="w-full border border-gray-300 rounded-md px-2.5 py-2 text-sm resize-none"
                         placeholder="Free-form context"
                       />
@@ -2498,6 +2763,7 @@ const Canvas = () => {
                       rows={2}
                       value={canvasState?.systemMetadata?.goal || ''}
                       onChange={(event) => setSystemMetadataField('goal', event.target.value)}
+                      readOnly={!canEditStructure}
                       className="w-full border border-gray-300 rounded-md px-2.5 py-2 text-sm resize-none"
                       placeholder="What this system is trying to achieve"
                     />
@@ -2508,6 +2774,7 @@ const Canvas = () => {
                       <button
                         type="button"
                         onClick={addSystemAssumption}
+                        disabled={!canEditStructure}
                         className="inline-flex items-center justify-center w-6 h-6 rounded border border-blue-200 text-blue-600 hover:bg-blue-50"
                         title="Add assumption"
                       >
@@ -2521,12 +2788,14 @@ const Canvas = () => {
                             type="text"
                             value={item}
                             onChange={(event) => updateSystemAssumption(index, event.target.value)}
+                            readOnly={!canEditStructure}
                             className="flex-1 border border-gray-300 rounded-md px-2.5 py-2 text-sm"
                             placeholder="Assumption"
                           />
                           <button
                             type="button"
                             onClick={() => removeSystemAssumption(index)}
+                            disabled={!canEditStructure}
                             className="inline-flex items-center justify-center w-6 h-6 rounded border border-red-200 text-red-600 hover:bg-red-50"
                             title="Remove assumption"
                           >
@@ -2542,6 +2811,7 @@ const Canvas = () => {
                       rows={3}
                       value={canvasState?.systemMetadata?.constraints || ''}
                       onChange={(event) => setSystemMetadataField('constraints', event.target.value)}
+                      readOnly={!canEditStructure}
                       className="w-full border border-gray-300 rounded-md px-2.5 py-2 text-sm resize-none"
                       placeholder="Known limitations or boundaries"
                     />
@@ -2563,7 +2833,7 @@ const Canvas = () => {
                 </div>
               )}
               </div>
-            ) : (
+            ) : rightPanelMode === 'insights' ? (
               <div className="space-y-3 overflow-y-auto pr-1 max-h-[calc(100vh-220px)]">
                 <p className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Passive Insights</p>
                 {insights.length === 0 ? (
@@ -2598,6 +2868,50 @@ const Canvas = () => {
                       </div>
                     )
                   )
+                )}
+              </div>
+            ) : (
+              <div className="space-y-3 overflow-y-auto pr-1 max-h-[calc(100vh-220px)]">
+                <p className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Canvas Comments</p>
+                {commentError && (
+                  <div className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+                    {commentError}
+                  </div>
+                )}
+
+                {canComment ? (
+                  <div className="rounded-md border border-gray-200 p-3 space-y-2">
+                    <textarea
+                      rows={3}
+                      value={newCommentBody}
+                      onChange={(event) => setNewCommentBody(event.target.value)}
+                      className="w-full border border-gray-300 rounded-md px-2.5 py-2 text-sm resize-none"
+                      placeholder="Write a comment..."
+                    />
+                    <div className="flex justify-end">
+                      <button
+                        type="button"
+                        onClick={handleCreateComment}
+                        className="px-3 py-1.5 text-xs font-semibold rounded-md bg-blue-600 text-white hover:bg-blue-700"
+                      >
+                        Post Comment
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="rounded-md border border-gray-200 p-3 text-sm text-gray-600">
+                    Commenting is not available for your current role.
+                  </div>
+                )}
+
+                {areCommentsLoading ? (
+                  <div className="text-sm text-gray-500">Loading comments...</div>
+                ) : comments.length === 0 ? (
+                  <div className="rounded-md border border-gray-200 p-3 text-sm text-gray-600">
+                    No comments yet.
+                  </div>
+                ) : (
+                  <div className="space-y-3">{comments.map((comment) => renderCommentNode(comment))}</div>
                 )}
               </div>
             )}

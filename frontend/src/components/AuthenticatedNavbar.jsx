@@ -1,20 +1,32 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { User, Bell, Zap, Search, Menu, X, LogOut } from 'lucide-react';
 import { NotificationDrawer } from '../pages/account/Notification';
-import { clearApiCache } from '../api';
+import api, { clearApiCache } from '../api';
 // Import the logo from your assets folder
 import logo from '../assets/logo.png'; 
 
 export default function AuthenticatedNavbar() {
+  const SEARCH_DROPDOWN_LIMIT = 8;
+  const SEARCH_DEBOUNCE_MS = 300;
+
   const navigate = useNavigate();
   const location = useLocation();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isNotificationOpen, setIsNotificationOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState('');
+  const [isSearchDropdownOpen, setIsSearchDropdownOpen] = useState(false);
+  const [isSearchLoading, setIsSearchLoading] = useState(false);
+  const [searchError, setSearchError] = useState('');
+  const [searchResults, setSearchResults] = useState([]);
+  const searchContainerRef = useRef(null);
+  const activeSearchRequestRef = useRef(0);
 
   useEffect(() => {
     setIsMobileMenuOpen(false);
     setIsNotificationOpen(false);
+    setIsSearchDropdownOpen(false);
   }, [location.pathname]);
 
   // Logout Logic
@@ -25,6 +37,86 @@ export default function AuthenticatedNavbar() {
     localStorage.removeItem('refresh');
     // 2. Redirect to login
     navigate('/login');
+  };
+
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      setDebouncedSearchQuery(searchQuery.trim());
+    }, SEARCH_DEBOUNCE_MS);
+
+    return () => clearTimeout(timeoutId);
+  }, [searchQuery]);
+
+  useEffect(() => {
+    if (!isSearchDropdownOpen) return;
+
+    const handleClickOutside = (event) => {
+      if (
+        searchContainerRef.current
+        && !searchContainerRef.current.contains(event.target)
+      ) {
+        setIsSearchDropdownOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [isSearchDropdownOpen]);
+
+  useEffect(() => {
+    if (!isSearchDropdownOpen) return;
+
+    if (!debouncedSearchQuery) {
+      setSearchResults([]);
+      setSearchError('');
+      setIsSearchLoading(false);
+      return;
+    }
+
+    const requestId = ++activeSearchRequestRef.current;
+    setIsSearchLoading(true);
+    setSearchError('');
+
+    api
+      .get('workspaces/public/search/', {
+        params: {
+          q: debouncedSearchQuery,
+          limit: SEARCH_DROPDOWN_LIMIT,
+          offset: 0,
+        },
+      })
+      .then((response) => {
+        if (requestId !== activeSearchRequestRef.current) return;
+        setSearchResults(response.data?.results || []);
+      })
+      .catch(() => {
+        if (requestId !== activeSearchRequestRef.current) return;
+        setSearchError('Search failed. Try again.');
+        setSearchResults([]);
+      })
+      .finally(() => {
+        if (requestId !== activeSearchRequestRef.current) return;
+        setIsSearchLoading(false);
+      });
+  }, [debouncedSearchQuery, isSearchDropdownOpen]);
+
+  const submitSearch = () => {
+    const trimmedQuery = searchQuery.trim();
+    setIsSearchDropdownOpen(false);
+    setIsMobileMenuOpen(false);
+
+    if (!trimmedQuery) {
+      navigate('/app/discover');
+      return;
+    }
+
+    navigate(`/app/discover?q=${encodeURIComponent(trimmedQuery)}`);
+  };
+
+  const handleSearchKeyDown = (event) => {
+    if (event.key !== 'Enter') return;
+    event.preventDefault();
+    submitSearch();
   };
 
   return (
@@ -53,13 +145,71 @@ export default function AuthenticatedNavbar() {
         </div>
 
         {/* Middle: Utility Search (Desktop) */}
-        <div className="hidden lg:flex items-center bg-gray-50 px-4 py-2 rounded-full w-80 border border-gray-200 focus-within:bg-white focus-within:border-blue-500 focus-within:ring-4 focus-within:ring-blue-500/5 transition-all">
-          <Search size={16} className="text-gray-400 mr-2" />
-          <input 
-            type="text" 
-            placeholder="Search models or spaces..." 
-            className="bg-transparent border-none outline-none text-sm text-gray-700 w-full placeholder:text-gray-400"
-          />
+        <div className="hidden lg:block w-80 relative" ref={searchContainerRef}>
+          <div className="flex items-center bg-gray-50 px-4 py-2 rounded-full border border-gray-200 focus-within:bg-white focus-within:border-blue-500 focus-within:ring-4 focus-within:ring-blue-500/5 transition-all">
+            <Search size={16} className="text-gray-400 mr-2" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(event) => {
+                setSearchQuery(event.target.value);
+                setIsSearchDropdownOpen(true);
+              }}
+              onFocus={() => setIsSearchDropdownOpen(true)}
+              onKeyDown={handleSearchKeyDown}
+              placeholder="Search public workspaces..."
+              className="bg-transparent border-none outline-none text-sm text-gray-700 w-full placeholder:text-gray-400"
+            />
+            <button
+              onClick={submitSearch}
+              className="ml-2 p-1.5 rounded-full text-gray-500 hover:text-gray-700 hover:bg-gray-100 transition-colors"
+              title="Search"
+            >
+              <Search size={14} />
+            </button>
+          </div>
+
+          {isSearchDropdownOpen && (
+            <div className="absolute left-0 right-0 mt-2 rounded-xl border border-gray-200 bg-white shadow-xl z-[90] overflow-hidden">
+              {!debouncedSearchQuery ? (
+                <div className="px-4 py-3 text-sm text-gray-500">
+                  Type to search public workspaces.
+                </div>
+              ) : isSearchLoading ? (
+                <div className="px-4 py-3 text-sm text-gray-500">Searching...</div>
+              ) : searchError ? (
+                <div className="px-4 py-3 text-sm text-red-600">{searchError}</div>
+              ) : searchResults.length === 0 ? (
+                <div className="px-4 py-3 text-sm text-gray-500">No public workspaces found.</div>
+              ) : (
+                <>
+                  <div className="max-h-80 overflow-y-auto">
+                    {searchResults.map((workspace) => (
+                      <button
+                        key={workspace.id}
+                        onClick={() => {
+                          setIsSearchDropdownOpen(false);
+                          navigate(`/app/ws/${workspace.id}`);
+                        }}
+                        className="w-full text-left px-4 py-3 border-b border-gray-100 last:border-b-0 hover:bg-gray-50 transition-colors"
+                      >
+                        <div className="text-sm font-semibold text-gray-900 truncate">{workspace.name}</div>
+                        <div className="text-xs text-gray-500 mt-0.5 truncate">
+                          {workspace.description || 'No description'}
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                  <button
+                    onClick={submitSearch}
+                    className="w-full text-left px-4 py-3 text-sm font-semibold text-blue-700 bg-blue-50 hover:bg-blue-100 transition-colors"
+                  >
+                    View all results
+                  </button>
+                </>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Right: Actions (Desktop) */}
@@ -128,9 +278,19 @@ export default function AuthenticatedNavbar() {
             <Search size={16} className="text-gray-400 mr-2" />
             <input 
               type="text" 
-              placeholder="Search models or spaces..." 
+              value={searchQuery}
+              onChange={(event) => setSearchQuery(event.target.value)}
+              onKeyDown={handleSearchKeyDown}
+              placeholder="Search public workspaces..." 
               className="bg-transparent border-none outline-none text-sm text-gray-700 w-full placeholder:text-gray-400"
             />
+            <button
+              onClick={submitSearch}
+              className="ml-2 p-1.5 rounded-md text-gray-500 hover:text-gray-700 hover:bg-gray-100 transition-colors"
+              title="Search"
+            >
+              <Search size={14} />
+            </button>
           </div>
 
           <div className="flex flex-col gap-4 text-sm font-semibold text-gray-600">

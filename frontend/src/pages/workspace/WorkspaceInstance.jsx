@@ -1,6 +1,18 @@
 import React, { useState, useEffect } from "react";
 import { Outlet, useNavigate, useParams } from "react-router-dom";
-import { Menu, Settings, Trash2, X, CheckCircle, AlertCircle, ChevronRight } from "lucide-react";
+import {
+  Menu,
+  Settings,
+  Trash2,
+  X,
+  CheckCircle,
+  AlertCircle,
+  ChevronRight,
+  Search,
+  Users,
+  ChevronDown,
+  ChevronUp,
+} from "lucide-react";
 import AuthenticatedNavbar from "../../components/AuthenticatedNavbar";
 import WorkspaceNavbar from "../../components/WorkspaceNavbar";
 import api from "../../api";
@@ -119,6 +131,8 @@ export const WorkspaceOverview = () => {
   const [deleteConfirmationText, setDeleteConfirmationText] = useState('');
   const [deleting, setDeleting] = useState(false);
   const [systemToDelete, setSystemToDelete] = useState(null);
+  const [systemSearchQuery, setSystemSearchQuery] = useState("");
+  const [showMoreAbout, setShowMoreAbout] = useState(false);
 
   useEffect(() => {
     const fetchWorkspaceDetails = async () => {
@@ -204,6 +218,16 @@ export const WorkspaceOverview = () => {
     { label: "Active Evaluations", value: "0" },
     { label: "Team Members", value: workspace.member_count || "1" },
   ];
+  const isMemberWorkspace = Boolean(workspace.is_member);
+  const filteredSystems = isMemberWorkspace
+    ? systems
+    : systems.filter((system) => {
+        const query = systemSearchQuery.trim().toLowerCase();
+        if (!query) return true;
+        const name = (system.name || "").toLowerCase();
+        const description = (system.description || "").toLowerCase();
+        return name.includes(query) || description.includes(query);
+      });
 
   return (
     <div className="pb-10">
@@ -272,12 +296,14 @@ export const WorkspaceOverview = () => {
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <button
-            onClick={() => navigate(`/app/ws/${workspaceId}/settings`)}
-            className="p-2.5 text-gray-500 hover:bg-gray-100 rounded-md border border-gray-200 transition-colors"
-          >
-            <Settings size={20} />
-          </button>
+          {isMemberWorkspace && (
+            <button
+              onClick={() => navigate(`/app/ws/${workspaceId}/settings`)}
+              className="p-2.5 text-gray-500 hover:bg-gray-100 rounded-md border border-gray-200 transition-colors"
+            >
+              <Settings size={20} />
+            </button>
+          )}
 
           {workspace.is_admin && (
             <button
@@ -304,64 +330,120 @@ export const WorkspaceOverview = () => {
         ))}
       </div>
 
-      <h2 className="text-xl font-bold text-gray-800 mb-4">Systems</h2>
-      
-      {systemsLoading ? (
-        <div className="text-center py-10 text-gray-400">Loading systems...</div>
-      ) : systems.length > 0 ? (
-        <div className="grid grid-cols-1 gap-3">
-          {systems.map((system) => (
-            <div
-              key={system.id}
-              onClick={() => navigate(`/app/ws/${workspaceId}/systems/${system.id}`)}
-            className="bg-white p-4 rounded-md border border-gray-200 flex justify-between items-center hover:border-blue-300 transition-colors cursor-pointer"
-            >
-              <div>
-                <div className="flex items-center gap-2 mb-0.5">
-                  <h3 className="font-bold text-gray-900 text-sm md:text-base">
-                    {system.name}
-                  </h3>
-                  <span
-                    className={`text-[11px] font-semibold px-2 py-0.5 rounded-md border ${
-                      system.visibility === "public"
-                        ? "bg-emerald-50 text-emerald-700 border-emerald-200"
-                        : "bg-gray-100 text-gray-700 border-gray-200"
-                    }`}
-                  >
-                    {system.visibility === "public" ? "Public" : "Private"}
-                  </span>
-                </div>
-                <p className="text-xs md:text-sm text-gray-500">
-                  Last updated {formatTimeAgo(system.updated_at)}
-                </p>
+      <div className={`grid gap-6 ${isMemberWorkspace ? "grid-cols-1" : "grid-cols-1 xl:grid-cols-[minmax(0,1fr)_340px]"}`}>
+        <div>
+          <div className="flex items-center justify-between mb-4 gap-3">
+            <h2 className="text-xl font-bold text-gray-800">Systems</h2>
+            {!isMemberWorkspace && (
+              <div className="w-full max-w-sm relative">
+                <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                <input
+                  type="text"
+                  value={systemSearchQuery}
+                  onChange={(event) => setSystemSearchQuery(event.target.value)}
+                  placeholder="Search public systems..."
+                  className="w-full pl-9 pr-3 py-2 text-sm rounded-md border border-gray-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none"
+                />
               </div>
-              <button
-                onClick={(e) => initiateDelete(system, e)}
-                className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all"
-                title="Delete system"
-              >
-                <Trash2 size={18} />
-              </button>
+            )}
+          </div>
+
+          {systemsLoading ? (
+            <div className="text-center py-10 text-gray-400">Loading systems...</div>
+          ) : filteredSystems.length > 0 ? (
+            <div className="grid grid-cols-1 gap-3">
+              {filteredSystems.map((system) => (
+                <div
+                  key={system.id}
+                  onClick={() => navigate(`/app/ws/${workspaceId}/systems/${system.id}`)}
+                  className="bg-white p-4 rounded-md border border-gray-200 flex justify-between items-center hover:border-blue-300 transition-colors cursor-pointer"
+                >
+                  <div>
+                    <div className="flex items-center gap-2 mb-0.5">
+                      <h3 className="font-bold text-gray-900 text-sm md:text-base">
+                        {system.name}
+                      </h3>
+                      <span
+                        className={`text-[11px] font-semibold px-2 py-0.5 rounded-md border ${
+                          system.visibility === "public"
+                            ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                            : "bg-gray-100 text-gray-700 border-gray-200"
+                        }`}
+                      >
+                        {system.visibility === "public" ? "Public" : "Private"}
+                      </span>
+                    </div>
+                    <p className="text-xs md:text-sm text-gray-500">
+                      Last updated {formatTimeAgo(system.updated_at)}
+                    </p>
+                  </div>
+                  {workspace.is_admin && (
+                    <button
+                      onClick={(e) => initiateDelete(system, e)}
+                      className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all"
+                      title="Delete system"
+                    >
+                      <Trash2 size={18} />
+                    </button>
+                  )}
+                </div>
+              ))}
             </div>
-          ))}
-        </div>
-      ) : (
-        <div className="text-center py-16 bg-gray-50 rounded-2xl border-2 border-dashed border-gray-200">
-          <p className="text-gray-400 font-medium mb-4">No systems yet</p>
-          {workspace.is_admin ? (
-            <button
-              onClick={() => navigate(`/app/ws/${workspaceId}/create-system`)}
-              className="bg-blue-600 text-white px-6 py-2.5 rounded-md text-sm font-medium hover:bg-blue-700 transition-colors inline-flex items-center gap-2"
-            >
-              + Create Your First System
-            </button>
           ) : (
-            <p className="text-sm text-gray-400">
-              Ask a workspace admin to create a system and grant you access.
-            </p>
+            <div className="text-center py-16 bg-gray-50 rounded-2xl border-2 border-dashed border-gray-200">
+              <p className="text-gray-400 font-medium mb-4">
+                {isMemberWorkspace ? "No systems yet" : "No public systems found"}
+              </p>
+              {workspace.is_admin ? (
+                <button
+                  onClick={() => navigate(`/app/ws/${workspaceId}/create-system`)}
+                  className="bg-blue-600 text-white px-6 py-2.5 rounded-md text-sm font-medium hover:bg-blue-700 transition-colors inline-flex items-center gap-2"
+                >
+                  + Create Your First System
+                </button>
+              ) : (
+                <p className="text-sm text-gray-400">
+                  {isMemberWorkspace
+                    ? "Ask a workspace admin to create a system and grant you access."
+                    : "Try a different search query."}
+                </p>
+              )}
+            </div>
           )}
         </div>
-      )}
+
+        {!isMemberWorkspace && (
+          <aside className="rounded-xl border border-gray-200 bg-white p-5 h-fit sticky top-24">
+            <h3 className="text-lg font-semibold text-gray-900">{workspace.name}</h3>
+            <p className="mt-2 text-sm text-gray-600">
+              {workspace.description || "No description provided."}
+            </p>
+            <button
+              onClick={() => setShowMoreAbout((prev) => !prev)}
+              className="mt-4 inline-flex items-center gap-1.5 text-sm font-semibold text-blue-700 hover:text-blue-800"
+            >
+              More
+              {showMoreAbout ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+            </button>
+            {showMoreAbout && (
+              <div className="mt-4 pt-4 border-t border-gray-100">
+                <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wide flex items-center gap-1.5 mb-3">
+                  <Users size={14} />
+                  Team Members
+                </h4>
+                <div className="space-y-2">
+                  {(workspace.team_members || []).map((member, index) => (
+                    <div key={`${member.full_name}-${index}`} className="rounded-md bg-gray-50 border border-gray-200 px-3 py-2">
+                      <p className="text-sm font-medium text-gray-900">{member.full_name}</p>
+                      <p className="text-xs text-gray-500">{member.role}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </aside>
+        )}
+      </div>
     </div>
   );
 };
