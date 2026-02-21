@@ -6,14 +6,21 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from core.constants import CanvasRole
 from permissions.checks import (
+    resolve_canvas_role,
     system_read_access_q,
     user_is_workspace_admin,
+    user_has_system_read_access,
     user_has_system_access,
 )
 from permissions.models import CanvasPermission, WorkspaceMember
 from workspaces.models import Workspace
-from .models import Canvas
-from .serializers import CanvasAutosaveSerializer, CanvasSerializer
+from .models import Canvas, CanvasComment
+from .serializers import (
+    CanvasAutosaveSerializer,
+    CanvasCommentCreateSerializer,
+    CanvasCommentSerializer,
+    CanvasSerializer,
+)
 
 class CanvasListCreateView(generics.ListCreateAPIView):
     serializer_class = CanvasSerializer
@@ -185,3 +192,106 @@ class CanvasAutosaveView(APIView):
             },
             status=status.HTTP_200_OK,
         )
+
+
+class SystemCommentListCreateView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def _get_system(self, system_id):
+        return get_object_or_404(Canvas, id=system_id)
+
+    def _assert_read_access(self, system, user):
+        if not user_has_system_read_access(system, user):
+            raise PermissionDenied("You do not have access to this system.")
+
+    def _assert_can_comment(self, system, user):
+        effective_role = resolve_canvas_role(system, user)
+        is_member = WorkspaceMember.objects.filter(
+            workspace=system.workspace,
+            user=user,
+        ).exists()
+        if not is_member or effective_role not in {CanvasRole.EDITOR, CanvasRole.COMMENTER}:
+            raise PermissionDenied("You do not have permission to add comments.")
+
+    def get(self, request, system_id):
+        system = self._get_system(system_id)
+        self._assert_read_access(system, request.user)
+
+        comments = (
+            CanvasComment.objects.filter(system=system, parent__isnull=True)
+            .select_related("author")
+            .prefetch_related("replies__author")
+            .order_by("created_at")
+        )
+        serializer = CanvasCommentSerializer(
+            comments,
+            many=True,
+            context={"request": request},
+        )
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+    def post(self, request, system_id):
+        system = self._get_system(system_id)
+        self._assert_read_access(system, request.user)
+        self._assert_can_comment(system, request.user)
+
+        serializer = CanvasCommentCreateSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        parent = None
+        parent_id = serializer.validated_data.get("parent")
+        if parent_id:
+            parent = get_object_or_404(CanvasComment, id=parent_id, system=system)
+
+        comment = CanvasComment.objects.create(
+            system=system,
+            author=request.user,
+            body=serializer.validated_data["body"],
+            parent=parent,
+        )
+        output_serializer = CanvasCommentSerializer(comment, context={"request": request})
+        return Response(output_serializer.data, status=status.HTTP_201_CREATED)
+
+
+class SystemCommentDetailView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def _get_comment(self, system_id, comment_id):
+        return get_object_or_404(
+            CanvasComment.objects.select_related("system", "author", "system__workspace"),
+            id=comment_id,
+            system_id=system_id,
+        )
+
+    def _assert_read_access(self, system, user):
+        if not user_has_system_read_access(system, user):
+            raise PermissionDenied("You do not have access to this system.")
+
+    def _assert_can_modify(self, comment, user):
+        if comment.author_id == user.user_id:
+            return
+        if user_is_workspace_admin(comment.system.workspace, user):
+            return
+        raise PermissionDenied("You do not have permission to modify this comment.")
+
+    def patch(self, request, system_id, comment_id):
+        comment = self._get_comment(system_id, comment_id)
+        self._assert_read_access(comment.system, request.user)
+        self._assert_can_modify(comment, request.user)
+
+        serializer = CanvasCommentCreateSerializer(data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+
+        if "body" in serializer.validated_data:
+            comment.body = serializer.validated_data["body"]
+            comment.save(update_fields=["body", "updated_at"])
+
+        output_serializer = CanvasCommentSerializer(comment, context={"request": request})
+        return Response(output_serializer.data, status=status.HTTP_200_OK)
+
+    def delete(self, request, system_id, comment_id):
+        comment = self._get_comment(system_id, comment_id)
+        self._assert_read_access(comment.system, request.user)
+        self._assert_can_modify(comment, request.user)
+        comment.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
