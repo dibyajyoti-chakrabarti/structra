@@ -118,10 +118,14 @@ const WorkspaceInstance = () => {
 export const WorkspaceOverview = () => {
   const navigate = useNavigate();
   const { workspaceId } = useParams();
+  const MOBILE_MAX_WIDTH = 767;
   const [workspace, setWorkspace] = useState(null);
   const [systems, setSystems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [systemsLoading, setSystemsLoading] = useState(true);
+  const [isMobileViewport, setIsMobileViewport] = useState(() =>
+    typeof window !== "undefined" ? window.innerWidth <= MOBILE_MAX_WIDTH : false
+  );
 
   // Toast State
   const [toast, setToast] = useState(null);
@@ -160,6 +164,16 @@ export const WorkspaceOverview = () => {
     fetchWorkspaceDetails();
     fetchSystems();
   }, [workspaceId]);
+
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobileViewport(window.innerWidth <= MOBILE_MAX_WIDTH);
+    };
+
+    handleResize();
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
 
   // Show toast notification
   const showToast = (message, type) => {
@@ -208,6 +222,14 @@ export const WorkspaceOverview = () => {
     if (diffHours < 24) return `${diffHours}h ago`;
     if (diffDays === 1) return "1d ago";
     return `${diffDays}d ago`;
+  };
+
+  const handleOpenSystem = (systemId) => {
+    if (isMobileViewport) {
+      showToast("System canvas cannot be opened in mobile.", "error");
+      return;
+    }
+    navigate(`/app/ws/${workspaceId}/systems/${systemId}`);
   };
 
   if (loading) return <div className="p-10 text-gray-400">Loading workspace details...</div>;
@@ -355,7 +377,7 @@ export const WorkspaceOverview = () => {
               {filteredSystems.map((system) => (
                 <div
                   key={system.id}
-                  onClick={() => navigate(`/app/ws/${workspaceId}/systems/${system.id}`)}
+                  onClick={() => handleOpenSystem(system.id)}
                   className="bg-white p-4 rounded-md border border-gray-200 flex justify-between items-center hover:border-blue-300 transition-colors cursor-pointer"
                 >
                   <div>
