@@ -6,6 +6,7 @@ import Lander from "./pages/public/Lander";
 import Login from "./pages/auth/Login";
 import Signup from "./pages/auth/Signup";
 import WorkspaceHome from "./pages/workspace/WorkspaceHome";
+import DiscoverWorkspaces from "./pages/workspace/DiscoverWorkspaces";
 import WorkspaceInstance, {
   WorkspaceOverview,
 } from "./pages/workspace/WorkspaceInstance";
@@ -84,6 +85,7 @@ function App() {
         <Route element={<PrivateRoute />}>
           <Route path="/app/onboarding" element={<OnboardingQuestionnaire />} />
           <Route path="/app" element={<WorkspaceHome />} />
+          <Route path="/app/discover" element={<DiscoverWorkspaces />} />
           <Route path="/app/profile" element={<Profile />} />
           <Route path="/app/notifications" element={<Notification />} />
           <Route path="/app/create-workspace" element={<CreateWorkspace />} />
