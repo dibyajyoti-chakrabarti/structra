@@ -25,25 +25,33 @@ def get_system_permission(system, user):
 
 
 def user_has_system_read_access(system, user):
+    if not user or user.is_anonymous:
+        return system.visibility == WorkspaceVisibility.PUBLIC
+
     if system.visibility == WorkspaceVisibility.PUBLIC:
         return True
 
-    if WorkspaceMember.objects.filter(workspace=system.workspace, user=user).exists():
+    if user_is_workspace_admin(system.workspace, user):
         return True
 
     return CanvasPermission.objects.filter(system=system, user=user).exists()
 
 
 def system_read_access_q(user):
+    if not user or user.is_anonymous:
+        return Q(visibility=WorkspaceVisibility.PUBLIC)
+
     return (
         Q(visibility=WorkspaceVisibility.PUBLIC) |
         Q(permissions__user=user) |
-        Q(workspace__members__user=user)
+        Q(workspace__members__user=user, workspace__members__role=WorkspaceRole.ADMIN)
     )
 
 
 def user_has_system_access(system, user, allowed_roles=None):
     if allowed_roles:
+        if user_is_workspace_admin(system.workspace, user):
+            return True
         return CanvasPermission.objects.filter(
             system=system,
             user=user,
@@ -66,9 +74,6 @@ def resolve_canvas_role(system, user):
     ).values_list("role", flat=True).first()
     if direct_permission:
         return direct_permission
-
-    if WorkspaceMember.objects.filter(workspace=system.workspace, user=user).exists():
-        return CanvasRole.VIEWER
 
     if system.visibility == WorkspaceVisibility.PUBLIC:
         return CanvasRole.VIEWER
