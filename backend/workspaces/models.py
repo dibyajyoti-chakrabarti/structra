@@ -58,3 +58,25 @@ class Workspace(models.Model):
             name='unique_workspace_per_owner'
         )
     ]
+
+
+class WorkspaceStar(models.Model):
+    workspace = models.ForeignKey(
+        Workspace,
+        on_delete=models.CASCADE,
+        related_name='stars',
+    )
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='workspace_stars',
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'workspace_stars'
+        unique_together = ('workspace', 'user')
+        indexes = [
+            models.Index(fields=['user', 'created_at']),
+            models.Index(fields=['workspace', 'user']),
+        ]

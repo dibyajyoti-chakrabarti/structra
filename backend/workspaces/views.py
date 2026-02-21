@@ -10,7 +10,9 @@ from rest_framework import generics, permissions
 from rest_framework.exceptions import PermissionDenied
 from rest_framework.pagination import LimitOffsetPagination
 from rest_framework.permissions import SAFE_METHODS
-from .models import Workspace
+from rest_framework.response import Response
+from rest_framework.views import APIView
+from .models import Workspace, WorkspaceStar
 from permissions.models import WorkspaceMember
 from permissions.checks import user_is_workspace_admin
 from .serializers import WorkspaceSerializer, PublicWorkspaceSerializer, WorkspaceDetailSerializer
@@ -26,7 +28,7 @@ class WorkspaceListCreateView(generics.ListCreateAPIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
-        return Workspace.objects.filter(members__user=self.request.user).distinct()
+        return Workspace.objects.filter(members__user=self.request.user).distinct().order_by("-updated_at")
 
     def perform_create(self, serializer):
         workspace = serializer.save(owner=self.request.user)
@@ -102,4 +104,66 @@ class PublicWorkspaceSearchView(generics.ListAPIView):
             )
             .filter(Q(rank__gte=0.05) | Q(trigram_score__gte=0.2))
             .order_by("-score", "-updated_at")
+        )
+
+
+class StarredWorkspaceListView(generics.ListAPIView):
+    serializer_class = WorkspaceSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        return (
+            Workspace.objects.filter(stars__user=self.request.user)
+            .filter(
+                Q(members__user=self.request.user)
+                | Q(visibility=WorkspaceVisibility.PUBLIC)
+            )
+            .distinct()
+            .order_by("-stars__created_at")
+        )
+
+
+class WorkspaceStarToggleView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def patch(self, request, id):
+        workspace = Workspace.objects.filter(id=id).first()
+        if not workspace:
+            return Response({"detail": "Workspace not found."}, status=404)
+
+        is_member = WorkspaceMember.objects.filter(
+            workspace=workspace,
+            user=request.user,
+        ).exists()
+        is_public = workspace.visibility == WorkspaceVisibility.PUBLIC
+        if not (is_member or is_public):
+            raise PermissionDenied("You can only star your own/member workspaces or public workspaces.")
+
+        requested_state = request.data.get("is_starred", None)
+        star_exists = WorkspaceStar.objects.filter(
+            workspace=workspace,
+            user=request.user,
+        ).exists()
+
+        if requested_state is None:
+            target_state = not star_exists
+        elif isinstance(requested_state, bool):
+            target_state = requested_state
+        else:
+            return Response(
+                {"detail": "`is_starred` must be a boolean value."},
+                status=400,
+            )
+
+        if target_state and not star_exists:
+            WorkspaceStar.objects.create(workspace=workspace, user=request.user)
+        if not target_state and star_exists:
+            WorkspaceStar.objects.filter(workspace=workspace, user=request.user).delete()
+
+        return Response(
+            {
+                "id": workspace.id,
+                "is_starred": target_state,
+            },
+            status=200,
         )

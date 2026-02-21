@@ -20,6 +20,7 @@ class WorkspaceMember(models.Model):
         choices=WorkspaceRole.choices,
         default=WorkspaceRole.MEMBER,
     )
+    is_starred = models.BooleanField(default=False)
     added_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
