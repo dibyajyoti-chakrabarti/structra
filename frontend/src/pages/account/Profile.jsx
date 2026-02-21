@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom'; // Added for redirection
 import AuthenticatedNavbar from '../../components/AuthenticatedNavbar';
-import { User, Mail, MapPin, Calendar, Building, Globe, Lock, ArrowRight, Settings, Check, X, Camera, Edit2, Copy } from 'lucide-react';
+import { User, Mail, MapPin, Calendar, Building, Globe, Lock, ArrowRight, Settings, Check, X, Camera, Edit2, Copy, Star } from 'lucide-react';
 import api from '../../api';
 import { formatDistanceToNow } from 'date-fns'; // Added for relative time formatting
 
@@ -12,6 +12,7 @@ export default function Profile() {
   const [user, setUser] = useState(null);
   const [workspaces, setWorkspaces] = useState([]); // Replaces the hardcoded array
   const [loading, setLoading] = useState(true);
+  const [starringWorkspaceIds, setStarringWorkspaceIds] = useState([]);
 
   // Edit Mode State
   const [isEditing, setIsEditing] = useState(false);
@@ -103,6 +104,50 @@ export default function Profile() {
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
+
+  const toggleWorkspaceStar = async (workspaceId, nextState) => {
+    if (!workspaceId || starringWorkspaceIds.includes(workspaceId)) return;
+
+    const previousState = !!workspaces.find((workspace) => workspace.id === workspaceId)?.is_starred;
+    setStarringWorkspaceIds((prev) => [...prev, workspaceId]);
+    setWorkspaces((prev) =>
+      prev.map((workspace) =>
+        workspace.id === workspaceId ? { ...workspace, is_starred: nextState } : workspace
+      )
+    );
+
+    try {
+      const response = await api.patch(`workspaces/${workspaceId}/star/`, { is_starred: nextState });
+      const confirmedState = typeof response?.data?.is_starred === 'boolean'
+        ? response.data.is_starred
+        : nextState;
+      setWorkspaces((prev) =>
+        prev.map((workspace) =>
+          workspace.id === workspaceId
+            ? { ...workspace, is_starred: confirmedState }
+            : workspace
+        )
+      );
+    } catch (error) {
+      console.error('Failed to update starred state', error);
+      setWorkspaces((prev) =>
+        prev.map((workspace) =>
+          workspace.id === workspaceId
+            ? { ...workspace, is_starred: previousState }
+            : workspace
+        )
+      );
+    } finally {
+      setStarringWorkspaceIds((prev) => prev.filter((id) => id !== workspaceId));
+    }
+  };
+
+  const sortedWorkspaces = [...workspaces].sort((left, right) => {
+    if (left.is_starred !== right.is_starred) {
+      return Number(right.is_starred) - Number(left.is_starred);
+    }
+    return new Date(right.updated_at).getTime() - new Date(left.updated_at).getTime();
+  });
 
   if (loading || !user) {
     return (
@@ -285,7 +330,7 @@ export default function Profile() {
             </div>
 
             <div className="grid grid-cols-1 gap-4">
-              {workspaces.map((workspace) => (
+              {sortedWorkspaces.map((workspace) => (
                 <div 
                   key={workspace.id}
                   onClick={() => navigate(`/app/ws/${workspace.id}`)} // Enables redirection
@@ -329,9 +374,24 @@ export default function Profile() {
                       <span className="w-1 h-1 bg-gray-300 rounded-full" />
                       <span>{workspace.member_count} members</span>
                     </div>
-                    
-                    <div className="text-gray-400 group-hover:text-blue-600 group-hover:translate-x-1 transition-all">
-                      <ArrowRight size={18} />
+
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          toggleWorkspaceStar(workspace.id, !workspace.is_starred);
+                        }}
+                        aria-label={workspace.is_starred ? 'Unstar workspace' : 'Star workspace'}
+                        title={workspace.is_starred ? 'Unstar workspace' : 'Star workspace'}
+                        disabled={starringWorkspaceIds.includes(workspace.id)}
+                        className="p-1.5 rounded-md text-gray-400 hover:text-amber-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                      >
+                        <Star size={16} className={workspace.is_starred ? 'fill-amber-400 text-amber-500' : ''} />
+                      </button>
+                      <div className="text-gray-400 group-hover:text-blue-600 group-hover:translate-x-1 transition-all">
+                        <ArrowRight size={18} />
+                      </div>
                     </div>
                   </div>
                 </div>

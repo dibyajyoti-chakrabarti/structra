@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { Search, Globe, Clock } from 'lucide-react';
+import { Search, Globe, Clock, Star } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import AuthenticatedNavbar from '../../components/AuthenticatedNavbar';
 import api from '../../api';
@@ -13,6 +13,7 @@ const DiscoverWorkspaces = () => {
   const [errorMessage, setErrorMessage] = useState('');
   const [workspaces, setWorkspaces] = useState([]);
   const [totalCount, setTotalCount] = useState(0);
+  const [starringWorkspaceIds, setStarringWorkspaceIds] = useState([]);
   const activeRequestRef = useRef(0);
 
   const query = (searchParams.get('q') || '').trim();
@@ -63,6 +64,42 @@ const DiscoverWorkspaces = () => {
     if (event.key !== 'Enter') return;
     event.preventDefault();
     submitSearch();
+  };
+
+  const toggleWorkspaceStar = async (workspaceId, nextState) => {
+    if (!workspaceId || starringWorkspaceIds.includes(workspaceId)) return;
+
+    const previousState = !!workspaces.find((workspace) => workspace.id === workspaceId)?.is_starred;
+    setStarringWorkspaceIds((prev) => [...prev, workspaceId]);
+    setWorkspaces((prev) =>
+      prev.map((workspace) =>
+        workspace.id === workspaceId ? { ...workspace, is_starred: nextState } : workspace
+      )
+    );
+
+    try {
+      const response = await api.patch(`workspaces/${workspaceId}/star/`, { is_starred: nextState });
+      const confirmedState = typeof response?.data?.is_starred === 'boolean'
+        ? response.data.is_starred
+        : nextState;
+      setWorkspaces((prev) =>
+        prev.map((workspace) =>
+          workspace.id === workspaceId
+            ? { ...workspace, is_starred: confirmedState }
+            : workspace
+        )
+      );
+    } catch {
+      setWorkspaces((prev) =>
+        prev.map((workspace) =>
+          workspace.id === workspaceId
+            ? { ...workspace, is_starred: previousState }
+            : workspace
+        )
+      );
+    } finally {
+      setStarringWorkspaceIds((prev) => prev.filter((id) => id !== workspaceId));
+    }
   };
 
   return (
@@ -119,10 +156,25 @@ const DiscoverWorkspaces = () => {
                       <h3 className="text-lg font-semibold text-gray-900">{workspace.name}</h3>
                       <p className="text-xs text-gray-500">By {workspace.owner_name || 'Unknown owner'}</p>
                     </div>
-                    <span className="inline-flex items-center gap-1 px-2 py-1 text-xs font-semibold text-blue-700 bg-blue-50 rounded-md">
-                      <Globe size={12} />
-                      Public
-                    </span>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          toggleWorkspaceStar(workspace.id, !workspace.is_starred);
+                        }}
+                        aria-label={workspace.is_starred ? 'Unstar workspace' : 'Star workspace'}
+                        title={workspace.is_starred ? 'Unstar workspace' : 'Star workspace'}
+                        disabled={starringWorkspaceIds.includes(workspace.id)}
+                        className="p-1.5 rounded-md border border-gray-200 text-gray-400 hover:text-amber-500 hover:border-amber-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                      >
+                        <Star size={14} className={workspace.is_starred ? 'fill-amber-400 text-amber-500' : ''} />
+                      </button>
+                      <span className="inline-flex items-center gap-1 px-2 py-1 text-xs font-semibold text-blue-700 bg-blue-50 rounded-md">
+                        <Globe size={12} />
+                        Public
+                      </span>
+                    </div>
                   </div>
                   <p className="text-sm text-gray-600 min-h-10">
                     {workspace.description || 'No description provided.'}
