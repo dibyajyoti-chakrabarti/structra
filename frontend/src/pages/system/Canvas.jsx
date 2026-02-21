@@ -27,12 +27,14 @@ import {
   Undo2,
   Redo2,
   MessageSquare,
+  AlertCircle,
 } from 'lucide-react';
 import api from '../../api';
 
 const NODE_WIDTH = 180;
 const NODE_HEIGHT = 96;
 const AUTOSAVE_DEBOUNCE_MS = 650;
+const MOBILE_MAX_WIDTH = 767;
 
 const COMPONENT_CATEGORIES = [
   {
@@ -893,6 +895,7 @@ const Canvas = () => {
   const canvasRef = useRef(null);
   const autosaveDebounceRef = useRef(null);
   const retryTimeoutRef = useRef(null);
+  const permissionNoticeTimeoutRef = useRef(null);
   const draggingNodeRef = useRef(null);
   const draggingBendRef = useRef(null);
   const draggingSegmentRef = useRef(null);
@@ -909,6 +912,11 @@ const Canvas = () => {
   const [system, setSystem] = useState(null);
   const [user, setUser] = useState(null);
   const [activeTool, setActiveTool] = useState('select');
+  const [isPanning, setIsPanning] = useState(false);
+  const [permissionNotice, setPermissionNotice] = useState('');
+  const [isMobileViewport, setIsMobileViewport] = useState(() =>
+    typeof window !== 'undefined' ? window.innerWidth <= MOBILE_MAX_WIDTH : false
+  );
 
   const [canvasState, setCanvasState] = useState(DEFAULT_CANVAS_STATE);
   const [selectedNodeId, setSelectedNodeId] = useState(null);
@@ -940,7 +948,31 @@ const Canvas = () => {
   const canComment = isWorkspaceMember && (currentUserCanvasRole === 'editor' || currentUserCanvasRole === 'commenter');
   const isReadOnlyStructure = !canEditStructure;
 
+  const showPermissionNotice = useCallback(() => {
+    const roleLabel = currentUserCanvasRole === 'commenter' ? 'commenter' : 'viewer';
+    setPermissionNotice(`You cannot select components in ${roleLabel} mode. Ask an editor for edit access.`);
+    clearTimeout(permissionNoticeTimeoutRef.current);
+    permissionNoticeTimeoutRef.current = setTimeout(() => {
+      setPermissionNotice('');
+    }, 2600);
+  }, [currentUserCanvasRole]);
+
   useEffect(() => {
+    const handleResize = () => {
+      setIsMobileViewport(window.innerWidth <= MOBILE_MAX_WIDTH);
+    };
+
+    handleResize();
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  useEffect(() => {
+    if (isMobileViewport) {
+      setLoading(false);
+      return;
+    }
+
     const fetchData = async () => {
       try {
         const [systemRes, workspaceRes, userRes] = await Promise.all([
@@ -970,7 +1002,7 @@ const Canvas = () => {
     };
 
     fetchData();
-  }, [workspaceId, systemId]);
+  }, [isMobileViewport, workspaceId, systemId]);
 
   const fetchComments = useCallback(async () => {
     setAreCommentsLoading(true);
@@ -988,8 +1020,9 @@ const Canvas = () => {
   }, [systemId]);
 
   useEffect(() => {
+    if (isMobileViewport) return;
     fetchComments();
-  }, [fetchComments]);
+  }, [fetchComments, isMobileViewport]);
 
   const saveCanvasState = useCallback(
     async (nextState, signature) => {
@@ -1014,7 +1047,7 @@ const Canvas = () => {
   );
 
   useEffect(() => {
-    if (loading || !system || isReadOnlyStructure) return;
+    if (isMobileViewport || loading || !system || isReadOnlyStructure) return;
 
     const signature = JSON.stringify(canvasState);
     if (signature === lastSavedSignatureRef.current) return;
@@ -1027,12 +1060,13 @@ const Canvas = () => {
     return () => {
       clearTimeout(autosaveDebounceRef.current);
     };
-  }, [canvasState, isReadOnlyStructure, loading, saveCanvasState, system]);
+  }, [canvasState, isMobileViewport, isReadOnlyStructure, loading, saveCanvasState, system]);
 
   useEffect(() => {
     return () => {
       clearTimeout(autosaveDebounceRef.current);
       clearTimeout(retryTimeoutRef.current);
+      clearTimeout(permissionNoticeTimeoutRef.current);
     };
   }, []);
 
@@ -1140,7 +1174,12 @@ const Canvas = () => {
   };
 
   const onNodeMouseDown = (event, node) => {
-    if (!canEditStructure) return;
+    if (!canEditStructure) {
+      if (activeTool === 'select' && event.button === 0) {
+        showPermissionNotice();
+      }
+      return;
+    }
     if (activeTool !== 'select') return;
     if (event.button !== 0) return;
     setRightPanelMode('design');
@@ -1314,6 +1353,7 @@ const Canvas = () => {
       startPanX: canvasState.viewport.pan.x,
       startPanY: canvasState.viewport.pan.y,
     };
+    setIsPanning(true);
     beginDragHistory();
   };
 
@@ -1415,6 +1455,7 @@ const Canvas = () => {
       draggingBendRef.current = null;
       draggingSegmentRef.current = null;
       panningRef.current = null;
+      setIsPanning(false);
       commitDragHistory();
       if (connectionDraft) {
         setConnectionDraft(null);
@@ -1977,123 +2018,142 @@ const Canvas = () => {
     return <div className="h-screen flex items-center justify-center text-gray-500">Loading canvas...</div>;
   }
 
+  if (isMobileViewport) {
+    return (
+      <div className="h-screen w-screen bg-white flex items-center justify-center p-6">
+        <p className="text-sm font-medium text-gray-700 text-center">
+          Mobile is not supported for the system canvas.
+        </p>
+      </div>
+    );
+  }
+
   if (!workspace || !system || !user) {
     return <div className="h-screen flex items-center justify-center text-red-600">Failed to load canvas.</div>;
   }
 
   const creatorName = user.full_name || user.email;
+  const formatCommentTimestamp = (timestamp) =>
+    new Date(timestamp).toLocaleString([], {
+      dateStyle: 'medium',
+      timeStyle: 'short',
+    });
+
   const renderCommentNode = (comment, depth = 0) => (
-    <div key={comment.id} className="space-y-2" style={{ marginLeft: `${depth * 14}px` }}>
-      <div className="rounded-md border border-gray-200 bg-white p-3">
-        <div className="flex items-start justify-between gap-3">
-          <div>
-            <p className="text-sm font-semibold text-gray-900">{comment.author_name || 'Unknown'}</p>
-            <p className="text-xs text-gray-500">
-              {new Date(comment.created_at).toLocaleString()}
-            </p>
+    <div key={comment.id} className="space-y-3" style={{ marginLeft: `${depth * 18}px` }}>
+      <div className="flex items-start gap-3">
+        <div className="h-8 w-8 shrink-0 rounded-full bg-slate-100 border border-slate-200 flex items-center justify-center text-xs font-semibold text-slate-700">
+          {(comment.author_name || 'U').charAt(0).toUpperCase()}
+        </div>
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-2 text-xs text-gray-500">
+            <span className="text-sm font-semibold text-gray-900 truncate">
+              {comment.author_name || 'Unknown'}
+            </span>
+            <span>{formatCommentTimestamp(comment.created_at)}</span>
           </div>
-          {(comment.is_author || workspace.is_admin) && (
-            <div className="flex items-center gap-2">
+
+          {editingCommentId === comment.id ? (
+            <div className="mt-2 space-y-2">
+              <textarea
+                value={editingCommentBody}
+                onChange={(event) => setEditingCommentBody(event.target.value)}
+                rows={3}
+                className="w-full border border-gray-300 rounded-md px-2.5 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-blue-100"
+              />
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={handleSaveCommentEdit}
+                  className="px-3 py-1.5 text-xs font-semibold rounded-full bg-blue-600 text-white hover:bg-blue-700"
+                >
+                  Save
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setEditingCommentId(null);
+                    setEditingCommentBody('');
+                  }}
+                  className="px-3 py-1.5 text-xs font-semibold rounded-full border border-gray-300 text-gray-700"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          ) : (
+            <p className="mt-1.5 text-sm text-gray-800 whitespace-pre-wrap leading-6">{comment.body}</p>
+          )}
+
+          <div className="mt-2 flex items-center gap-4 text-xs">
+            {canComment && (
               <button
                 type="button"
-                onClick={() => {
-                  setEditingCommentId(comment.id);
-                  setEditingCommentBody(comment.body || '');
-                }}
-                className="text-xs text-blue-700 hover:text-blue-800"
+                onClick={() =>
+                  setActiveReplyParentId((prev) => (prev === comment.id ? null : comment.id))
+                }
+                className="font-semibold text-gray-600 hover:text-gray-900"
               >
-                Edit
+                Reply
               </button>
-              <button
-                type="button"
-                onClick={() => handleDeleteComment(comment.id)}
-                className="text-xs text-red-600 hover:text-red-700"
-              >
-                Delete
-              </button>
+            )}
+            {(comment.is_author || workspace.is_admin) && (
+              <>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setEditingCommentId(comment.id);
+                    setEditingCommentBody(comment.body || '');
+                  }}
+                  className="font-semibold text-blue-700 hover:text-blue-800"
+                >
+                  Edit
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleDeleteComment(comment.id)}
+                  className="font-semibold text-red-600 hover:text-red-700"
+                >
+                  Delete
+                </button>
+              </>
+            )}
+          </div>
+
+          {canComment && activeReplyParentId === comment.id && (
+            <div className="mt-3 space-y-2">
+              <textarea
+                value={replyDrafts[comment.id] || ''}
+                onChange={(event) =>
+                  setReplyDrafts((prev) => ({ ...prev, [comment.id]: event.target.value }))
+                }
+                rows={2}
+                placeholder="Add a reply..."
+                className="w-full border border-gray-300 rounded-md px-2.5 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-blue-100"
+              />
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => handleCreateReply(comment.id)}
+                  className="px-3 py-1.5 text-xs font-semibold rounded-full bg-blue-600 text-white hover:bg-blue-700"
+                >
+                  Reply
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setActiveReplyParentId(null)}
+                  className="px-3 py-1.5 text-xs font-semibold rounded-full border border-gray-300 text-gray-700"
+                >
+                  Cancel
+                </button>
+              </div>
             </div>
           )}
         </div>
-
-        {editingCommentId === comment.id ? (
-          <div className="mt-3 space-y-2">
-            <textarea
-              value={editingCommentBody}
-              onChange={(event) => setEditingCommentBody(event.target.value)}
-              rows={3}
-              className="w-full border border-gray-300 rounded-md px-2.5 py-2 text-sm resize-none"
-            />
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={handleSaveCommentEdit}
-                className="px-3 py-1.5 text-xs font-semibold rounded-md bg-blue-600 text-white hover:bg-blue-700"
-              >
-                Save
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setEditingCommentId(null);
-                  setEditingCommentBody('');
-                }}
-                className="px-3 py-1.5 text-xs font-semibold rounded-md border border-gray-300 text-gray-700"
-              >
-                Cancel
-              </button>
-            </div>
-          </div>
-        ) : (
-          <p className="mt-2 text-sm text-gray-700 whitespace-pre-wrap">{comment.body}</p>
-        )}
-
-        <div className="mt-3 flex items-center gap-2">
-          {canComment && (
-            <button
-              type="button"
-              onClick={() =>
-                setActiveReplyParentId((prev) => (prev === comment.id ? null : comment.id))
-              }
-              className="text-xs text-blue-700 hover:text-blue-800"
-            >
-              Reply
-            </button>
-          )}
-        </div>
-
-        {canComment && activeReplyParentId === comment.id && (
-          <div className="mt-2 space-y-2">
-            <textarea
-              value={replyDrafts[comment.id] || ''}
-              onChange={(event) =>
-                setReplyDrafts((prev) => ({ ...prev, [comment.id]: event.target.value }))
-              }
-              rows={2}
-              placeholder="Write a reply..."
-              className="w-full border border-gray-300 rounded-md px-2.5 py-2 text-sm resize-none"
-            />
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={() => handleCreateReply(comment.id)}
-                className="px-3 py-1.5 text-xs font-semibold rounded-md bg-blue-600 text-white hover:bg-blue-700"
-              >
-                Post Reply
-              </button>
-              <button
-                type="button"
-                onClick={() => setActiveReplyParentId(null)}
-                className="px-3 py-1.5 text-xs font-semibold rounded-md border border-gray-300 text-gray-700"
-              >
-                Cancel
-              </button>
-            </div>
-          </div>
-        )}
       </div>
 
       {Array.isArray(comment.replies) && comment.replies.length > 0 && (
-        <div className="space-y-2">
+        <div className="space-y-3 border-l border-gray-200 pl-3 ml-4">
           {comment.replies.map((reply) => renderCommentNode(reply, depth + 1))}
         </div>
       )}
@@ -2102,6 +2162,14 @@ const Canvas = () => {
 
   return (
     <div className="h-screen flex flex-col bg-white overflow-hidden">
+      {permissionNotice && (
+        <div className="fixed top-20 left-1/2 -translate-x-1/2 z-[80] w-[min(92vw,620px)] rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5 shadow">
+          <div className="flex items-start gap-2 text-amber-800">
+            <AlertCircle size={16} className="mt-0.5 shrink-0" />
+            <p className="text-xs font-medium leading-5">{permissionNotice}</p>
+          </div>
+        </div>
+      )}
       <header className="border-b border-gray-200 bg-white px-5 py-3 flex items-center justify-between gap-3">
         <div className="min-w-0">
           <p className="text-sm text-gray-700 border border-gray-200 rounded-md px-2.5 py-1.5 max-w-[520px] truncate">
@@ -2305,7 +2373,9 @@ const Canvas = () => {
               setRightPanelMode('design');
               openPropertiesPanel();
             }}
-            className="relative flex-1 overflow-hidden bg-slate-50"
+            className={`relative flex-1 overflow-hidden bg-slate-50 ${
+              isPanning ? 'cursor-grabbing' : activeTool === 'pan' ? 'cursor-grab' : 'cursor-default'
+            }`}
             style={{
               backgroundImage:
                 'linear-gradient(to right, rgba(148,163,184,0.18) 1px, transparent 1px), linear-gradient(to bottom, rgba(148,163,184,0.18) 1px, transparent 1px)',
@@ -2353,6 +2423,10 @@ const Canvas = () => {
                       className="pointer-events-auto cursor-pointer"
                       onClick={(event) => {
                         event.stopPropagation();
+                        if (!canEditStructure) {
+                          showPermissionNotice();
+                          return;
+                        }
                         setRightPanelMode('design');
                         openPropertiesPanel();
                         setSelectedEdgeId(edge.id);
@@ -2459,7 +2533,9 @@ const Canvas = () => {
                     opacity: nodeIsHighlighted || selectedNodeId === node.id || !highlightedInsight ? 1 : 0.58,
                   }}
                   onMouseDown={(event) => {
-                    event.stopPropagation();
+                    if (event.button !== 2) {
+                      event.stopPropagation();
+                    }
                     onNodeMouseDown(event, node);
                   }}
                 >
@@ -2498,7 +2574,7 @@ const Canvas = () => {
               );
             })}
 
-            {canvasState.nodes.length === 0 && (
+            {canEditStructure && canvasState.nodes.length === 0 && (
               <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
                 <div className="bg-white/90 border border-dashed border-gray-300 rounded-xl px-5 py-4 text-center">
                   <p className="text-sm font-medium text-gray-700">Drag components from the left panel to start.</p>
@@ -2590,27 +2666,29 @@ const Canvas = () => {
               <button
                 type="button"
                 onClick={() => setRightPanelMode('insights')}
-                className={`px-2.5 py-1.5 text-xs rounded-md border inline-flex items-center gap-1 ${
+                title={`Insights (${insights.length})`}
+                aria-label={`Insights (${insights.length})`}
+                className={`h-8 px-2.5 text-xs rounded-md border inline-flex items-center justify-center gap-1 ${
                   rightPanelMode === 'insights'
                     ? 'bg-blue-50 text-blue-700 border-blue-200'
                     : 'bg-white text-gray-600 border-gray-200'
                 }`}
               >
                 <Lightbulb size={12} />
-                Insights
                 <span className="text-[10px] px-1.5 py-0.5 rounded bg-gray-100 text-gray-700">{insights.length}</span>
               </button>
               <button
                 type="button"
                 onClick={() => setRightPanelMode('comments')}
-                className={`px-2.5 py-1.5 text-xs rounded-md border inline-flex items-center gap-1 ${
+                title={`Comments (${comments.length})`}
+                aria-label={`Comments (${comments.length})`}
+                className={`h-8 px-2.5 text-xs rounded-md border inline-flex items-center justify-center gap-1 ${
                   rightPanelMode === 'comments'
                     ? 'bg-blue-50 text-blue-700 border-blue-200'
                     : 'bg-white text-gray-600 border-gray-200'
                 }`}
               >
                 <MessageSquare size={12} />
-                Comments
                 <span className="text-[10px] px-1.5 py-0.5 rounded bg-gray-100 text-gray-700">{comments.length}</span>
               </button>
             </div>
