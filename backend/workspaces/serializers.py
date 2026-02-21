@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Workspace
+from .models import Workspace, WorkspaceStar
 from permissions.models import WorkspaceMember
 from core.constants import WorkspaceRole
 
@@ -9,6 +9,7 @@ class WorkspaceSerializer(serializers.ModelSerializer):
     system_count = serializers.SerializerMethodField()
     current_user_role = serializers.SerializerMethodField()
     is_admin = serializers.SerializerMethodField()
+    is_starred = serializers.SerializerMethodField()
 
     class Meta:
         model = Workspace
@@ -23,6 +24,7 @@ class WorkspaceSerializer(serializers.ModelSerializer):
             'system_count',
             'current_user_role',
             'is_admin',
+            'is_starred',
             'created_at',
             'updated_at',
         ]
@@ -42,6 +44,21 @@ class WorkspaceSerializer(serializers.ModelSerializer):
             return None
         return WorkspaceMember.objects.filter(workspace=obj, user=request.user).first()
 
+    def _get_starred_workspace_ids(self):
+        cached_workspace_ids = self.context.get("_starred_workspace_ids")
+        if cached_workspace_ids is not None:
+            return cached_workspace_ids
+
+        request = self.context.get("request")
+        if not request or not request.user or request.user.is_anonymous:
+            starred_workspace_ids = set()
+        else:
+            starred_workspace_ids = set(
+                WorkspaceStar.objects.filter(user=request.user).values_list("workspace_id", flat=True)
+            )
+        self.context["_starred_workspace_ids"] = starred_workspace_ids
+        return starred_workspace_ids
+
     def get_current_user_role(self, obj):
         membership = self._get_membership(obj)
         return membership.role if membership else None
@@ -50,10 +67,14 @@ class WorkspaceSerializer(serializers.ModelSerializer):
         membership = self._get_membership(obj)
         return bool(membership and membership.role == WorkspaceRole.ADMIN)
 
+    def get_is_starred(self, obj):
+        return obj.id in self._get_starred_workspace_ids()
+
 
 class PublicWorkspaceSerializer(serializers.ModelSerializer):
     owner_name = serializers.ReadOnlyField(source="owner.full_name")
     search_score = serializers.SerializerMethodField()
+    is_starred = serializers.SerializerMethodField()
 
     class Meta:
         model = Workspace
@@ -66,6 +87,7 @@ class PublicWorkspaceSerializer(serializers.ModelSerializer):
             "created_at",
             "updated_at",
             "search_score",
+            "is_starred",
         ]
         read_only_fields = fields
 
@@ -74,6 +96,19 @@ class PublicWorkspaceSerializer(serializers.ModelSerializer):
         if score is None:
             return None
         return round(float(score), 6)
+
+    def get_is_starred(self, obj):
+        request = self.context.get("request")
+        if not request or not request.user or request.user.is_anonymous:
+            return False
+
+        cached_workspace_ids = self.context.get("_public_starred_workspace_ids")
+        if cached_workspace_ids is None:
+            cached_workspace_ids = set(
+                WorkspaceStar.objects.filter(user=request.user).values_list("workspace_id", flat=True)
+            )
+            self.context["_public_starred_workspace_ids"] = cached_workspace_ids
+        return obj.id in cached_workspace_ids
 
 
 class WorkspaceDetailSerializer(WorkspaceSerializer):
