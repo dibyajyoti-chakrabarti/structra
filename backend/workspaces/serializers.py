@@ -49,3 +49,28 @@ class WorkspaceSerializer(serializers.ModelSerializer):
     def get_is_admin(self, obj):
         membership = self._get_membership(obj)
         return bool(membership and membership.role == WorkspaceRole.ADMIN)
+
+
+class PublicWorkspaceSerializer(serializers.ModelSerializer):
+    owner_name = serializers.ReadOnlyField(source="owner.full_name")
+    search_score = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Workspace
+        fields = [
+            "id",
+            "name",
+            "description",
+            "visibility",
+            "owner_name",
+            "created_at",
+            "updated_at",
+            "search_score",
+        ]
+        read_only_fields = fields
+
+    def get_search_score(self, obj):
+        score = getattr(obj, "score", None)
+        if score is None:
+            return None
+        return round(float(score), 6)
