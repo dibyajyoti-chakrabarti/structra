@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Outlet, useNavigate, useParams } from "react-router-dom";
+import { Outlet, useNavigate, useOutletContext, useParams } from "react-router-dom";
 import {
   Menu,
   Settings,
@@ -12,6 +12,7 @@ import {
   Users,
   ChevronDown,
   ChevronUp,
+  Star,
 } from "lucide-react";
 import AuthenticatedNavbar from "../../components/AuthenticatedNavbar";
 import WorkspaceNavbar from "../../components/WorkspaceNavbar";
@@ -52,6 +53,7 @@ const WorkspaceInstance = () => {
   // Lifted State: Manage workspaces globally for this layout
   const [workspaces, setWorkspaces] = useState([]);
   const [areWorkspacesLoading, setAreWorkspacesLoading] = useState(true);
+  const [starringWorkspaceIds, setStarringWorkspaceIds] = useState([]);
 
   const fetchWorkspaces = async () => {
     try {
@@ -67,6 +69,48 @@ const WorkspaceInstance = () => {
   useEffect(() => {
     fetchWorkspaces();
   }, []);
+
+  const toggleWorkspaceStar = async (workspaceId, desiredState) => {
+    if (!workspaceId) return null;
+    if (starringWorkspaceIds.includes(workspaceId)) return null;
+
+    const previousState = !!workspaces.find((workspace) => workspace.id === workspaceId)?.is_starred;
+    const nextState = typeof desiredState === "boolean" ? desiredState : !previousState;
+
+    setStarringWorkspaceIds((prev) => [...prev, workspaceId]);
+    setWorkspaces((prev) =>
+      prev.map((workspace) =>
+        workspace.id === workspaceId ? { ...workspace, is_starred: nextState } : workspace
+      )
+    );
+
+    try {
+      const response = await api.patch(`workspaces/${workspaceId}/star/`, { is_starred: nextState });
+      const confirmedState = typeof response?.data?.is_starred === "boolean"
+        ? response.data.is_starred
+        : nextState;
+      setWorkspaces((prev) =>
+        prev.map((workspace) =>
+          workspace.id === workspaceId
+            ? { ...workspace, is_starred: confirmedState }
+            : workspace
+        )
+      );
+      return confirmedState;
+    } catch (error) {
+      console.error("Failed to update starred state", error);
+      setWorkspaces((prev) =>
+        prev.map((workspace) =>
+          workspace.id === workspaceId
+            ? { ...workspace, is_starred: previousState }
+            : workspace
+        )
+      );
+      throw error;
+    } finally {
+      setStarringWorkspaceIds((prev) => prev.filter((id) => id !== workspaceId));
+    }
+  };
 
   return (
     <div className="flex flex-col h-screen bg-white overflow-hidden">
@@ -90,6 +134,8 @@ const WorkspaceInstance = () => {
           loading={areWorkspacesLoading}
           isDesktopCollapsed={isDesktopNavbarCollapsed}
           onDesktopToggle={() => setIsDesktopNavbarCollapsed((prev) => !prev)}
+          starringWorkspaceIds={starringWorkspaceIds}
+          onToggleWorkspaceStar={toggleWorkspaceStar}
         />
 
         {isDesktopNavbarCollapsed && (
@@ -107,7 +153,13 @@ const WorkspaceInstance = () => {
 
         <main className={`flex-1 overflow-hidden bg-white w-full relative z-0 ${isDesktopNavbarCollapsed ? "" : "md:border-l border-gray-100"}`}>
           <div className={`h-full w-full mx-auto p-4 md:p-10 overflow-y-auto ${isDesktopNavbarCollapsed ? "max-w-none" : "max-w-[1600px]"}`}>
-            <Outlet context={{ refreshWorkspaces: fetchWorkspaces }} />
+            <Outlet
+              context={{
+                refreshWorkspaces: fetchWorkspaces,
+                toggleWorkspaceStar,
+                starringWorkspaceIds,
+              }}
+            />
           </div>
         </main>
       </div>
@@ -118,6 +170,7 @@ const WorkspaceInstance = () => {
 export const WorkspaceOverview = () => {
   const navigate = useNavigate();
   const { workspaceId } = useParams();
+  const { toggleWorkspaceStar, starringWorkspaceIds = [] } = useOutletContext() || {};
   const MOBILE_MAX_WIDTH = 767;
   const [workspace, setWorkspace] = useState(null);
   const [systems, setSystems] = useState([]);
@@ -232,6 +285,25 @@ export const WorkspaceOverview = () => {
     navigate(`/app/ws/${workspaceId}/systems/${systemId}`);
   };
 
+  const handleToggleStar = async () => {
+    if (!workspace || !toggleWorkspaceStar) return;
+
+    const previousState = !!workspace.is_starred;
+    const nextState = !previousState;
+    setWorkspace((prev) => ({ ...prev, is_starred: nextState }));
+
+    try {
+      const confirmedState = await toggleWorkspaceStar(workspace.id, nextState);
+      if (typeof confirmedState === "boolean") {
+        setWorkspace((prev) => ({ ...prev, is_starred: confirmedState }));
+      }
+    } catch (error) {
+      console.error("Failed to update starred state", error);
+      setWorkspace((prev) => ({ ...prev, is_starred: previousState }));
+      showToast("Failed to update star status", "error");
+    }
+  };
+
   if (loading) return <div className="p-10 text-gray-400">Loading workspace details...</div>;
   if (!workspace) return <div className="p-10 text-red-500">Workspace not found.</div>;
 
@@ -241,6 +313,7 @@ export const WorkspaceOverview = () => {
     { label: "Team Members", value: workspace.member_count || "1" },
   ];
   const isMemberWorkspace = Boolean(workspace.is_member);
+  const canStarWorkspace = isMemberWorkspace || workspace.visibility === "public";
   const filteredSystems = isMemberWorkspace
     ? systems
     : systems.filter((system) => {
@@ -318,6 +391,20 @@ export const WorkspaceOverview = () => {
           </p>
         </div>
         <div className="flex items-center gap-2">
+          {canStarWorkspace && (
+            <button
+              onClick={handleToggleStar}
+              disabled={starringWorkspaceIds.includes(workspace.id)}
+              aria-label={workspace.is_starred ? "Unstar workspace" : "Star workspace"}
+              title={workspace.is_starred ? "Unstar workspace" : "Star workspace"}
+              className="p-2.5 text-gray-500 hover:bg-gray-100 rounded-md border border-gray-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <Star
+                size={20}
+                className={workspace.is_starred ? "fill-amber-400 text-amber-500" : ""}
+              />
+            </button>
+          )}
           {isMemberWorkspace && (
             <button
               onClick={() => navigate(`/app/ws/${workspaceId}/settings`)}

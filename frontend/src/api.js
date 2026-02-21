@@ -35,7 +35,20 @@ const cloneData = (data) => {
 
 const getSessionCacheScope = () => localStorage.getItem('refresh') || 'anonymous';
 
+const normalizeUrlPath = (url = '') => url.replace(/^\/+/, '');
+
 const resolveCacheTtlMs = (url = '') => {
+  const normalized = normalizeUrlPath(url);
+
+  if (normalized === 'auth/profile/') return 120000;
+  if (normalized === 'workspaces/') return 60000;
+  if (normalized === 'workspaces/starred/') return 30000;
+  if (normalized === 'workspaces/public/search/') return 15000;
+  if (/^workspaces\/[^/]+\/canvases\/[^/]+\/$/.test(normalized)) return 20000;
+  if (/^systems\/[^/]+\/comments\/$/.test(normalized)) return 10000;
+  if (/^systems\/[^/]+\/comments\/[^/]+\/$/.test(normalized)) return 10000;
+  if (/^systems\/[^/]+\/canvas\/$/.test(normalized)) return 8000;
+  if (/^workspaces\/[^/]+\/$/.test(normalized)) return 45000;
   if (url === 'auth/profile/') return 120000;
   if (url === 'workspaces/') return 60000;
   if (url.includes('/members/') || url.includes('/invitations/')) return 30000;
@@ -67,17 +80,47 @@ const clearApiCache = () => {
   inflightRequests.clear();
 };
 
+const invalidateApiCacheByPredicate = (predicate) => {
+  for (const key of requestCache.keys()) {
+    if (predicate(key)) {
+      requestCache.delete(key);
+    }
+  }
+};
+
 const invalidateApiCacheByUrlHint = (url = '') => {
   if (!url) {
     clearApiCache();
     return;
   }
-  const normalized = url.replace(/^\/+/, '');
-  for (const key of requestCache.keys()) {
+  const normalized = normalizeUrlPath(url);
+  const systemCommentListMatch = normalized.match(/^systems\/([^/]+)\/comments\/[^/]+\/$/);
+  const systemId = normalized.match(/^systems\/([^/]+)\//)?.[1] || null;
+
+  invalidateApiCacheByPredicate((key) => {
     if (key.includes(`|${normalized}|`) || key.includes('|workspaces/')) {
-      requestCache.delete(key);
+      return true;
     }
-  }
+
+    if (systemCommentListMatch) {
+      const [, commentSystemId] = systemCommentListMatch;
+      if (key.includes(`|systems/${commentSystemId}/comments/|`)) {
+        return true;
+      }
+    }
+
+    if (normalized.startsWith('systems/') && systemId) {
+      if (
+        key.includes('|systems/') ||
+        key.includes('|workspaces/') ||
+        key.includes('/canvases/')
+      ) {
+        return true;
+      }
+    }
+
+    return false;
+  });
 };
 
 const rawGet = api.get.bind(api);
@@ -108,12 +151,15 @@ api.get = (url, config = {}) => {
 
   const requestPromise = rawGet(url, config)
     .then((response) => {
+      const ttlMs = typeof config.cacheTtlMs === 'number'
+        ? config.cacheTtlMs
+        : resolveCacheTtlMs(url);
       requestCache.set(cacheKey, {
         data: cloneData(response.data),
         status: response.status,
         statusText: response.statusText,
         headers: response.headers,
-        expiresAt: Date.now() + resolveCacheTtlMs(url),
+        expiresAt: Date.now() + ttlMs,
       });
       return response;
     })

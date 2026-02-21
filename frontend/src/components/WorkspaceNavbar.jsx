@@ -1,6 +1,6 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, ChevronLeft, ChevronRight, X } from 'lucide-react';
+import { Plus, ChevronLeft, ChevronRight, X, Star } from 'lucide-react';
 
 export default function WorkspaceNavbar({
   isOpen,
@@ -9,8 +9,16 @@ export default function WorkspaceNavbar({
   loading = false,
   isDesktopCollapsed = false,
   onDesktopToggle,
+  starringWorkspaceIds = [],
+  onToggleWorkspaceStar,
 }) {
   const navigate = useNavigate();
+  const sortedWorkspaces = [...workspaces].sort((left, right) => {
+    if (left.is_starred !== right.is_starred) {
+      return Number(right.is_starred) - Number(left.is_starred);
+    }
+    return new Date(right.updated_at).getTime() - new Date(left.updated_at).getTime();
+  });
 
   const NavContent = () => (
     <div className="h-full flex flex-col">
@@ -39,13 +47,22 @@ export default function WorkspaceNavbar({
             Loading environments...
           </div>
         ) : (
-          workspaces.map((ws) => (
-            <button
+          sortedWorkspaces.map((ws) => (
+            <div
               key={ws.id}
               onClick={() => {
                 navigate(`/app/ws/${ws.id}`);
                 if(onClose) onClose(); 
               }}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter' || event.key === ' ') {
+                  event.preventDefault();
+                  navigate(`/app/ws/${ws.id}`);
+                  if (onClose) onClose();
+                }
+              }}
+              role="button"
+              tabIndex={0}
               className="w-full flex items-center justify-between p-3 rounded-xl hover:bg-gray-50 transition-all group border border-transparent hover:border-gray-200"
             >
               <div className="flex flex-col items-start gap-1">
@@ -56,8 +73,25 @@ export default function WorkspaceNavbar({
                   {ws.member_count} {ws.member_count === 1 ? 'member' : 'members'} | {ws.visibility}
                 </span>
               </div>
-              <ChevronRight size={16} className="text-gray-300 group-hover:text-gray-500 transition-colors" />
-            </button>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    if (onToggleWorkspaceStar) {
+                      onToggleWorkspaceStar(ws.id, !ws.is_starred);
+                    }
+                  }}
+                  aria-label={ws.is_starred ? 'Unstar workspace' : 'Star workspace'}
+                  title={ws.is_starred ? 'Unstar workspace' : 'Star workspace'}
+                  disabled={starringWorkspaceIds.includes(ws.id)}
+                  className="p-1 rounded text-gray-300 hover:text-amber-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                >
+                  <Star size={14} className={ws.is_starred ? 'fill-amber-400 text-amber-500' : ''} />
+                </button>
+                <ChevronRight size={16} className="text-gray-300 group-hover:text-gray-500 transition-colors" />
+              </div>
+            </div>
           ))
         )}
       </div>
