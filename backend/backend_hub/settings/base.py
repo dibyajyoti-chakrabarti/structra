@@ -1,20 +1,23 @@
-from pathlib import Path
 import os
+from pathlib import Path
+
 from dotenv import load_dotenv
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
+BACKEND_DIR = BASE_DIR / 'backend'
 
-# Load .env file
+# Load environment files.
+load_dotenv(BACKEND_DIR / '.env')
 load_dotenv(BASE_DIR / '.env')
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-zc7z2x9!czkcal*v)fuw=u9k@y%c$fyozj3$r87*#schp8_tpp'
+SECRET_KEY = os.getenv('DJANGO_SECRET_KEY', 'django-insecure-change-me')
 
-# SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
-
+# Environment-specific files should override these.
+DEBUG = False
 ALLOWED_HOSTS = []
+CORS_ALLOWED_ORIGINS = []
 
 # Application definition
 INSTALLED_APPS = [
@@ -49,11 +52,6 @@ MIDDLEWARE = [
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
 
-CORS_ALLOWED_ORIGINS = [
-    "http://localhost:5173",
-    "http://127.0.0.1:5173",
-]
-
 ROOT_URLCONF = 'backend_hub.urls'  # UPDATED
 
 TEMPLATES = [
@@ -74,22 +72,14 @@ TEMPLATES = [
 WSGI_APPLICATION = 'backend_hub.wsgi.application' # UPDATED
 
 # Database
-# DATABASES = {
-#     'default': {
-#         'ENGINE': 'django.db.backends.sqlite3',
-#         'NAME': BASE_DIR / 'db.sqlite3',
-#     }
-# }
-
-# AWS RDS Configuration
 DATABASES = {
     'default': {
-        'ENGINE': os.getenv('DB_ENGINE', 'django.db.backends.sqlite3'),
-        'NAME': os.getenv('DB_NAME', BASE_DIR / 'db.sqlite3'),
-        'USER': os.getenv('DB_USER'),
-        'PASSWORD': os.getenv('DB_PASSWORD'),
-        'HOST': os.getenv('DB_HOST'),
-        'PORT': os.getenv('DB_PORT'),
+        'ENGINE': os.getenv('DB_ENGINE', 'django.db.backends.postgresql'),
+        'NAME': os.getenv('DB_NAME', 'structra'),
+        'USER': os.getenv('DB_USER', 'postgres'),
+        'PASSWORD': os.getenv('DB_PASSWORD', ''),
+        'HOST': os.getenv('DB_HOST', 'localhost'),
+        'PORT': os.getenv('DB_PORT', '5432'),
     }
 }
 
@@ -132,6 +122,7 @@ USE_TZ = True
 
 # Static files
 STATIC_URL = 'static/'
+STATIC_ROOT = BASE_DIR / 'staticfiles'
 
 # Email (OTP delivery)
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
