@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom"; // 1. Import Navigate
 import PrivateRoute from "./components/PrivateRoute";
 
@@ -28,6 +29,7 @@ import InvitationRedirect from "./pages/invitations/InvitationRedirect";
 import InvitationAcceptReject from "./pages/invitations/InvitationAcceptReject";
 import Unauthorized from "./pages/infrastructure/Unauthorized";
 import NotFound from "./pages/infrastructure/NotFound";
+import ServerDown from "./pages/infrastructure/ServerDown";
 import Pricing from "./pages/public/Pricing";
 import Privacy from "./pages/public/Privacy";
 import Terms from "./pages/public/Terms";
@@ -46,6 +48,62 @@ const PublicRoute = ({ children }) => {
 };
 
 function App() {
+  const [backendHealthy, setBackendHealthy] = useState(false);
+  const [healthReady, setHealthReady] = useState(false);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const checkBackendHealth = async () => {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 7000);
+
+      try {
+        const baseUrl = import.meta.env.VITE_API_BASE_URL || "/api/";
+        const healthUrl = `${baseUrl.replace(/\/?$/, "/")}health/`;
+        const response = await fetch(healthUrl, {
+          method: "GET",
+          cache: "no-store",
+          signal: controller.signal,
+        });
+
+        if (!isMounted) return;
+        setBackendHealthy(response.ok);
+      } catch (_error) {
+        if (!isMounted) return;
+        setBackendHealthy(false);
+      } finally {
+        clearTimeout(timeoutId);
+        if (isMounted) {
+          setHealthReady(true);
+        }
+      }
+    };
+
+    checkBackendHealth();
+    const intervalId = setInterval(checkBackendHealth, 15000);
+
+    return () => {
+      isMounted = false;
+      clearInterval(intervalId);
+    };
+  }, []);
+
+  if (!healthReady) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-gradient-to-b from-blue-50 via-white to-white px-4">
+        <div className="rounded-2xl border border-blue-100 bg-white px-8 py-6 text-center shadow-md shadow-blue-100/70">
+          <p className="text-lg font-semibold text-slate-800">Checking server status...</p>
+          <p className="mt-1 text-sm text-slate-600">Please wait a moment.</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (healthReady && !backendHealthy) {
+    return <ServerDown />;
+  }
+
   return (
     <BrowserRouter>
       <Routes>
