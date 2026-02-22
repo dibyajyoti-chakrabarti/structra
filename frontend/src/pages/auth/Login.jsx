@@ -72,7 +72,7 @@ export default function Login() {
 
   const handleGitHubLogin = () => {
     const CLIENT_ID = import.meta.env.VITE_GITHUB_CLIENT_ID;
-    const REDIRECT_URI = "http://localhost:5173/auth/github/callback";
+    const REDIRECT_URI = `${import.meta.env.VITE_FRONTEND_URL}/auth/github/callback`;
 
     if (!CLIENT_ID) {
       alert("GitHub Client ID not loaded");
