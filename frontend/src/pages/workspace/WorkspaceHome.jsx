@@ -1,13 +1,487 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Layout, Users, Clock, Star } from 'lucide-react';
+import { Plus, Layout, Users, Clock, Star, Grid3X3, ArrowUpRight } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import AuthenticatedNavbar from '../../components/AuthenticatedNavbar';
-import api from '../../api'; // Import your axios instance
+import api from '../../api';
+import LoadingState from '../../components/LoadingState';
 
+// ─── Styles ─────────────────────────────────────────────────────────────────
+const styles = `
+  @import url('https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700;800&display=swap');
+
+  .wsh-root {
+    min-height: 100vh;
+    background: #fafafa;
+    font-family: 'Geist', -apple-system, BlinkMacSystemFont, sans-serif;
+    color: #0a0a0a;
+  }
+
+  .wsh-main {
+    max-width: 1160px;
+    margin: 0 auto;
+    padding: 40px 24px 80px;
+  }
+
+  /* ── Loading ── */
+  .wsh-loading {
+    min-height: 100vh;
+    background: #fafafa;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'Geist', sans-serif;
+  }
+
+  .wsh-loading-inner {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 14px;
+  }
+
+  .wsh-loading-spinner {
+    width: 32px;
+    height: 32px;
+    border: 2px solid #e2e8f0;
+    border-top-color: #2563eb;
+    border-radius: 50%;
+    animation: wsh-spin 0.7s linear infinite;
+  }
+
+  @keyframes wsh-spin {
+    to { transform: rotate(360deg); }
+  }
+
+  .wsh-loading-text {
+    font-size: 13.5px;
+    color: #94a3b8;
+    font-weight: 500;
+  }
+
+  /* ── Section header row ── */
+  .wsh-section-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 16px;
+  }
+
+  .wsh-section-title {
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: #64748b;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .wsh-section-title svg {
+    color: #94a3b8;
+  }
+
+  .wsh-count-pill {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: #b45309;
+    background: #fef3c7;
+    border: 1px solid #fde68a;
+    padding: 3px 8px;
+    border-radius: 20px;
+  }
+
+  /* ── Empty state ── */
+  .wsh-empty {
+    border: 1.5px dashed #e2e8f0;
+    border-radius: 12px;
+    padding: 24px 20px;
+    font-size: 13px;
+    color: #94a3b8;
+    line-height: 1.6;
+    background: #fff;
+  }
+
+  /* ── Grid ── */
+  .wsh-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 14px;
+  }
+
+  /* ── Starred card ── */
+  .wsh-card-starred {
+    background: #fff;
+    border: 1.5px solid #fde68a;
+    border-radius: 12px;
+    padding: 20px;
+    cursor: pointer;
+    transition: border-color 0.15s, box-shadow 0.15s, transform 0.15s;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .wsh-card-starred::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, #f59e0b, #fbbf24);
+    opacity: 0;
+    transition: opacity 0.15s;
+  }
+
+  .wsh-card-starred:hover {
+    border-color: #f59e0b;
+    box-shadow: 0 4px 20px rgba(245, 158, 11, 0.12);
+    transform: translateY(-1px);
+  }
+
+  .wsh-card-starred:hover::before { opacity: 1; }
+
+  .wsh-card-top {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    margin-bottom: 16px;
+  }
+
+  .wsh-card-icon-starred {
+    width: 36px;
+    height: 36px;
+    background: #fef3c7;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #d97706;
+  }
+
+  .wsh-unstar-btn {
+    background: none;
+    border: 1.5px solid #fde68a;
+    border-radius: 7px;
+    padding: 5px;
+    cursor: pointer;
+    color: #d97706;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: border-color 0.1s, background 0.1s;
+    opacity: 0.6;
+  }
+
+  .wsh-unstar-btn:not(:disabled):hover {
+    border-color: #f59e0b;
+    background: #fef3c7;
+    opacity: 1;
+  }
+
+  .wsh-unstar-btn:disabled { cursor: not-allowed; opacity: 0.35; }
+
+  /* ── Regular workspace card ── */
+  .wsh-card {
+    background: #fff;
+    border: 1.5px solid #e2e8f0;
+    border-radius: 12px;
+    padding: 20px;
+    cursor: pointer;
+    transition: border-color 0.15s, box-shadow 0.15s, transform 0.15s;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .wsh-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, #2563eb, #60a5fa);
+    opacity: 0;
+    transition: opacity 0.15s;
+  }
+
+  .wsh-card:hover {
+    border-color: #93c5fd;
+    box-shadow: 0 4px 20px rgba(37, 99, 235, 0.08);
+    transform: translateY(-1px);
+  }
+
+  .wsh-card:hover::before { opacity: 1; }
+
+  .wsh-card-icon {
+    width: 36px;
+    height: 36px;
+    background: #eff6ff;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #2563eb;
+    transition: background 0.15s, color 0.15s;
+  }
+
+  .wsh-card:hover .wsh-card-icon {
+    background: #2563eb;
+    color: #fff;
+  }
+
+  .wsh-card-actions {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .wsh-star-btn {
+    background: none;
+    border: 1.5px solid #e2e8f0;
+    border-radius: 7px;
+    padding: 5px;
+    cursor: pointer;
+    color: #94a3b8;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: color 0.1s, border-color 0.1s, background 0.1s;
+  }
+
+  .wsh-star-btn:not(:disabled):hover {
+    color: #d97706;
+    border-color: #fde68a;
+    background: #fef9f0;
+  }
+
+  .wsh-star-btn.active {
+    color: #d97706;
+    border-color: #fde68a;
+  }
+
+  .wsh-star-btn:disabled { cursor: not-allowed; opacity: 0.4; }
+
+  .wsh-vis-badge {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+    color: #64748b;
+    background: #f1f5f9;
+    border: 1px solid #e2e8f0;
+    padding: 3px 7px;
+    border-radius: 5px;
+  }
+
+  /* ── Card body ── */
+  .wsh-card-name {
+    font-size: 14.5px;
+    font-weight: 650;
+    color: #0a0a0a;
+    margin: 0 0 4px;
+    letter-spacing: -0.2px;
+    transition: color 0.15s;
+  }
+
+  .wsh-card:hover .wsh-card-name { color: #2563eb; }
+
+  .wsh-card-meta {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    font-size: 12.5px;
+    color: #94a3b8;
+    margin-top: 14px;
+    padding-top: 14px;
+    border-top: 1px solid #f1f5f9;
+  }
+
+  .wsh-card-meta-item {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+  }
+
+  /* ── Page header ── */
+  .wsh-page-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    margin-bottom: 24px;
+    gap: 16px;
+    flex-wrap: wrap;
+  }
+
+  .wsh-page-title {
+    font-size: 26px;
+    font-weight: 800;
+    letter-spacing: -0.7px;
+    color: #0a0a0a;
+    margin: 0 0 4px;
+    line-height: 1.15;
+  }
+
+  .wsh-page-subtitle {
+    font-size: 13.5px;
+    color: #64748b;
+    margin: 0;
+    font-weight: 400;
+  }
+
+  .wsh-create-btn {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    background: #0a0a0a;
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    padding: 9px 16px;
+    font-size: 13.5px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.15s, transform 0.1s;
+    letter-spacing: -0.1px;
+    font-family: inherit;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+
+  .wsh-create-btn:hover { background: #1e293b; }
+  .wsh-create-btn:active { transform: scale(0.98); }
+
+  /* ── Add new card ── */
+  .wsh-card-new {
+    border: 1.5px dashed #e2e8f0;
+    border-radius: 12px;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: border-color 0.15s, background 0.15s;
+    min-height: 148px;
+    background: transparent;
+    width: 100%;
+    font-family: inherit;
+    gap: 10px;
+  }
+
+  .wsh-card-new:hover {
+    border-color: #93c5fd;
+    background: #f8fbff;
+  }
+
+  .wsh-card-new-icon {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: #f1f5f9;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #94a3b8;
+    transition: background 0.15s, color 0.15s;
+  }
+
+  .wsh-card-new:hover .wsh-card-new-icon {
+    background: #dbeafe;
+    color: #2563eb;
+  }
+
+  .wsh-card-new-label {
+    font-size: 13.5px;
+    font-weight: 600;
+    color: #94a3b8;
+    transition: color 0.15s;
+  }
+
+  .wsh-card-new:hover .wsh-card-new-label { color: #2563eb; }
+
+  /* ── Section spacing ── */
+  .wsh-section {
+    margin-bottom: 44px;
+  }
+
+  @media (max-width: 640px) {
+    .wsh-main { padding: 24px 16px 60px; }
+    .wsh-page-title { font-size: 22px; }
+    .wsh-create-btn span { display: none; }
+  }
+`;
+
+// ─── Card components ─────────────────────────────────────────────────────────
+const StarredCard = ({ ws, onUnstar, isStarring, onClick }) => (
+  <div className="wsh-card-starred" onClick={onClick}>
+    <div className="wsh-card-top">
+      <div className="wsh-card-icon-starred">
+        <Star size={18} style={{ fill: '#fbbf24', stroke: '#d97706' }} />
+      </div>
+      <button
+        type="button"
+        aria-label="Unstar workspace"
+        className="wsh-unstar-btn"
+        onClick={(e) => { e.stopPropagation(); onUnstar(); }}
+        disabled={isStarring}
+      >
+        <Star size={14} style={{ fill: '#d97706' }} />
+      </button>
+    </div>
+    <h3 className="wsh-card-name">{ws.name}</h3>
+    <div className="wsh-card-meta">
+      <div className="wsh-card-meta-item">
+        <Users size={13} />
+        <span>{ws.member_count} {ws.member_count === 1 ? 'member' : 'members'}</span>
+      </div>
+      <div className="wsh-card-meta-item">
+        <Clock size={13} />
+        <span>{formatDistanceToNow(new Date(ws.updated_at), { addSuffix: true })}</span>
+      </div>
+    </div>
+  </div>
+);
+
+const WorkspaceCard = ({ ws, onToggleStar, isStarring, onClick }) => (
+  <div className="wsh-card" onClick={onClick}>
+    <div className="wsh-card-top">
+      <div className="wsh-card-icon">
+        <Layout size={18} />
+      </div>
+      <div className="wsh-card-actions">
+        <button
+          type="button"
+          aria-label={ws.is_starred ? 'Unstar workspace' : 'Star workspace'}
+          className={`wsh-star-btn ${ws.is_starred ? 'active' : ''}`}
+          onClick={(e) => { e.stopPropagation(); onToggleStar(); }}
+          disabled={isStarring}
+        >
+          <Star
+            size={14}
+            style={ws.is_starred ? { fill: '#d97706', stroke: '#d97706' } : {}}
+          />
+        </button>
+        <span className="wsh-vis-badge">{ws.visibility}</span>
+      </div>
+    </div>
+    <h3 className="wsh-card-name">{ws.name}</h3>
+    <div className="wsh-card-meta">
+      <div className="wsh-card-meta-item">
+        <Users size={13} />
+        <span>{ws.member_count} {ws.member_count === 1 ? 'member' : 'members'}</span>
+      </div>
+      <div className="wsh-card-meta-item">
+        <Clock size={13} />
+        <span>{formatDistanceToNow(new Date(ws.updated_at), { addSuffix: true })}</span>
+      </div>
+    </div>
+  </div>
+);
+
+// ─── Main component ───────────────────────────────────────────────────────────
 const WorkspaceHome = () => {
   const navigate = useNavigate();
-  const [workspaces, setWorkspaces] = useState([]); // State for backend data
+  const [workspaces, setWorkspaces] = useState([]);
   const [starredWorkspaces, setStarredWorkspaces] = useState([]);
   const [loading, setLoading] = useState(true);
   const [starringWorkspaceIds, setStarringWorkspaceIds] = useState([]);
@@ -22,7 +496,7 @@ const WorkspaceHome = () => {
         setWorkspaces(workspaceResponse.data);
         setStarredWorkspaces(starredResponse.data);
       } catch (error) {
-        console.error("Failed to fetch workspaces", error);
+        console.error('Failed to fetch workspaces', error);
       } finally {
         setLoading(false);
       }
@@ -34,69 +508,52 @@ const WorkspaceHome = () => {
     if (!workspaceId) return;
     if (starringWorkspaceIds.includes(workspaceId)) return;
 
-    const workspaceFromState = workspaces.find((workspace) => workspace.id === workspaceId)
-      || starredWorkspaces.find((workspace) => workspace.id === workspaceId);
+    const workspaceFromState =
+      workspaces.find((w) => w.id === workspaceId) ||
+      starredWorkspaces.find((w) => w.id === workspaceId);
     const previousState = !!workspaceFromState?.is_starred;
+
     setStarringWorkspaceIds((prev) => [...prev, workspaceId]);
     setWorkspaces((prev) =>
-      prev.map((workspace) =>
-        workspace.id === workspaceId
-          ? { ...workspace, is_starred: nextState }
-          : workspace
-      )
+      prev.map((w) => (w.id === workspaceId ? { ...w, is_starred: nextState } : w))
     );
+
     if (workspaceFromState) {
       if (nextState) {
         setStarredWorkspaces((prev) => {
-          if (prev.some((workspace) => workspace.id === workspaceId)) {
-            return prev.map((workspace) =>
-              workspace.id === workspaceId
-                ? { ...workspace, is_starred: true }
-                : workspace
-            );
+          if (prev.some((w) => w.id === workspaceId)) {
+            return prev.map((w) => (w.id === workspaceId ? { ...w, is_starred: true } : w));
           }
           return [{ ...workspaceFromState, is_starred: true }, ...prev];
         });
       } else {
-        setStarredWorkspaces((prev) => prev.filter((workspace) => workspace.id !== workspaceId));
+        setStarredWorkspaces((prev) => prev.filter((w) => w.id !== workspaceId));
       }
     }
 
     try {
       const response = await api.patch(`workspaces/${workspaceId}/star/`, { is_starred: nextState });
-      const confirmedState = typeof response?.data?.is_starred === 'boolean'
-        ? response.data.is_starred
-        : nextState;
+      const confirmed =
+        typeof response?.data?.is_starred === 'boolean' ? response.data.is_starred : nextState;
 
       setWorkspaces((prev) =>
-        prev.map((workspace) =>
-          workspace.id === workspaceId
-            ? { ...workspace, is_starred: confirmedState }
-            : workspace
-        )
+        prev.map((w) => (w.id === workspaceId ? { ...w, is_starred: confirmed } : w))
       );
-      if (!confirmedState) {
-        setStarredWorkspaces((prev) => prev.filter((workspace) => workspace.id !== workspaceId));
+      if (!confirmed) {
+        setStarredWorkspaces((prev) => prev.filter((w) => w.id !== workspaceId));
       }
-    } catch (error) {
-      console.error('Failed to update starred state', error);
+    } catch {
       setWorkspaces((prev) =>
-        prev.map((workspace) =>
-          workspace.id === workspaceId
-            ? { ...workspace, is_starred: previousState }
-            : workspace
-        )
+        prev.map((w) => (w.id === workspaceId ? { ...w, is_starred: previousState } : w))
       );
       if (workspaceFromState) {
         if (previousState) {
           setStarredWorkspaces((prev) => {
-            if (prev.some((workspace) => workspace.id === workspaceId)) {
-              return prev;
-            }
+            if (prev.some((w) => w.id === workspaceId)) return prev;
             return [{ ...workspaceFromState, is_starred: true }, ...prev];
           });
         } else {
-          setStarredWorkspaces((prev) => prev.filter((workspace) => workspace.id !== workspaceId));
+          setStarredWorkspaces((prev) => prev.filter((w) => w.id !== workspaceId));
         }
       }
     } finally {
@@ -104,156 +561,92 @@ const WorkspaceHome = () => {
     }
   };
 
-  const sortedWorkspaces = [...workspaces].sort((left, right) => {
-    if (left.is_starred !== right.is_starred) {
-      return Number(right.is_starred) - Number(left.is_starred);
-    }
-    return new Date(right.updated_at).getTime() - new Date(left.updated_at).getTime();
+  const sortedWorkspaces = [...workspaces].sort((a, b) => {
+    if (a.is_starred !== b.is_starred) return Number(b.is_starred) - Number(a.is_starred);
+    return new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime();
   });
-  const sortedStarredWorkspaces = [...starredWorkspaces].sort((left, right) =>
-    new Date(right.updated_at).getTime() - new Date(left.updated_at).getTime()
+
+  const sortedStarred = [...starredWorkspaces].sort(
+    (a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()
   );
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-white flex flex-col items-center justify-center">
-        <div className="animate-pulse text-gray-400 font-semibold">Loading Workspaces...</div>
+      <div className="wsh-loading">
+        <style>{styles}</style>
+        <LoadingState message="Loading workspaces" minHeight={360} />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-white flex flex-col">
+    <div className="wsh-root">
+      <style>{styles}</style>
       <AuthenticatedNavbar />
-      
-      <main className="flex-1 max-w-7xl mx-auto w-full p-4 md:p-8">
-        <section className="mb-10">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-xl font-bold text-gray-900">Starred Workspaces</h2>
-            <span className="text-xs font-semibold uppercase tracking-wide text-amber-700 bg-amber-50 border border-amber-200 px-2 py-1 rounded-md">
-              {sortedStarredWorkspaces.length} starred
+
+      <main className="wsh-main">
+        {/* Starred section */}
+        <section className="wsh-section">
+          <div className="wsh-section-head">
+            <span className="wsh-section-title">
+              <Star size={14} />
+              Starred
             </span>
+            {sortedStarred.length > 0 && (
+              <span className="wsh-count-pill">{sortedStarred.length} starred</span>
+            )}
           </div>
 
-          {sortedStarredWorkspaces.length === 0 ? (
-            <div className="rounded-xl border border-dashed border-gray-300 bg-gray-50/50 p-6 text-sm text-gray-500">
-              No starred workspaces yet. Star any workspace from your list or public discover page to save it here.
+          {sortedStarred.length === 0 ? (
+            <div className="wsh-empty">
+              No starred workspaces yet. Star any workspace to pin it here for quick access.
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
-              {sortedStarredWorkspaces.map((ws) => (
-                <div
+            <div className="wsh-grid">
+              {sortedStarred.map((ws) => (
+                <StarredCard
                   key={`starred-${ws.id}`}
+                  ws={ws}
+                  onUnstar={() => toggleWorkspaceStar(ws.id, false)}
+                  isStarring={starringWorkspaceIds.includes(ws.id)}
                   onClick={() => navigate(`/app/ws/${ws.id}`)}
-                  className="bg-white p-6 rounded-xl border border-amber-200 hover:border-amber-300 transition-colors cursor-pointer group"
-                >
-                  <div className="flex justify-between items-start mb-6">
-                    <div className="p-3 bg-amber-50 text-amber-600 rounded-md">
-                      <Star size={24} className="fill-amber-300" />
-                    </div>
-                    <button
-                      type="button"
-                      aria-label="Unstar workspace"
-                      title="Unstar workspace"
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        toggleWorkspaceStar(ws.id, false);
-                      }}
-                      disabled={starringWorkspaceIds.includes(ws.id)}
-                      className="p-1.5 rounded-md border border-amber-200 text-amber-500 hover:text-amber-600 disabled:opacity-60 disabled:cursor-not-allowed transition-colors"
-                    >
-                      <Star size={16} className="fill-amber-400 text-amber-500" />
-                    </button>
-                  </div>
-                  <h3 className="text-lg font-semibold text-gray-900 mb-2">{ws.name}</h3>
-                  <div className="flex items-center gap-4 text-sm text-gray-500 mt-4 pt-4 border-t border-gray-100">
-                    <div className="flex items-center gap-1.5">
-                      <Users size={16} className="text-gray-400" />
-                      <span>{ws.member_count} {ws.member_count === 1 ? 'member' : 'members'}</span>
-                    </div>
-                    <div className="flex items-center gap-1.5">
-                      <Clock size={16} className="text-gray-400" />
-                      <span>{formatDistanceToNow(new Date(ws.updated_at), { addSuffix: true })}</span>
-                    </div>
-                  </div>
-                </div>
+                />
               ))}
             </div>
           )}
         </section>
 
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
+        {/* My Workspaces section */}
+        <div className="wsh-page-head">
           <div>
-            <h1 className="text-2xl md:text-3xl font-bold text-gray-900">My Workspaces</h1>
-            <p className="text-gray-500 mt-1">Manage your projects and team environments.</p>
+            <h1 className="wsh-page-title">My Workspaces</h1>
+            <p className="wsh-page-subtitle">Manage your projects and team environments.</p>
           </div>
-          <button
-            onClick={() => navigate('/app/create-workspace')}
-            className="w-full md:w-auto bg-blue-600 text-white px-5 py-2.5 rounded-md text-sm font-medium hover:bg-blue-700 transition-colors flex items-center justify-center gap-2"
-          >
-            <Plus size={18} />
-            Create Workspace
+          <button className="wsh-create-btn" onClick={() => navigate('/app/create-workspace')}>
+            <Plus size={16} />
+            <span>New Workspace</span>
           </button>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
+        <div className="wsh-grid">
           {sortedWorkspaces.map((ws) => (
-            <div 
+            <WorkspaceCard
               key={ws.id}
-              onClick={() => navigate(`/app/ws/${ws.id}`)} 
-              className="bg-white p-6 rounded-xl border border-gray-200 hover:border-blue-300 transition-colors cursor-pointer group"
-            >
-              <div className="flex justify-between items-start mb-6">
-                <div className="p-3 bg-blue-50 text-blue-600 rounded-md group-hover:bg-blue-600 group-hover:text-white transition-colors">
-                  <Layout size={24} />
-                </div>
-                <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    aria-label={ws.is_starred ? 'Unstar workspace' : 'Star workspace'}
-                    title={ws.is_starred ? 'Unstar workspace' : 'Star workspace'}
-                    onClick={(event) => {
-                      event.stopPropagation();
-                      toggleWorkspaceStar(ws.id, !ws.is_starred);
-                    }}
-                    disabled={starringWorkspaceIds.includes(ws.id)}
-                    className="p-1.5 rounded-md border border-gray-200 text-gray-400 hover:text-amber-500 hover:border-amber-200 disabled:opacity-60 disabled:cursor-not-allowed transition-colors"
-                  >
-                    <Star
-                      size={16}
-                      className={ws.is_starred ? 'fill-amber-400 text-amber-500' : ''}
-                    />
-                  </button>
-                  <span className="text-xs font-semibold text-gray-500 bg-gray-50 px-2 py-1 rounded-md uppercase tracking-wider border border-gray-200">
-                    {ws.visibility}
-                  </span>
-                </div>
-              </div>
-              
-              <h3 className="text-lg font-semibold text-gray-900 mb-2 group-hover:text-blue-600 transition-colors">{ws.name}</h3>
-              
-              <div className="flex items-center gap-4 text-sm text-gray-500 mt-4 pt-4 border-t border-gray-100">
-                <div className="flex items-center gap-1.5">
-                  <Users size={16} className="text-gray-400" />
-                  {/* Current model doesn't have a members count field yet */}
-                  <span>{ws.member_count} {ws.member_count === 1 ? 'member' : 'members'}</span> 
-                </div>
-                <div className="flex items-center gap-1.5">
-                  <Clock size={16} className="text-gray-400" />
-                  <span>{formatDistanceToNow(new Date(ws.updated_at), { addSuffix: true })}</span>
-                </div>
-              </div>
-            </div>
+              ws={ws}
+              onToggleStar={() => toggleWorkspaceStar(ws.id, !ws.is_starred)}
+              isStarring={starringWorkspaceIds.includes(ws.id)}
+              onClick={() => navigate(`/app/ws/${ws.id}`)}
+            />
           ))}
 
-          <button 
-             onClick={() => navigate('/app/create-workspace')}
-             className="flex flex-col items-center justify-center p-6 rounded-xl border border-dashed border-gray-300 hover:border-blue-400 hover:bg-blue-50/50 transition-colors group min-h-[200px]"
+          <button
+            className="wsh-card-new"
+            onClick={() => navigate('/app/create-workspace')}
           >
-             <div className="w-12 h-12 rounded-full bg-gray-50 flex items-center justify-center text-gray-400 group-hover:bg-blue-100 group-hover:text-blue-600 transition-colors mb-3">
-                <Plus size={24} />
-             </div>
-             <span className="font-semibold text-gray-500 group-hover:text-blue-700">Create new workspace</span>
+            <div className="wsh-card-new-icon">
+              <Plus size={18} />
+            </div>
+            <span className="wsh-card-new-label">New workspace</span>
           </button>
         </div>
       </main>

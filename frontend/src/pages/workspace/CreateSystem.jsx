@@ -1,22 +1,203 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import {
-  Save,
-  UserPlus,
-  CheckCircle,
-  Search,
-  Circle,
-  AlertCircle,
-  ShieldAlert,
-  ChevronDown,
+  UserPlus, CheckCircle, Search, Circle,
+  AlertCircle, ShieldAlert, ChevronDown, Plus, X,
 } from "lucide-react";
 import api from "../../api";
+import LoadingState from "../../components/LoadingState";
 
 const ROLE_OPTIONS = [
   { value: "viewer", label: "Viewer" },
   { value: "commenter", label: "Commenter" },
   { value: "editor", label: "Editor" },
 ];
+
+const styles = `
+  @import url('https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700;800&display=swap');
+
+  .cs-root {
+    display: flex; flex-direction: column;
+    font-family: 'Geist', -apple-system, BlinkMacSystemFont, sans-serif;
+  }
+  @media (min-width: 900px) {
+    .cs-root { flex-direction: row; min-height: calc(100vh - 180px); }
+  }
+
+  /* ── Left panel ── */
+  .cs-left {
+    flex: 1; display: flex; flex-direction: column;
+    padding-right: 0; padding-bottom: 24px;
+  }
+  @media (min-width: 900px) {
+    .cs-left { padding-right: 36px; padding-bottom: 0; border-right: 1.5px solid #f1f5f9; }
+  }
+
+  .cs-panel-title { font-size: 20px; font-weight: 800; letter-spacing: -0.5px; color: #0a0a0a; margin: 0 0 6px; }
+  .cs-panel-sub { font-size: 13px; color: #64748b; margin: 0 0 28px; }
+
+  /* Alerts */
+  .cs-alert {
+    display: flex; align-items: flex-start; gap: 10px;
+    padding: 12px 14px; border-radius: 10px; border: 1.5px solid;
+    margin-bottom: 20px; font-size: 13px;
+    animation: csAlertIn 0.15s ease;
+  }
+  @keyframes csAlertIn { from { opacity:0; transform: translateY(-3px); } to { opacity:1; transform: translateY(0); } }
+  .cs-alert.error { background: #fef2f2; border-color: #fecaca; color: #b91c1c; }
+  .cs-alert.warning { background: #fef9c3; border-color: #fde68a; color: #854d0e; }
+  .cs-alert-title { font-weight: 700; margin-bottom: 2px; }
+  .cs-alert-body { color: inherit; opacity: 0.85; }
+
+  /* Fields */
+  .cs-field { margin-bottom: 22px; }
+  .cs-label {
+    display: block; font-size: 10.5px; font-weight: 700;
+    text-transform: uppercase; letter-spacing: 0.07em;
+    color: #64748b; margin-bottom: 8px;
+  }
+  .cs-label .required { color: #ef4444; margin-left: 3px; }
+
+  .cs-input {
+    width: 100%; height: 40px; padding: 0 14px;
+    border: 1.5px solid #e2e8f0; border-radius: 8px;
+    font-size: 13.5px; font-family: inherit;
+    color: #0a0a0a; background: #fafafa; outline: none;
+    transition: border-color 0.15s, box-shadow 0.15s, background 0.15s;
+  }
+  .cs-input:focus { border-color: #2563eb; background: #fff; box-shadow: 0 0 0 3px rgba(37,99,235,0.08); }
+  .cs-input::placeholder { color: #94a3b8; }
+  .cs-input:disabled { background: #f1f5f9; color: #94a3b8; cursor: not-allowed; }
+
+  .cs-textarea {
+    width: 100%; padding: 10px 14px;
+    border: 1.5px solid #e2e8f0; border-radius: 8px;
+    font-size: 13.5px; font-family: inherit; color: #0a0a0a;
+    background: #fafafa; outline: none; resize: none; line-height: 1.55;
+    transition: border-color 0.15s, box-shadow 0.15s, background 0.15s;
+  }
+  .cs-textarea:focus { border-color: #2563eb; background: #fff; box-shadow: 0 0 0 3px rgba(37,99,235,0.08); }
+  .cs-textarea:disabled { background: #f1f5f9; color: #94a3b8; cursor: not-allowed; }
+
+  .cs-select-wrap { position: relative; }
+  .cs-select {
+    width: 100%; height: 40px; padding: 0 36px 0 14px;
+    border: 1.5px solid #e2e8f0; border-radius: 8px;
+    font-size: 13.5px; font-family: inherit; color: #1e293b;
+    background: #fafafa; outline: none; appearance: none; cursor: pointer;
+    transition: border-color 0.15s, box-shadow 0.15s, background 0.15s;
+  }
+  .cs-select:focus { border-color: #2563eb; background: #fff; box-shadow: 0 0 0 3px rgba(37,99,235,0.08); }
+  .cs-select:disabled { background: #f1f5f9; color: #94a3b8; cursor: not-allowed; }
+  .cs-select-icon { position: absolute; right: 13px; top: 50%; transform: translateY(-50%); color: #94a3b8; pointer-events: none; }
+  .cs-select-note { font-size: 12px; color: #b45309; margin-top: 5px; }
+
+  /* Actions */
+  .cs-actions { display: flex; align-items: center; justify-content: flex-end; gap: 8px; padding-top: 24px; margin-top: auto; border-top: 1.5px solid #f1f5f9; }
+  .cs-cancel-btn {
+    height: 38px; padding: 0 16px;
+    background: none; border: 1.5px solid #e2e8f0; border-radius: 8px;
+    font-size: 13.5px; font-weight: 500; color: #64748b;
+    cursor: pointer; font-family: inherit;
+    transition: border-color 0.1s, color 0.1s, background 0.1s;
+  }
+  .cs-cancel-btn:hover { border-color: #cbd5e1; color: #1e293b; background: #f8fafc; }
+  .cs-cancel-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  .cs-submit-btn {
+    height: 38px; padding: 0 20px;
+    background: #0a0a0a; color: #fff; border: none; border-radius: 8px;
+    font-size: 13.5px; font-weight: 650; cursor: pointer; font-family: inherit;
+    display: flex; align-items: center; gap: 7px;
+    transition: background 0.15s, transform 0.1s;
+  }
+  .cs-submit-btn:hover { background: #1e293b; }
+  .cs-submit-btn:active { transform: scale(0.98); }
+  .cs-submit-btn:disabled { background: #e2e8f0; color: #94a3b8; cursor: not-allowed; transform: none; }
+
+  /* ── Right panel (team access) ── */
+  .cs-right {
+    width: 100%; display: flex; flex-direction: column;
+    border-top: 1.5px solid #f1f5f9; padding-top: 24px;
+  }
+  @media (min-width: 900px) {
+    .cs-right { width: 300px; flex-shrink: 0; padding-left: 36px; padding-top: 0; border-top: none; }
+  }
+
+  .cs-right-title { font-size: 14px; font-weight: 700; color: #0a0a0a; margin: 0 0 3px; display: flex; align-items: center; gap: 8px; letter-spacing: -0.2px; }
+  .cs-right-title svg { color: #2563eb; }
+  .cs-right-sub { font-size: 12.5px; color: #94a3b8; margin: 0 0 14px; }
+
+  /* Search */
+  .cs-member-search-wrap { position: relative; margin-bottom: 10px; }
+  .cs-member-search-icon { position: absolute; left: 11px; top: 50%; transform: translateY(-50%); color: #94a3b8; pointer-events: none; }
+  .cs-member-search {
+    width: 100%; height: 36px; padding: 0 14px 0 32px;
+    border: 1.5px solid #e2e8f0; border-radius: 8px;
+    font-size: 13px; font-family: inherit; background: #fafafa;
+    color: #0a0a0a; outline: none;
+    transition: border-color 0.15s, box-shadow 0.15s, background 0.15s;
+  }
+  .cs-member-search:focus { border-color: #2563eb; background: #fff; box-shadow: 0 0 0 3px rgba(37,99,235,0.08); }
+  .cs-member-search::placeholder { color: #94a3b8; }
+  .cs-member-search:disabled { background: #f1f5f9; cursor: not-allowed; }
+
+  /* Member list */
+  .cs-member-list-wrap {
+    flex: 1; background: #fff; border: 1.5px solid #e2e8f0; border-radius: 11px; overflow: hidden;
+    display: flex; flex-direction: column; min-height: 200px;
+  }
+  .cs-member-list-head {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 10px 14px; border-bottom: 1.5px solid #f1f5f9; background: #fafafa;
+  }
+  .cs-member-list-label { font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em; color: #94a3b8; }
+  .cs-selected-count { font-size: 11px; font-weight: 700; color: #2563eb; background: #eff6ff; padding: 2px 8px; border-radius: 20px; }
+
+  .cs-member-list { flex: 1; overflow-y: auto; padding: 8px; }
+  .cs-member-list::-webkit-scrollbar { width: 4px; }
+  .cs-member-list::-webkit-scrollbar-thumb { background: #e2e8f0; border-radius: 4px; }
+
+  .cs-member-empty { text-align: center; padding: 24px 12px; font-size: 12.5px; color: #94a3b8; }
+
+  .cs-member-item {
+    border-radius: 9px; border: 1.5px solid #f1f5f9;
+    margin-bottom: 6px; overflow: hidden;
+    transition: border-color 0.15s;
+  }
+  .cs-member-item:last-child { margin-bottom: 0; }
+  .cs-member-item.selected { border-color: #bfdbfe; background: #f0f7ff; }
+
+  .cs-member-row {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 9px 10px; cursor: pointer;
+  }
+  .cs-member-row.disabled { cursor: not-allowed; }
+  .cs-member-left { display: flex; align-items: center; gap: 9px; min-width: 0; }
+  .cs-member-avatar {
+    width: 28px; height: 28px; border-radius: 7px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 11px; font-weight: 800; flex-shrink: 0;
+  }
+  .cs-member-avatar.idle { background: #f1f5f9; color: #64748b; }
+  .cs-member-avatar.active { background: #dbeafe; color: #1d4ed8; }
+  .cs-member-name { font-size: 13px; font-weight: 650; color: #1e293b; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; letter-spacing: -0.1px; }
+  .cs-member-email { font-size: 11.5px; color: #94a3b8; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+  /* Role selector inline */
+  .cs-member-role { padding: 8px 10px 10px 10px; border-top: 1px solid #e2e8f0; background: #f8fafc; }
+  .cs-member-role-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em; color: #94a3b8; margin-bottom: 5px; }
+  .cs-member-role-select {
+    width: 100%; height: 32px; padding: 0 28px 0 10px;
+    border: 1.5px solid #e2e8f0; border-radius: 6px;
+    font-size: 12.5px; font-family: inherit; color: #1e293b;
+    background: #fff; outline: none; appearance: none; cursor: pointer;
+    transition: border-color 0.15s;
+  }
+  .cs-member-role-select:focus { border-color: #2563eb; }
+
+  @keyframes cs-spin { to { transform: rotate(360deg); } }
+`;
 
 const CreateSystem = () => {
   const navigate = useNavigate();
@@ -27,13 +208,11 @@ const CreateSystem = () => {
   const [visibility, setVisibility] = useState("private");
   const [workspaceVisibility, setWorkspaceVisibility] = useState("private");
   const [searchQuery, setSearchQuery] = useState("");
-
   const [workspaceMembers, setWorkspaceMembers] = useState([]);
   const [currentUserId, setCurrentUserId] = useState("");
   const [selectedMembers, setSelectedMembers] = useState({});
   const [loadingMembers, setLoadingMembers] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
-
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
@@ -41,342 +220,230 @@ const CreateSystem = () => {
     const fetchData = async () => {
       setLoadingMembers(true);
       try {
-        const [workspaceRes, membersRes, profileRes] = await Promise.all([
+        const [wsR, mR, pR] = await Promise.all([
           api.get(`workspaces/${workspaceId}/`),
           api.get(`workspaces/${workspaceId}/members/`),
           api.get("auth/profile/"),
         ]);
-
-        const parentVisibility = workspaceRes.data?.visibility || "private";
-        setWorkspaceVisibility(parentVisibility);
+        const parentVis = wsR.data?.visibility || "private";
+        setWorkspaceVisibility(parentVis);
         setVisibility("private");
-        setIsAdmin(!!workspaceRes.data?.is_admin);
-        const userId = profileRes.data?.user_id || "";
-        setCurrentUserId(userId);
-        setWorkspaceMembers((membersRes.data || []).filter((member) => member.user_id !== userId));
-      } catch (err) {
-        setError(err.response?.data?.error || err.response?.data?.detail || "Failed to load workspace members.");
-      } finally {
-        setLoadingMembers(false);
-      }
+        setIsAdmin(!!wsR.data?.is_admin);
+        const uid = pR.data?.user_id || "";
+        setCurrentUserId(uid);
+        setWorkspaceMembers((mR.data || []).filter((m) => m.user_id !== uid));
+      } catch (e) {
+        setError(e.response?.data?.error || "Failed to load workspace members.");
+      } finally { setLoadingMembers(false); }
     };
-
     fetchData();
   }, [workspaceId]);
 
   const filteredMembers = useMemo(() => {
-    const query = searchQuery.trim().toLowerCase();
-    const list = workspaceMembers.filter((member) => member.user_id !== currentUserId);
-    if (!query) return list;
+    const q = searchQuery.trim().toLowerCase();
+    const list = workspaceMembers.filter((m) => m.user_id !== currentUserId);
+    if (!q) return list;
     return list.filter(
-      (member) =>
-        (member.full_name || "").toLowerCase().includes(query) ||
-        (member.email || "").toLowerCase().includes(query)
+      (m) => (m.full_name || "").toLowerCase().includes(q) || (m.email || "").toLowerCase().includes(q)
     );
   }, [workspaceMembers, searchQuery, currentUserId]);
 
   const toggleMember = (userId) => {
-    setSelectedMembers((prev) => {
-      const next = { ...prev };
-      if (next[userId]) {
-        delete next[userId];
-      } else {
-        next[userId] = "viewer";
-      }
-      return next;
+    setSelectedMembers((p) => {
+      const n = { ...p };
+      if (n[userId]) delete n[userId]; else n[userId] = "viewer";
+      return n;
     });
   };
 
-  const updateMemberRole = (userId, role) => {
-    setSelectedMembers((prev) => ({ ...prev, [userId]: role }));
-  };
+  const updateRole = (userId, role) => setSelectedMembers((p) => ({ ...p, [userId]: role }));
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-
-    if (!isAdmin) {
-      setError("Only workspace admins can create systems.");
-      return;
-    }
-
-    if (!systemName.trim()) {
-      setError("System name is required");
-      return;
-    }
-
-    setLoading(true);
-    setError(null);
-
+    if (!isAdmin) { setError("Only workspace admins can create systems."); return; }
+    if (!systemName.trim()) { setError("System name is required."); return; }
+    setLoading(true); setError(null);
     try {
-      const memberPermissions = Object.entries(selectedMembers).map(([user_id, role]) => ({
-        user_id,
-        role,
-      }));
-
       const payload = {
         name: systemName.trim(),
         description: description.trim(),
         visibility: workspaceVisibility === "private" ? "private" : visibility,
-        member_permissions: memberPermissions,
+        member_permissions: Object.entries(selectedMembers).map(([user_id, role]) => ({ user_id, role })),
       };
-
       await api.post(`workspaces/${workspaceId}/canvases/`, payload);
       navigate(`/app/ws/${workspaceId}`);
-    } catch (err) {
-      if (err.response?.data) {
-        const errorData = err.response.data;
-        if (errorData.name) {
-          setError(`Name: ${errorData.name[0]}`);
-        } else if (errorData.visibility) {
-          setError(Array.isArray(errorData.visibility) ? errorData.visibility[0] : errorData.visibility);
-        } else if (errorData.detail) {
-          setError(errorData.detail);
-        } else if (errorData.error) {
-          setError(errorData.error);
-        } else if (errorData.member_permissions) {
-          setError(Array.isArray(errorData.member_permissions) ? errorData.member_permissions[0] : errorData.member_permissions);
-        } else if (errorData.non_field_errors) {
-          setError(errorData.non_field_errors[0]);
-        } else {
-          setError("Failed to create system. Please try again.");
-        }
-      } else {
-        setError("Network error. Please check your connection.");
-      }
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleCancel = () => {
-    navigate(`/app/ws/${workspaceId}`);
+    } catch (e) {
+      const d = e.response?.data;
+      if (d?.name) setError(`Name: ${d.name[0]}`);
+      else if (d?.visibility) setError(Array.isArray(d.visibility) ? d.visibility[0] : d.visibility);
+      else if (d?.detail) setError(d.detail);
+      else if (d?.error) setError(d.error);
+      else setError("Failed to create system. Please try again.");
+    } finally { setLoading(false); }
   };
 
   return (
-    <div className="flex flex-col lg:flex-row lg:h-[calc(100vh-160px)] gap-0 bg-white rounded-xl border border-gray-200 overflow-hidden">
-      <div className="w-full lg:flex-[2] flex flex-col pr-0 lg:pr-12 mb-8 lg:mb-0">
-        <div className="mb-6 lg:mb-8">
-          <h1 className="text-2xl font-semibold text-gray-900">Create New System</h1>
-          <p className="text-gray-500 mt-2 text-sm lg:text-base">
-            Configure the core parameters for your system model.
-          </p>
+    <div>
+      <style>{styles}</style>
+      <div className="cs-root">
+        {/* ── Left ── */}
+        <div className="cs-left">
+          <h1 className="cs-panel-title">Create a system</h1>
+          <p className="cs-panel-sub">Configure the core parameters for your system model.</p>
+
+          {error && (
+            <div className="cs-alert error">
+              <AlertCircle size={16} style={{ flexShrink: 0, marginTop: 1 }} />
+              <div>
+                <div className="cs-alert-title">Error</div>
+                <div className="cs-alert-body">{error}</div>
+              </div>
+              <button style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'inherit', opacity: 0.5, marginLeft: 'auto', display: 'flex', alignItems: 'center' }} onClick={() => setError(null)}>
+                <X size={14} />
+              </button>
+            </div>
+          )}
+
+          {!loadingMembers && !isAdmin && (
+            <div className="cs-alert warning">
+              <ShieldAlert size={16} style={{ flexShrink: 0, marginTop: 1 }} />
+              <div>
+                <div className="cs-alert-title">Admin Access Required</div>
+                <div className="cs-alert-body">Only workspace admins can create systems.</div>
+              </div>
+            </div>
+          )}
+
+          <form onSubmit={handleSubmit} style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+            <div className="cs-field">
+              <label className="cs-label">System Name <span className="required">*</span></label>
+              <input
+                className="cs-input"
+                type="text"
+                value={systemName}
+                onChange={(e) => setSystemName(e.target.value)}
+                placeholder="e.g. Neural Link Architecture"
+                disabled={loading || !isAdmin}
+              />
+            </div>
+
+            <div className="cs-field">
+              <label className="cs-label">Operational Description</label>
+              <textarea
+                className="cs-textarea"
+                rows={6}
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                placeholder="Detail the system's objective and scope…"
+                disabled={loading || !isAdmin}
+              />
+            </div>
+
+            <div className="cs-field">
+              <label className="cs-label">Visibility</label>
+              <div className="cs-select-wrap">
+                <select
+                  className="cs-select"
+                  value={workspaceVisibility === "private" ? "private" : visibility}
+                  onChange={(e) => setVisibility(e.target.value)}
+                  disabled={loading || !isAdmin || workspaceVisibility === "private"}
+                >
+                  <option value="private">Private</option>
+                  <option value="public">Public</option>
+                </select>
+                <ChevronDown size={14} className="cs-select-icon" />
+              </div>
+              {workspaceVisibility === "private" && (
+                <div className="cs-select-note">Systems must be private within a private workspace.</div>
+              )}
+            </div>
+
+            <div className="cs-actions">
+              <button type="button" className="cs-cancel-btn" onClick={() => navigate(`/app/ws/${workspaceId}`)} disabled={loading}>
+                Cancel
+              </button>
+              <button type="submit" className="cs-submit-btn" disabled={loading || !systemName.trim() || !isAdmin}>
+                {loading ? (
+                  <>
+                    <span style={{ width: 14, height: 14, borderRadius: '50%', border: '2px solid rgba(255,255,255,0.3)', borderTopColor: '#fff', animation: 'cs-spin 0.7s linear infinite', display: 'inline-block' }} />
+                    Creating…
+                  </>
+                ) : (
+                  <><Plus size={15} /> Save System</>
+                )}
+              </button>
+            </div>
+          </form>
         </div>
 
-        {error && (
-          <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-md flex items-start gap-3">
-            <AlertCircle size={20} className="text-red-600 flex-shrink-0 mt-0.5" />
-            <div className="flex-1">
-              <p className="text-sm font-semibold text-red-900">Error</p>
-              <p className="text-sm text-red-700">{error}</p>
-            </div>
-          </div>
-        )}
+        {/* ── Right ── */}
+        <div className="cs-right">
+          <h3 className="cs-right-title"><UserPlus size={15} /> Team Access</h3>
+          <p className="cs-right-sub">Select members and assign roles for initial system access.</p>
 
-        {!loadingMembers && !isAdmin && (
-          <div className="mb-6 p-4 bg-amber-50 border border-amber-200 rounded-md flex items-start gap-3">
-            <ShieldAlert size={20} className="text-amber-600 flex-shrink-0 mt-0.5" />
-            <div className="flex-1">
-              <p className="text-sm font-semibold text-amber-900">Admin Access Required</p>
-              <p className="text-sm text-amber-700">Only workspace admins can create systems.</p>
-            </div>
-          </div>
-        )}
-
-        <form onSubmit={handleSubmit} className="space-y-6 flex-1 overflow-visible lg:overflow-y-auto lg:pr-4 custom-scrollbar">
-          <div className="space-y-2">
-            <label className="text-xs lg:text-sm font-semibold text-gray-700 uppercase tracking-wider">
-              System Name <span className="text-red-500">*</span>
-            </label>
+          <div className="cs-member-search-wrap">
+            <Search size={13} className="cs-member-search-icon" />
             <input
+              className="cs-member-search"
               type="text"
-              value={systemName}
-              onChange={(e) => setSystemName(e.target.value)}
-              placeholder="e.g. Neural Link Architecture"
-              className="w-full px-4 py-3 rounded-md border border-gray-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none transition text-base"
-              required
-              disabled={loading || !isAdmin}
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Find member by name or email…"
+              disabled={loadingMembers || !isAdmin}
             />
           </div>
 
-          <div className="space-y-2 flex flex-col lg:h-auto">
-            <label className="text-xs lg:text-sm font-semibold text-gray-700 uppercase tracking-wider">
-              Operational Description
-            </label>
-            <textarea
-              rows="6"
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              placeholder="Detail the system's objective and scope..."
-              className="w-full px-4 py-3 rounded-md border border-gray-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none transition resize-none lg:flex-1"
-              disabled={loading || !isAdmin}
-            ></textarea>
-          </div>
-
-          <div className="space-y-2">
-            <label className="text-xs lg:text-sm font-semibold text-gray-700 uppercase tracking-wider">
-              Visibility
-            </label>
-            <div className="relative">
-              <select
-                value={workspaceVisibility === "private" ? "private" : visibility}
-                onChange={(e) => setVisibility(e.target.value)}
-                disabled={loading || !isAdmin || workspaceVisibility === "private"}
-                className={`w-full appearance-none px-4 pr-10 py-3 rounded-md border outline-none transition text-sm font-medium ${
-                  loading || !isAdmin || workspaceVisibility === "private"
-                    ? "bg-gray-100 border-gray-200 text-gray-500 cursor-not-allowed"
-                    : "bg-white border-gray-300 text-gray-700 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 cursor-pointer"
-                }`}
-              >
-                <option value="private">Private</option>
-                <option value="public">Public</option>
-              </select>
-              <ChevronDown
-                size={16}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"
-              />
+          <div className="cs-member-list-wrap">
+            <div className="cs-member-list-head">
+              <span className="cs-member-list-label">Workspace Members</span>
+              <span className="cs-selected-count">{Object.keys(selectedMembers).length} Selected</span>
             </div>
-            {workspaceVisibility === "private" && (
-              <p className="text-xs text-amber-700">
-                Canvases must be private within a private workspace.
-              </p>
-            )}
-          </div>
-        </form>
-
-        <div className="pt-6 lg:pt-8 flex justify-end gap-4 border-t border-gray-100 mt-4">
-          <button
-            type="button"
-            onClick={handleCancel}
-            disabled={loading}
-            className="flex-1 lg:flex-none px-6 lg:px-8 py-2.5 rounded-md text-sm font-medium text-gray-500 hover:text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-50"
-          >
-            Cancel
-          </button>
-          <button
-            type="button"
-            onClick={handleSubmit}
-            disabled={loading || !systemName.trim() || !isAdmin}
-            className="flex-1 lg:flex-none bg-blue-600 text-white px-6 lg:px-10 py-2.5 rounded-md text-sm font-medium hover:bg-blue-700 flex justify-center items-center gap-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {loading ? (
-              <>
-                <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                <span className="whitespace-nowrap">Creating...</span>
-              </>
-            ) : (
-              <>
-                <Save size={16} />
-                <span className="whitespace-nowrap">Save System</span>
-              </>
-            )}
-          </button>
-        </div>
-      </div>
-
-      <div className="hidden lg:block w-px bg-gray-100 h-full"></div>
-
-      <div className="w-full lg:flex-1 flex flex-col pl-0 lg:pl-12 border-t lg:border-t-0 border-gray-100 pt-8 lg:pt-0">
-        <div className="mb-6">
-          <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-            <UserPlus size={20} className="text-blue-600" />
-            Team Access
-          </h3>
-          <p className="text-sm text-gray-500 mt-1">
-            Select workspace members and assign role for initial system access.
-          </p>
-        </div>
-
-        <div className="relative group mb-4">
-          <input
-            type="text"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Find member by name or email..."
-            className="w-full pl-10 pr-4 py-2.5 bg-gray-50 rounded-md border border-gray-200 group-focus-within:bg-white group-focus-within:border-blue-400 group-focus-within:ring-2 group-focus-within:ring-blue-100 outline-none transition"
-            disabled={loadingMembers || !isAdmin}
-          />
-          <Search className="absolute left-3 top-3.5 text-gray-400" size={18} />
-        </div>
-
-        <div className="flex-1 bg-gray-50 rounded-t-xl border-x border-t border-gray-200 flex flex-col overflow-hidden h-64 lg:h-auto">
-          <div className="p-4 border-b border-gray-100 bg-white/50 backdrop-blur-sm flex justify-between items-center">
-            <span className="text-xs font-bold text-gray-400 uppercase tracking-widest">Workspace Members</span>
-            <span className="text-xs font-bold text-blue-600 bg-blue-50 px-2 py-1 rounded">
-              {Object.keys(selectedMembers).length} Selected
-            </span>
-          </div>
-
-          <div className="flex-1 overflow-y-auto p-2 space-y-2 custom-scrollbar">
-            {loadingMembers ? (
-              <div className="text-center py-8 text-gray-400 text-sm">Loading members...</div>
-            ) : filteredMembers.length === 0 ? (
-              <div className="text-center py-8 text-gray-400 text-sm">
-                No members found matching "{searchQuery}"
-              </div>
-            ) : (
-              filteredMembers.map((member) => {
-                const userId = member.user_id;
-                const isSelected = !!selectedMembers[userId];
+            <div className="cs-member-list">
+              {loadingMembers ? (
+                <LoadingState message="Loading members" minHeight={220} imageWidth={122} />
+              ) : filteredMembers.length === 0 ? (
+                <div className="cs-member-empty">No members found{searchQuery ? ` matching "${searchQuery}"` : ''}.</div>
+              ) : filteredMembers.map((m) => {
+                const isSelected = !!selectedMembers[m.user_id];
                 return (
-                  <div
-                    key={userId}
-                    className={`p-3 rounded-xl border transition-all ${
-                      isSelected
-                        ? "bg-blue-50 border-blue-200"
-                        : "bg-white border-gray-100 hover:border-gray-200"
-                    }`}
-                  >
+                  <div key={m.user_id} className={`cs-member-item ${isSelected ? 'selected' : ''}`}>
                     <div
-                      onClick={() => isAdmin && toggleMember(userId)}
-                      className={`flex items-center justify-between ${isAdmin ? "cursor-pointer" : "cursor-not-allowed"}`}
+                      className={`cs-member-row ${!isAdmin ? 'disabled' : ''}`}
+                      onClick={() => isAdmin && toggleMember(m.user_id)}
                     >
-                      <div className="flex items-center gap-3 overflow-hidden">
-                        <div
-                          className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 ${
-                            isSelected ? "bg-blue-200 text-blue-700" : "bg-gray-100 text-gray-500"
-                          }`}
-                        >
-                          {(member.full_name || member.email || "U")[0]}
+                      <div className="cs-member-left">
+                        <div className={`cs-member-avatar ${isSelected ? 'active' : 'idle'}`}>
+                          {(m.full_name || m.email || 'U')[0].toUpperCase()}
                         </div>
-                        <div className="flex flex-col truncate">
-                          <span
-                            className={`text-sm font-semibold truncate ${
-                              isSelected ? "text-blue-900" : "text-gray-700"
-                            }`}
-                          >
-                            {member.full_name || member.email}
-                          </span>
-                          <span className="text-xs text-gray-400 truncate">{member.email}</span>
+                        <div style={{ minWidth: 0 }}>
+                          <div className="cs-member-name">{m.full_name || m.email}</div>
+                          <div className="cs-member-email">{m.email}</div>
                         </div>
                       </div>
-
-                      {isSelected ? (
-                        <CheckCircle size={20} className="text-blue-600 flex-shrink-0" />
-                      ) : (
-                        <Circle size={20} className="text-gray-300 flex-shrink-0" />
-                      )}
+                      {isSelected
+                        ? <CheckCircle size={16} style={{ color: '#2563eb', flexShrink: 0 }} />
+                        : <Circle size={16} style={{ color: '#e2e8f0', flexShrink: 0 }} />
+                      }
                     </div>
-
                     {isSelected && (
-                      <div className="mt-3 pl-11">
-                        <label className="text-[11px] text-gray-500 uppercase tracking-wider font-semibold">Role</label>
-                        <select
-                          value={selectedMembers[userId]}
-                          onChange={(e) => updateMemberRole(userId, e.target.value)}
-                          className="mt-1 w-full px-3 py-2 rounded-md border border-blue-200 bg-white text-sm text-gray-700 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none"
-                        >
-                          {ROLE_OPTIONS.map((role) => (
-                            <option key={role.value} value={role.value}>
-                              {role.label}
-                            </option>
-                          ))}
-                        </select>
+                      <div className="cs-member-role">
+                        <div className="cs-member-role-label">Role</div>
+                        <div style={{ position: 'relative' }}>
+                          <select
+                            className="cs-member-role-select"
+                            value={selectedMembers[m.user_id]}
+                            onChange={(e) => updateRole(m.user_id, e.target.value)}
+                          >
+                            {ROLE_OPTIONS.map((r) => <option key={r.value} value={r.value}>{r.label}</option>)}
+                          </select>
+                          <ChevronDown size={12} style={{ position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)', color: '#94a3b8', pointerEvents: 'none' }} />
+                        </div>
                       </div>
                     )}
                   </div>
                 );
-              })
-            )}
+              })}
+            </div>
           </div>
         </div>
       </div>

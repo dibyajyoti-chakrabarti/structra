@@ -1,9 +1,70 @@
-export default function LoadingState() {
+import loadingCat from "../assets/loading-cat.svg";
+
+const styles = `
+  .lcat-root {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'Geist', -apple-system, BlinkMacSystemFont, sans-serif;
+  }
+
+  .lcat-inner {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+  }
+
+  .lcat-art {
+    width: var(--lcat-size, 172px);
+    max-width: 100%;
+    height: auto;
+    user-select: none;
+    pointer-events: none;
+  }
+
+  .lcat-status {
+    display: inline-flex;
+    align-items: center;
+    gap: 9px;
+    color: #64748b;
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: -0.1px;
+  }
+
+  .lcat-spinner {
+    width: 16px;
+    height: 16px;
+    border-radius: 999px;
+    border: 2px solid #dbeafe;
+    border-top-color: #2563eb;
+    animation: lcat-spin 0.7s linear infinite;
+    flex-shrink: 0;
+  }
+
+  @keyframes lcat-spin {
+    to { transform: rotate(360deg); }
+  }
+`;
+
+export default function LoadingState({
+  message = "Loading",
+  minHeight = 260,
+  imageWidth = 172,
+  className = "",
+}) {
   return (
-    <div className="min-h-screen flex items-center justify-center">
-      <div className="text-center">
-        <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-blue-500 mx-auto mb-4"></div>
-        <p className="text-xl text-gray-600">Loading...</p>
+    <div className={`lcat-root ${className}`} style={{ minHeight }}>
+      <style>{styles}</style>
+      <div className="lcat-inner">
+        <img className="lcat-art" src={loadingCat} alt="" aria-hidden="true" style={{ "--lcat-size": `${imageWidth}px` }} />
+        <div className="lcat-status">
+          <span>{message}</span>
+          <span className="lcat-spinner" />
+        </div>
       </div>
     </div>
   );

@@ -1,31 +1,137 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, useOutletContext } from 'react-router-dom';
-import { Save, Trash2, Globe, Building, X, CheckCircle, AlertCircle } from 'lucide-react';
+import { Trash2, Building, FileText, X, CheckCircle, AlertCircle } from 'lucide-react';
 import api from '../../../api';
+import LoadingState from '../../../components/LoadingState';
 
-// Toast Notification Component
-const Toast = ({ message, type, onClose }) => {
-  useEffect(() => {
-    const timer = setTimeout(onClose, 3000);
-    return () => clearTimeout(timer);
-  }, [onClose]);
+const styles = `
+  @import url('https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700;800&display=swap');
+  .gs-root { font-family: 'Geist', -apple-system, BlinkMacSystemFont, sans-serif; width: 100%; }
 
+  /* Toast */
+  .gs-toast-wrap { position: fixed; top: 68px; left: 50%; transform: translateX(-50%); z-index: 200; animation: gsToastIn 0.15s ease; }
+  @keyframes gsToastIn { from { opacity:0; transform: translateX(-50%) translateY(-5px); } to { opacity:1; transform: translateX(-50%) translateY(0); } }
+  .gs-toast { display: flex; align-items: center; gap: 9px; padding: 10px 16px; border-radius: 10px; font-size: 13px; font-weight: 600; font-family: inherit; border: 1.5px solid; white-space: nowrap; box-shadow: 0 8px 24px rgba(0,0,0,0.08); }
+  .gs-toast.success { background: #f0fdf4; border-color: #bbf7d0; color: #15803d; }
+  .gs-toast.error { background: #fef2f2; border-color: #fecaca; color: #dc2626; }
+  .gs-toast-close { background: none; border: none; cursor: pointer; color: inherit; opacity: 0.5; padding: 0; margin-left: 2px; display: flex; align-items: center; }
+  .gs-toast-close:hover { opacity: 1; }
+
+  /* Page head */
+  .gs-page-title { font-size: 18px; font-weight: 750; letter-spacing: -0.4px; color: #0a0a0a; margin: 0 0 4px; }
+  .gs-page-sub { font-size: 13px; color: #64748b; margin: 0 0 28px; }
+
+  /* Card */
+  .gs-card { background: #fff; border: 1.5px solid #e2e8f0; border-radius: 12px; padding: 22px 24px; margin-bottom: 20px; }
+
+  /* Field */
+  .gs-field { margin-bottom: 20px; }
+  .gs-label { display: flex; align-items: center; gap: 6px; font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em; color: #64748b; margin-bottom: 8px; }
+  .gs-input {
+    width: 100%; height: 40px; padding: 0 14px;
+    border: 1.5px solid #e2e8f0; border-radius: 8px;
+    font-size: 13.5px; font-family: inherit;
+    color: #0a0a0a; background: #fafafa; outline: none;
+    transition: border-color 0.15s, box-shadow 0.15s, background 0.15s;
+  }
+  .gs-input:focus { border-color: #2563eb; background: #fff; box-shadow: 0 0 0 3px rgba(37,99,235,0.08); }
+  .gs-input::placeholder { color: #94a3b8; }
+  .gs-input:disabled { background: #f1f5f9; color: #94a3b8; cursor: not-allowed; }
+
+  .gs-textarea {
+    width: 100%; padding: 10px 14px;
+    border: 1.5px solid #e2e8f0; border-radius: 8px;
+    font-size: 13.5px; font-family: inherit;
+    color: #0a0a0a; background: #fafafa; outline: none; resize: none;
+    line-height: 1.55;
+    transition: border-color 0.15s, box-shadow 0.15s, background 0.15s;
+  }
+  .gs-textarea:focus { border-color: #2563eb; background: #fff; box-shadow: 0 0 0 3px rgba(37,99,235,0.08); }
+  .gs-textarea:disabled { background: #f1f5f9; color: #94a3b8; cursor: not-allowed; }
+
+  .gs-card-footer { display: flex; justify-content: flex-end; padding-top: 16px; border-top: 1.5px solid #f1f5f9; margin-top: 4px; }
+  .gs-save-btn {
+    height: 38px; padding: 0 20px;
+    background: #0a0a0a; color: #fff;
+    border: none; border-radius: 8px;
+    font-size: 13.5px; font-weight: 650;
+    cursor: pointer; font-family: inherit;
+    display: flex; align-items: center; gap: 7px;
+    transition: background 0.15s, transform 0.1s;
+  }
+  .gs-save-btn:hover { background: #1e293b; }
+  .gs-save-btn:active { transform: scale(0.98); }
+  .gs-save-btn:disabled { background: #e2e8f0; color: #94a3b8; cursor: not-allowed; transform: none; }
+
+  /* Danger zone */
+  .gs-danger-zone {
+    background: #fff; border: 1.5px solid #fecaca; border-radius: 12px; padding: 20px 24px;
+  }
+  .gs-danger-title { display: flex; align-items: center; gap: 8px; font-size: 13.5px; font-weight: 700; color: #dc2626; margin: 0 0 6px; }
+  .gs-danger-desc { font-size: 13px; color: #b91c1c; margin: 0 0 16px; line-height: 1.55; }
+  .gs-danger-btn {
+    height: 36px; padding: 0 16px;
+    background: #fff; border: 1.5px solid #fca5a5; border-radius: 8px;
+    font-size: 13px; font-weight: 600; color: #dc2626;
+    cursor: pointer; font-family: inherit;
+    transition: background 0.15s, border-color 0.15s, color 0.15s;
+  }
+  .gs-danger-btn:hover { background: #dc2626; color: #fff; border-color: #dc2626; }
+  .gs-danger-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  /* Modal */
+  .gs-modal-overlay {
+    position: fixed; inset: 0;
+    background: rgba(15,23,42,0.5); backdrop-filter: blur(4px);
+    z-index: 100; display: flex; align-items: center; justify-content: center; padding: 16px;
+  }
+  .gs-modal {
+    background: #fff; border-radius: 14px; border: 1.5px solid #e2e8f0;
+    box-shadow: 0 24px 64px rgba(0,0,0,0.14); padding: 28px;
+    max-width: 420px; width: 100%; animation: gsModalIn 0.15s ease;
+  }
+  @keyframes gsModalIn { from { opacity:0; transform: scale(0.97) translateY(4px); } to { opacity:1; transform: scale(1) translateY(0); } }
+  .gs-modal-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+  .gs-modal-title { display: flex; align-items: center; gap: 10px; font-size: 15px; font-weight: 750; color: #0a0a0a; letter-spacing: -0.2px; }
+  .gs-modal-icon { width: 30px; height: 30px; border-radius: 8px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  .gs-modal-close { background: none; border: none; cursor: pointer; color: #94a3b8; padding: 4px; border-radius: 6px; display: flex; align-items: center; transition: color 0.1s; }
+  .gs-modal-close:hover { color: #475569; }
+  .gs-modal-body { font-size: 13px; color: #64748b; line-height: 1.65; margin-bottom: 18px; }
+  .gs-modal-body strong { color: #0a0a0a; font-weight: 650; }
+  .gs-modal-body .danger { color: #dc2626; font-weight: 650; }
+  .gs-modal-input {
+    width: 100%; height: 40px; padding: 0 14px; margin-bottom: 12px;
+    border: 1.5px solid #e2e8f0; border-radius: 8px;
+    font-size: 13.5px; font-family: inherit; color: #0a0a0a; background: #fafafa; outline: none;
+    transition: border-color 0.15s, background 0.15s;
+  }
+  .gs-modal-input:focus { background: #fff; }
+  .gs-modal-input.save:focus { border-color: #2563eb; }
+  .gs-modal-input.delete:focus { border-color: #dc2626; }
+  .gs-modal-input::placeholder { color: #cbd5e1; }
+  .gs-modal-btn {
+    width: 100%; height: 40px;
+    border: none; border-radius: 8px;
+    font-size: 13.5px; font-weight: 650;
+    cursor: pointer; font-family: inherit; transition: background 0.15s;
+  }
+  .gs-modal-btn.save { background: #0a0a0a; color: #fff; }
+  .gs-modal-btn.save:hover:not(:disabled) { background: #1e293b; }
+  .gs-modal-btn.delete { background: #dc2626; color: #fff; }
+  .gs-modal-btn.delete:hover:not(:disabled) { background: #b91c1c; }
+  .gs-modal-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  @keyframes gs-spin { to { transform: rotate(360deg); } }
+`;
+
+const GsToast = ({ message, type, onClose }) => {
+  useEffect(() => { const t = setTimeout(onClose, 3000); return () => clearTimeout(t); }, [onClose]);
   return (
-    <div className="fixed top-20 left-1/2 -translate-x-1/2 z-[200] animate-in slide-in-from-top duration-300">
-      <div className={`flex items-center gap-3 px-6 py-4 rounded-xl shadow-2xl border-2 ${
-        type === 'success' 
-          ? 'bg-green-50 border-green-200 text-green-800' 
-          : 'bg-red-50 border-red-200 text-red-800'
-      }`}>
-        {type === 'success' ? (
-          <CheckCircle size={20} className="text-green-600" />
-        ) : (
-          <AlertCircle size={20} className="text-red-600" />
-        )}
-        <span className="font-semibold">{message}</span>
-        <button onClick={onClose} className="ml-2 hover:opacity-70">
-          <X size={18} />
-        </button>
+    <div className="gs-toast-wrap">
+      <div className={`gs-toast ${type}`}>
+        {type === 'success' ? <CheckCircle size={15} /> : <AlertCircle size={15} />}
+        {message}
+        <button className="gs-toast-close" onClick={onClose}><X size={14} /></button>
       </div>
     </div>
   );
@@ -40,287 +146,186 @@ const GeneralSettings = () => {
   const [description, setDescription] = useState('');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-
-  // Toast State
   const [toast, setToast] = useState(null);
 
-  // Save Modal State
   const [showSaveModal, setShowSaveModal] = useState(false);
-  const [saveConfirmationText, setSaveConfirmationText] = useState('');
-
-  // Delete Modal State
+  const [saveText, setSaveText] = useState('');
   const [showDeleteModal, setShowDeleteModal] = useState(false);
-  const [deleteConfirmationText, setDeleteConfirmationText] = useState('');
+  const [deleteText, setDeleteText] = useState('');
   const [deleting, setDeleting] = useState(false);
 
-  // Fetch current workspace data
   useEffect(() => {
-    const fetchWorkspace = async () => {
+    const fetch = async () => {
       try {
-        const response = await api.get(`workspaces/${workspaceId}/`);
-        setName(response.data.name);
-        setDescription(response.data.description || '');
-      } catch (error) {
-        console.error("Failed to load workspace settings", error);
+        const r = await api.get(`workspaces/${workspaceId}/`);
+        setName(r.data.name);
+        setDescription(r.data.description || '');
+      } catch {
         setToast({ message: "Failed to load workspace settings", type: "error" });
-      } finally {
-        setLoading(false);
-      }
+      } finally { setLoading(false); }
     };
-    fetchWorkspace();
+    fetch();
   }, [workspaceId]);
 
-  // Show toast notification
-  const showToast = (message, type) => {
-    setToast({ message, type });
-  };
+  const showToast = (message, type) => setToast({ message, type });
 
-  // Open Save Modal
   const initiateSave = () => {
-    if (!isAdmin) {
-      showToast("Action allowed only for admin.", "error");
-      return;
-    }
-    setSaveConfirmationText('');
-    setShowSaveModal(true);
+    if (!isAdmin) { showToast("Action allowed only for admin.", "error"); return; }
+    setSaveText(''); setShowSaveModal(true);
   };
 
-  // Execute Save
   const executeSave = async () => {
     setSaving(true);
     try {
-      await api.patch(`workspaces/${workspaceId}/`, {
-        name,
-        description
-      });
-      
+      await api.patch(`workspaces/${workspaceId}/`, { name, description });
       setShowSaveModal(false);
       showToast("Settings updated successfully!", "success");
-
-      if (refreshWorkspaces) {
-        refreshWorkspaces();
-      }
-
-    } catch (error) {
-      console.error("Update failed", error);
-      showToast(error.response?.data?.name?.[0] || "Failed to update workspace", "error");
-    } finally {
-      setSaving(false);
-    }
+      if (refreshWorkspaces) refreshWorkspaces();
+    } catch (e) {
+      showToast(e.response?.data?.name?.[0] || "Failed to update workspace", "error");
+    } finally { setSaving(false); }
   };
 
-  // Open Delete Modal
   const initiateDelete = () => {
-    if (!isAdmin) {
-      showToast("Action allowed only for admin.", "error");
-      return;
-    }
-    setDeleteConfirmationText('');
-    setShowDeleteModal(true);
+    if (!isAdmin) { showToast("Action allowed only for admin.", "error"); return; }
+    setDeleteText(''); setShowDeleteModal(true);
   };
 
-  // Execute Delete
   const executeDelete = async () => {
     setDeleting(true);
     try {
       await api.delete(`workspaces/${workspaceId}/`);
-      
       if (refreshWorkspaces) refreshWorkspaces();
-      
       setShowDeleteModal(false);
       showToast("Workspace deleted successfully", "success");
-      
-      // Navigate after a brief delay to show the toast
-      setTimeout(() => {
-        navigate('/app/home');
-      }, 1000);
-    } catch (error) {
-      console.error("Deletion failed", error);
+      setTimeout(() => navigate('/app'), 1000);
+    } catch {
       showToast("Failed to delete workspace", "error");
       setDeleting(false);
     }
   };
 
-  if (loading) return <div className="p-6 text-gray-400 text-sm">Loading settings...</div>;
+  if (loading) return <LoadingState message="Loading settings" minHeight={360} />;
 
   return (
-    <div className="relative max-w-3xl">
-      {/* Toast Notification */}
-      {toast && (
-        <Toast 
-          message={toast.message} 
-          type={toast.type} 
-          onClose={() => setToast(null)} 
-        />
-      )}
+    <div className="gs-root">
+      <style>{styles}</style>
+      {toast && <GsToast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
 
-      {/* SAVE CONFIRMATION MODAL */}
+      {/* Save modal */}
       {showSaveModal && (
-        <div className="fixed inset-0 bg-gray-900/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl shadow-2xl p-6 md:p-8 max-w-md w-full animate-in fade-in zoom-in duration-200">
-            <div className="flex justify-between items-start mb-4">
-              <h3 className="text-xl font-extrabold text-gray-900">Confirm Changes</h3>
-              <button onClick={() => setShowSaveModal(false)} className="text-gray-400 hover:text-gray-600">
-                <X size={20} />
-              </button>
-            </div>
-            
-            <p className="text-gray-600 text-sm mb-6 leading-relaxed">
-              You are about to modify core workspace details. To confirm, please type <span className="font-bold text-gray-900 select-none">save changes</span> below.
-            </p>
-
-            <div className="space-y-4">
-              <input
-                type="text"
-                value={saveConfirmationText}
-                onChange={(e) => setSaveConfirmationText(e.target.value)}
-                placeholder="Type 'save changes'"
-                className="w-full px-4 py-3 rounded-xl border-2 border-gray-100 focus:border-blue-500 focus:ring-0 outline-none font-medium text-gray-900 placeholder:text-gray-300 transition-all"
-                autoFocus
-              />
-
-              <button 
-                onClick={executeSave}
-                disabled={saveConfirmationText !== 'save changes' || saving}
-                className="w-full bg-blue-600 text-white py-3 rounded-xl font-bold hover:bg-blue-700 transition-all shadow-lg shadow-blue-100 disabled:opacity-50 disabled:cursor-not-allowed flex justify-center items-center gap-2"
-              >
-                {saving ? "Saving..." : "Confirm & Save"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* DELETE CONFIRMATION MODAL */}
-      {showDeleteModal && (
-        <div className="fixed inset-0 bg-gray-900/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl shadow-2xl p-6 md:p-8 max-w-md w-full animate-in fade-in zoom-in duration-200">
-            <div className="flex justify-between items-start mb-4">
-              <div className="flex items-center gap-3">
-                <div className="bg-red-100 p-2 rounded-lg">
-                  <Trash2 size={20} className="text-red-600" />
+        <div className="gs-modal-overlay">
+          <div className="gs-modal">
+            <div className="gs-modal-head">
+              <div className="gs-modal-title">
+                <div className="gs-modal-icon" style={{ background: '#eff6ff' }}>
+                  <CheckCircle size={15} style={{ color: '#2563eb' }} />
                 </div>
-                <h3 className="text-xl font-extrabold text-gray-900">Delete Workspace</h3>
+                Confirm Changes
               </div>
-              <button onClick={() => setShowDeleteModal(false)} className="text-gray-400 hover:text-gray-600">
-                <X size={20} />
-              </button>
+              <button className="gs-modal-close" onClick={() => setShowSaveModal(false)}><X size={16} /></button>
             </div>
-            
-            <p className="text-gray-600 text-sm mb-2 leading-relaxed">
-              This action <span className="font-bold text-red-600">cannot be undone</span>. This will permanently delete the workspace, all systems, evaluations, and data.
-            </p>
-
-            <p className="text-gray-600 text-sm mb-6 leading-relaxed">
-              To confirm, please type <span className="font-bold text-gray-900 select-none">delete workspace</span> below.
-            </p>
-
-            <div className="space-y-4">
-              <input
-                type="text"
-                value={deleteConfirmationText}
-                onChange={(e) => setDeleteConfirmationText(e.target.value)}
-                placeholder="Type 'delete workspace'"
-                className="w-full px-4 py-3 rounded-xl border-2 border-gray-100 focus:border-red-500 focus:ring-0 outline-none font-medium text-gray-900 placeholder:text-gray-300 transition-all"
-                autoFocus
-              />
-
-              <button 
-                onClick={executeDelete}
-                disabled={deleteConfirmationText !== 'delete workspace' || deleting}
-                className="w-full bg-red-600 text-white py-3 rounded-xl font-bold hover:bg-red-700 transition-all shadow-lg shadow-red-100 disabled:opacity-50 disabled:cursor-not-allowed flex justify-center items-center gap-2"
-              >
-                {deleting ? "Deleting..." : "Delete Workspace Permanently"}
-              </button>
+            <div className="gs-modal-body">
+              You're about to update core workspace details. Type <strong>save changes</strong> to confirm.
             </div>
+            <input
+              className="gs-modal-input save"
+              value={saveText}
+              onChange={(e) => setSaveText(e.target.value)}
+              placeholder="save changes"
+              autoFocus
+            />
+            <button
+              className="gs-modal-btn save"
+              onClick={executeSave}
+              disabled={saveText !== 'save changes' || saving}
+            >
+              {saving ? "Saving…" : "Confirm & Save"}
+            </button>
           </div>
         </div>
       )}
 
-      <div className="mb-6">
-        <h2 className="text-2xl font-semibold text-gray-900">
-          General Settings
-        </h2>
-        <p className="text-gray-500 mt-1.5 text-sm">
-          Manage your workspace's core details and preferences.
-        </p>
-      </div>
+      {/* Delete modal */}
+      {showDeleteModal && (
+        <div className="gs-modal-overlay">
+          <div className="gs-modal">
+            <div className="gs-modal-head">
+              <div className="gs-modal-title">
+                <div className="gs-modal-icon" style={{ background: '#fef2f2' }}>
+                  <Trash2 size={15} style={{ color: '#dc2626' }} />
+                </div>
+                Delete Workspace
+              </div>
+              <button className="gs-modal-close" onClick={() => setShowDeleteModal(false)}><X size={16} /></button>
+            </div>
+            <div className="gs-modal-body">
+              This will permanently delete the workspace, all systems, evaluations, and data.
+              This action <span className="danger">cannot be undone</span>.<br /><br />
+              Type <strong>delete workspace</strong> to confirm.
+            </div>
+            <input
+              className="gs-modal-input delete"
+              value={deleteText}
+              onChange={(e) => setDeleteText(e.target.value)}
+              placeholder="delete workspace"
+              autoFocus
+            />
+            <button
+              className="gs-modal-btn delete"
+              onClick={executeDelete}
+              disabled={deleteText !== 'delete workspace' || deleting}
+            >
+              {deleting ? "Deleting…" : "Delete Workspace Permanently"}
+            </button>
+          </div>
+        </div>
+      )}
 
-      <div className="space-y-6 rounded-xl border border-gray-200 bg-white p-6">
-        <div className="space-y-2">
-          <label className="text-xs font-semibold text-gray-700 uppercase tracking-wider flex items-center gap-2">
-            <Building size={14} className="text-gray-400" /> 
-            Workspace Name
-          </label>
+      <h2 className="gs-page-title">General Settings</h2>
+      <p className="gs-page-sub">Manage your workspace's core details and preferences.</p>
+
+      <div className="gs-card">
+        <div className="gs-field">
+          <label className="gs-label"><Building size={12} /> Workspace Name</label>
           <input
+            className="gs-input"
             type="text"
             value={name}
             onChange={(e) => setName(e.target.value)}
-            readOnly={!isAdmin}
-            className={`w-full px-3.5 py-2.5 rounded-md border outline-none transition text-sm text-gray-900 ${
-              isAdmin
-                ? 'border-gray-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-100'
-                : 'border-gray-200 bg-gray-100 text-gray-500 cursor-not-allowed'
-            }`}
+            disabled={!isAdmin}
+            placeholder="Workspace name"
           />
         </div>
-
-        <div className="space-y-2">
-          <label className="text-xs font-semibold text-gray-700 uppercase tracking-wider flex items-center gap-2">
-            <Globe size={14} className="text-gray-400" /> 
-            Description
-          </label>
+        <div className="gs-field" style={{ marginBottom: 0 }}>
+          <label className="gs-label"><FileText size={12} /> Description</label>
           <textarea
-            rows="4"
+            className="gs-textarea"
+            rows={4}
             value={description}
             onChange={(e) => setDescription(e.target.value)}
-            readOnly={!isAdmin}
-            className={`w-full px-3.5 py-2.5 rounded-md border outline-none transition resize-none text-sm ${
-              isAdmin
-                ? 'border-gray-300 text-gray-700 focus:border-blue-500 focus:ring-2 focus:ring-blue-100'
-                : 'border-gray-200 bg-gray-100 text-gray-500 cursor-not-allowed'
-            }`}
-          ></textarea>
+            disabled={!isAdmin}
+            placeholder="What is this workspace for?"
+          />
         </div>
-        
-        <div className="pt-2 flex justify-end">
-          <button 
-            onClick={initiateSave}
-            disabled={saving}
-            className={`px-5 py-2.5 rounded-md text-sm font-medium transition-colors flex items-center gap-2 disabled:opacity-50 ${
-              isAdmin
-                ? 'bg-blue-600 text-white hover:bg-blue-700'
-                : 'bg-gray-200 text-gray-500 cursor-not-allowed'
-            }`}
-          >
-            <Save size={16} />
-            Save Changes
+        <div className="gs-card-footer">
+          <button className="gs-save-btn" onClick={initiateSave} disabled={saving || !isAdmin}>
+            {saving
+              ? <><span style={{ width:14, height:14, borderRadius:'50%', border:'2px solid rgba(255,255,255,0.3)', borderTopColor:'#fff', animation:'gs-spin 0.7s linear infinite', display:'inline-block' }} /> Saving…</>
+              : 'Save Changes'
+            }
           </button>
         </div>
       </div>
 
-      <div className="my-8 border-t border-gray-200"></div>
-
-      <div className="rounded-xl border border-red-200 bg-white p-5">
-        <h3 className="text-red-700 font-semibold text-base mb-2 flex items-center gap-2">
-          <Trash2 size={18} />
-          Danger Zone
-        </h3>
-        <p className="text-red-700 text-sm mb-4">
+      <div className="gs-danger-zone">
+        <h3 className="gs-danger-title"><Trash2 size={15} /> Danger Zone</h3>
+        <p className="gs-danger-desc">
           Deleting this workspace will permanently remove all associated systems, evaluations, and data. This action cannot be undone.
         </p>
-        <div className="flex justify-end sm:justify-start">
-          <button 
-            onClick={initiateDelete}
-            className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-              isAdmin
-                ? 'bg-white border border-red-300 text-red-700 hover:bg-red-600 hover:text-white hover:border-red-600'
-                : 'bg-gray-100 border border-gray-200 text-gray-400 cursor-not-allowed'
-            }`}
-          >
-            Delete Workspace
-          </button>
-        </div>
+        <button className="gs-danger-btn" onClick={initiateDelete} disabled={!isAdmin}>
+          Delete Workspace
+        </button>
       </div>
     </div>
   );

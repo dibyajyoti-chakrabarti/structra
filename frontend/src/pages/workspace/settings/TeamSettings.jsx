@@ -1,7 +1,114 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { Mail, Trash2 } from 'lucide-react';
+import { Mail, Trash2, Send, X, CheckCircle, AlertCircle } from 'lucide-react';
 import { useOutletContext, useParams } from 'react-router-dom';
 import api from '../../../api';
+import LoadingState from '../../../components/LoadingState';
+
+const styles = `
+  @import url('https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700;800&display=swap');
+  .ts-root { font-family: 'Geist', -apple-system, BlinkMacSystemFont, sans-serif; }
+
+  .ts-page-title { font-size: 18px; font-weight: 750; letter-spacing: -0.4px; color: #0a0a0a; margin: 0 0 4px; }
+  .ts-page-sub { font-size: 13px; color: #64748b; margin: 0 0 28px; }
+
+  /* Feedback */
+  .ts-feedback {
+    display: flex; align-items: center; gap: 8px;
+    font-size: 13px; font-weight: 500; padding: 10px 14px;
+    border-radius: 8px; border: 1.5px solid; margin-bottom: 16px;
+    animation: tsFadeIn 0.15s ease;
+  }
+  @keyframes tsFadeIn { from { opacity:0; transform: translateY(-3px); } to { opacity:1; transform: translateY(0); } }
+  .ts-feedback.success { background: #f0fdf4; border-color: #bbf7d0; color: #15803d; }
+  .ts-feedback.error { background: #fef2f2; border-color: #fecaca; color: #dc2626; }
+
+  /* Card */
+  .ts-card { background: #fff; border: 1.5px solid #e2e8f0; border-radius: 12px; margin-bottom: 16px; overflow: hidden; }
+
+  /* Invite section */
+  .ts-invite-head {
+    padding: 16px 20px; border-bottom: 1.5px solid #f1f5f9;
+  }
+  .ts-invite-label { font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em; color: #64748b; margin: 0 0 12px; }
+  .ts-invite-row { display: flex; gap: 8px; align-items: stretch; }
+  .ts-invite-input-wrap { flex: 1; position: relative; }
+  .ts-invite-input-icon { position: absolute; left: 11px; top: 50%; transform: translateY(-50%); color: #94a3b8; pointer-events: none; }
+  .ts-invite-input {
+    width: 100%; height: 38px; padding: 0 14px 0 34px;
+    border: 1.5px solid #e2e8f0; border-radius: 8px;
+    font-size: 13px; font-family: inherit;
+    color: #0a0a0a; background: #fafafa; outline: none;
+    transition: border-color 0.15s, box-shadow 0.15s, background 0.15s;
+  }
+  .ts-invite-input:focus { border-color: #2563eb; background: #fff; box-shadow: 0 0 0 3px rgba(37,99,235,0.08); }
+  .ts-invite-input::placeholder { color: #94a3b8; }
+  .ts-invite-input:disabled { background: #f1f5f9; color: #94a3b8; cursor: not-allowed; }
+  .ts-invite-btn {
+    height: 38px; padding: 0 16px;
+    background: #0a0a0a; color: #fff;
+    border: none; border-radius: 8px;
+    font-size: 13px; font-weight: 650;
+    cursor: pointer; font-family: inherit;
+    display: flex; align-items: center; gap: 6px;
+    transition: background 0.15s; white-space: nowrap;
+  }
+  .ts-invite-btn:hover { background: #1e293b; }
+  .ts-invite-btn:disabled { background: #e2e8f0; color: #94a3b8; cursor: not-allowed; }
+
+  /* Sections */
+  .ts-section-head {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 14px 18px; border-bottom: 1.5px solid #f1f5f9;
+    background: #fafafa;
+  }
+  .ts-section-label { font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em; color: #64748b; }
+  .ts-count { font-size: 11px; font-weight: 700; background: #f1f5f9; border: 1px solid #e2e8f0; color: #64748b; padding: 2px 8px; border-radius: 20px; }
+
+  /* Rows */
+  .ts-list { padding: 8px 12px; }
+  .ts-empty { padding: 16px 18px; font-size: 13px; color: #94a3b8; }
+
+  .ts-row {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 10px 10px; border: 1.5px solid #f1f5f9; border-radius: 9px;
+    margin-bottom: 6px; background: #fff; transition: border-color 0.15s;
+  }
+  .ts-row:hover { border-color: #e2e8f0; }
+  .ts-row:last-child { margin-bottom: 0; }
+
+  .ts-row-left { display: flex; align-items: center; gap: 10px; min-width: 0; }
+  .ts-avatar {
+    width: 32px; height: 32px; border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 12px; font-weight: 800; flex-shrink: 0;
+  }
+  .ts-avatar.blue { background: #dbeafe; color: #1d4ed8; }
+  .ts-avatar.slate { background: #f1f5f9; color: #475569; }
+  .ts-avatar.amber { background: #fef3c7; color: #b45309; }
+
+  .ts-row-info { min-width: 0; }
+  .ts-row-name { font-size: 13.5px; font-weight: 650; color: #0a0a0a; letter-spacing: -0.1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .ts-row-sub { font-size: 12px; color: #94a3b8; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+  .ts-row-right { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+
+  .ts-badge {
+    font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em;
+    padding: 3px 8px; border-radius: 5px; border: 1px solid;
+  }
+  .ts-badge.admin { background: #eff6ff; color: #1d4ed8; border-color: #bfdbfe; }
+  .ts-badge.member { background: #f1f5f9; color: #475569; border-color: #e2e8f0; }
+  .ts-badge.pending { background: #fef9c3; color: #854d0e; border-color: #fde68a; }
+
+  .ts-delete-btn {
+    background: none; border: none; cursor: pointer;
+    color: #cbd5e1; padding: 6px; border-radius: 7px;
+    display: flex; align-items: center;
+    transition: color 0.1s, background 0.1s;
+  }
+  .ts-delete-btn:hover { color: #dc2626; background: #fef2f2; }
+  .ts-delete-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+`;
 
 const TeamSettings = () => {
   const { workspaceId } = useParams();
@@ -15,238 +122,188 @@ const TeamSettings = () => {
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
 
-  const showAdminOnlyError = () => {
-    setError('Action allowed only for admin.');
-  };
+  const showAdminOnly = () => setError('Action allowed only for admin.');
 
   const fetchMembers = useCallback(async () => {
-    const response = await api.get(`workspaces/${workspaceId}/members/`);
-    setMembers(response.data);
+    const r = await api.get(`workspaces/${workspaceId}/members/`);
+    setMembers(r.data);
   }, [workspaceId]);
 
-  const fetchPendingInvitations = useCallback(async () => {
-    if (!isAdmin) {
-      setPendingInvitations([]);
-      return;
-    }
-    const response = await api.get(`workspaces/${workspaceId}/invitations/`);
-    setPendingInvitations(response.data || []);
+  const fetchPending = useCallback(async () => {
+    if (!isAdmin) { setPendingInvitations([]); return; }
+    const r = await api.get(`workspaces/${workspaceId}/invitations/`);
+    setPendingInvitations(r.data || []);
   }, [workspaceId, isAdmin]);
 
-  const refreshData = useCallback(async () => {
+  const refresh = useCallback(async () => {
     setLoading(true);
-    try {
-      await Promise.all([fetchMembers(), fetchPendingInvitations()]);
-    } catch (err) {
-      setError(err.response?.data?.error || 'Failed to load team settings data.');
-    } finally {
-      setLoading(false);
-    }
-  }, [fetchMembers, fetchPendingInvitations]);
+    try { await Promise.all([fetchMembers(), fetchPending()]); }
+    catch (e) { setError(e.response?.data?.error || 'Failed to load team data.'); }
+    finally { setLoading(false); }
+  }, [fetchMembers, fetchPending]);
 
-  useEffect(() => {
-    refreshData();
-  }, [refreshData]);
+  useEffect(() => { refresh(); }, [refresh]);
 
   const handleInvite = async (e) => {
     e.preventDefault();
-    if (!isAdmin) {
-      showAdminOnlyError();
-      return;
-    }
+    if (!isAdmin) { showAdminOnly(); return; }
     if (!inviteEmail.trim()) return;
-
-    setSendingInvite(true);
-    setError('');
-    setMessage('');
-
+    setSendingInvite(true); setError(''); setMessage('');
     try {
-      const response = await api.post(`workspaces/${workspaceId}/invitations/`, {
-        email: inviteEmail.trim(),
-      });
-      setMessage(response.data?.message || 'Invitation sent.');
+      const r = await api.post(`workspaces/${workspaceId}/invitations/`, { email: inviteEmail.trim() });
+      setMessage(r.data?.message || 'Invitation sent.');
       setInviteEmail('');
-      await refreshData();
-    } catch (err) {
-      setError(err.response?.data?.error || 'Failed to send invitation.');
-    } finally {
-      setSendingInvite(false);
-    }
+      await refresh();
+    } catch (e) { setError(e.response?.data?.error || 'Failed to send invitation.'); }
+    finally { setSendingInvite(false); }
   };
 
   const handleRemoveMember = async (member) => {
-    if (!isAdmin) {
-      showAdminOnlyError();
-      return;
-    }
-    if (member.role === 'ADMIN') {
-      setError('Admin members cannot be removed.');
-      return;
-    }
-
-    setError('');
-    setMessage('');
+    if (!isAdmin) { showAdminOnly(); return; }
+    if (member.role === 'ADMIN') { setError('Admin members cannot be removed.'); return; }
+    setError(''); setMessage('');
     try {
-      const response = await api.delete(
-        `workspaces/${workspaceId}/members/${member.user_id}/`
-      );
-      setMessage(response.data?.message || 'Member removed successfully.');
-      await refreshData();
-    } catch (err) {
-      setError(err.response?.data?.error || 'Failed to remove member.');
-    }
+      const r = await api.delete(`workspaces/${workspaceId}/members/${member.user_id}/`);
+      setMessage(r.data?.message || 'Member removed.');
+      await refresh();
+    } catch (e) { setError(e.response?.data?.error || 'Failed to remove member.'); }
   };
 
   const handleCancelInvitation = async (token) => {
-    if (!isAdmin) {
-      showAdminOnlyError();
-      return;
-    }
-
-    setError('');
-    setMessage('');
+    if (!isAdmin) { showAdminOnly(); return; }
+    setError(''); setMessage('');
     try {
-      const response = await api.delete(`workspaces/${workspaceId}/invitations/${token}/`);
-      setMessage(response.data?.message || 'Invitation cancelled.');
-      await refreshData();
-    } catch (err) {
-      setError(err.response?.data?.error || 'Failed to cancel invitation.');
-    }
+      const r = await api.delete(`workspaces/${workspaceId}/invitations/${token}/`);
+      setMessage(r.data?.message || 'Invitation cancelled.');
+      await refresh();
+    } catch (e) { setError(e.response?.data?.error || 'Failed to cancel invitation.'); }
   };
 
   return (
-    <div className="h-full flex flex-col">
-      <div className="mb-6">
-        <h2 className="text-2xl font-semibold text-gray-900">Team Members</h2>
-        <p className="text-gray-500 mt-1.5 text-sm">
-          Manage access permissions and roles for your workspace.
-        </p>
-      </div>
+    <div className="ts-root">
+      <style>{styles}</style>
 
-      <div className="mb-8 rounded-xl border border-gray-200 bg-white p-5">
-        <label className="text-xs font-semibold text-gray-700 uppercase tracking-wider mb-2 block">
-          Invite New Member
-        </label>
-        <form onSubmit={handleInvite} className="flex flex-col sm:flex-row gap-3">
-          <div className="relative flex-1">
-            <input
-              type="email"
-              value={inviteEmail}
-              onChange={(e) => setInviteEmail(e.target.value)}
-              readOnly={!isAdmin}
-              placeholder="Enter email address..."
-              className={`w-full pl-10 pr-4 py-2.5 rounded-md border outline-none transition text-sm ${
-                isAdmin
-                  ? 'border-gray-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-100'
-                  : 'border-gray-200 bg-gray-100 text-gray-400 cursor-not-allowed'
-              }`}
-            />
-            <Mail className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
-          </div>
-          <button
-            type="submit"
-            className={`px-5 py-2.5 rounded-md text-sm font-medium transition-colors whitespace-nowrap ${
-              isAdmin
-                ? 'bg-blue-600 text-white hover:bg-blue-700'
-                : 'bg-gray-200 text-gray-500 cursor-not-allowed'
-            }`}
-          >
-            {sendingInvite ? 'Sending...' : 'Send Invite'}
-          </button>
-        </form>
-        {message && <p className="mt-3 text-sm text-green-600">{message}</p>}
-        {error && <p className="mt-3 text-sm text-red-600">{error}</p>}
-      </div>
+      <h2 className="ts-page-title">Team Members</h2>
+      <p className="ts-page-sub">Manage access permissions and roles for your workspace.</p>
 
-      {isAdmin && (
-        <div className="mb-8 rounded-xl border border-gray-200 bg-white p-5">
-          <div className="flex justify-between items-center mb-4">
-            <span className="text-xs font-semibold text-gray-500 uppercase tracking-widest">
-              Pending Invitations
-            </span>
-            <span className="bg-white border border-gray-300 text-gray-600 px-2.5 py-1 rounded-md text-xs font-medium">
-              {pendingInvitations.length} Pending
-            </span>
-          </div>
-
-          <div className="space-y-2">
-            {pendingInvitations.length === 0 ? (
-              <p className="text-sm text-gray-400">No pending invitations.</p>
-            ) : (
-              pendingInvitations.map((inv) => (
-                <div
-                  key={inv.token}
-                  className="bg-white p-3 rounded-md border border-gray-200 flex justify-between items-center"
-                >
-                  <div>
-                    <p className="text-sm font-medium text-gray-900">{inv.email}</p>
-                    <p className="text-xs text-gray-500">Role: {inv.role}</p>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => handleCancelInvitation(inv.token)}
-                    className="text-gray-300 hover:text-red-500 hover:bg-red-50 p-2 rounded-lg transition-all"
-                    title="Cancel Invitation"
-                  >
-                    <Trash2 size={18} />
-                  </button>
-                </div>
-              ))
-            )}
-          </div>
+      {message && (
+        <div className="ts-feedback success">
+          <CheckCircle size={14} /> {message}
+          <button style={{ background:'none', border:'none', cursor:'pointer', marginLeft:'auto', color:'inherit', opacity:0.6, display:'flex', alignItems:'center' }} onClick={() => setMessage('')}><X size={13} /></button>
+        </div>
+      )}
+      {error && (
+        <div className="ts-feedback error">
+          <AlertCircle size={14} /> {error}
+          <button style={{ background:'none', border:'none', cursor:'pointer', marginLeft:'auto', color:'inherit', opacity:0.6, display:'flex', alignItems:'center' }} onClick={() => setError('')}><X size={13} /></button>
         </div>
       )}
 
-      <div className="flex-1 bg-white rounded-xl border border-gray-200 flex flex-col overflow-hidden min-h-[300px]">
-        <div className="p-4 border-b border-gray-200 bg-gray-50 flex justify-between items-center">
-          <span className="text-xs font-semibold text-gray-500 uppercase tracking-widest">
-            Active Members
-          </span>
-          <span className="bg-white border border-gray-300 text-gray-600 px-2.5 py-1 rounded-md text-xs font-medium">
-            {members.length} Users
-          </span>
+      {/* Invite */}
+      <div className="ts-card">
+        <div className="ts-invite-head">
+          <div className="ts-invite-label">Invite new member</div>
+          <form onSubmit={handleInvite} className="ts-invite-row">
+            <div className="ts-invite-input-wrap">
+              <Mail size={14} className="ts-invite-input-icon" />
+              <input
+                type="email"
+                className="ts-invite-input"
+                value={inviteEmail}
+                onChange={(e) => setInviteEmail(e.target.value)}
+                readOnly={!isAdmin}
+                placeholder="colleague@company.com"
+              />
+            </div>
+            <button type="submit" className="ts-invite-btn" disabled={sendingInvite || !isAdmin}>
+              <Send size={13} />
+              {sendingInvite ? 'Sending…' : 'Send Invite'}
+            </button>
+          </form>
         </div>
+      </div>
 
-        <div className="overflow-y-auto p-3 space-y-2 custom-scrollbar">
-          {loading ? (
-            <div className="p-4 text-sm text-gray-400">Loading members...</div>
+      {/* Pending invitations */}
+      {isAdmin && (
+        <div className="ts-card">
+          <div className="ts-section-head">
+            <span className="ts-section-label">Pending Invitations</span>
+            <span className="ts-count">{pendingInvitations.length}</span>
+          </div>
+          {pendingInvitations.length === 0 ? (
+            <div className="ts-empty">No pending invitations.</div>
           ) : (
-            members.map((member) => (
-              <div
-                key={member.user_id}
-                className="bg-white p-4 rounded-md border border-gray-200 flex justify-between items-center group hover:border-blue-300 transition-colors"
-              >
-                <div className="flex items-center gap-4">
-                  <div className="w-9 h-9 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center text-sm font-semibold border border-blue-100">
-                    {(member.full_name || member.email || 'U')[0]}
+            <div className="ts-list">
+              {pendingInvitations.map((inv) => (
+                <div key={inv.token} className="ts-row">
+                  <div className="ts-row-left">
+                    <div className="ts-avatar amber">{inv.email[0].toUpperCase()}</div>
+                    <div className="ts-row-info">
+                      <div className="ts-row-name">{inv.email}</div>
+                      <div className="ts-row-sub">Role: {inv.role}</div>
+                    </div>
                   </div>
-                  <div>
-                    <h3 className="font-medium text-gray-900">{member.full_name || member.email}</h3>
-                    <p className="text-sm text-gray-500">{member.email}</p>
+                  <div className="ts-row-right">
+                    <span className="ts-badge pending">Pending</span>
+                    <button
+                      type="button"
+                      className="ts-delete-btn"
+                      onClick={() => handleCancelInvitation(inv.token)}
+                      title="Cancel invitation"
+                    >
+                      <Trash2 size={15} />
+                    </button>
                   </div>
                 </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
-                <div className="flex items-center gap-4">
-                  <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider bg-gray-50 px-2.5 py-1 rounded-md border border-gray-200">
-                    {member.role === 'ADMIN' ? 'Admin' : 'Member'}
+      {/* Active members */}
+      <div className="ts-card">
+        <div className="ts-section-head">
+          <span className="ts-section-label">Active Members</span>
+          <span className="ts-count">{members.length}</span>
+        </div>
+        {loading ? (
+          <div style={{ padding: '12px 0' }}>
+            <LoadingState message="Loading members" minHeight={220} imageWidth={132} />
+          </div>
+        ) : members.length === 0 ? (
+          <div className="ts-empty">No members found.</div>
+        ) : (
+          <div className="ts-list">
+            {members.map((m) => (
+              <div key={m.user_id} className="ts-row">
+                <div className="ts-row-left">
+                  <div className={`ts-avatar ${m.role === 'ADMIN' ? 'blue' : 'slate'}`}>
+                    {(m.full_name || m.email || 'U')[0].toUpperCase()}
+                  </div>
+                  <div className="ts-row-info">
+                    <div className="ts-row-name">{m.full_name || m.email}</div>
+                    <div className="ts-row-sub">{m.email}</div>
+                  </div>
+                </div>
+                <div className="ts-row-right">
+                  <span className={`ts-badge ${m.role === 'ADMIN' ? 'admin' : 'member'}`}>
+                    {m.role === 'ADMIN' ? 'Admin' : 'Member'}
                   </span>
                   <button
                     type="button"
-                    onClick={() => handleRemoveMember(member)}
-                    className={`p-2 rounded-lg transition-all ${
-                      isAdmin && member.role !== 'ADMIN'
-                        ? 'text-gray-300 hover:text-red-500 hover:bg-red-50'
-                        : 'text-gray-300 cursor-not-allowed'
-                    }`}
-                    title="Remove Member"
+                    className="ts-delete-btn"
+                    onClick={() => handleRemoveMember(m)}
+                    disabled={!isAdmin || m.role === 'ADMIN'}
+                    title="Remove member"
                   >
-                    <Trash2 size={18} />
+                    <Trash2 size={15} />
                   </button>
                 </div>
               </div>
-            ))
-          )}
-        </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );
