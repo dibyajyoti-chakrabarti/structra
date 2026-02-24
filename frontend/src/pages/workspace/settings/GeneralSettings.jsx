@@ -5,7 +5,7 @@ import api from '../../../api';
 
 const styles = `
   @import url('https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700;800&display=swap');
-  .gs-root { font-family: 'Geist', -apple-system, BlinkMacSystemFont, sans-serif; max-width: 640px; }
+  .gs-root { font-family: 'Geist', -apple-system, BlinkMacSystemFont, sans-serif; width: 100%; }
 
   /* Toast */
   .gs-toast-wrap { position: fixed; top: 68px; left: 50%; transform: translateX(-50%); z-index: 200; animation: gsToastIn 0.15s ease; }

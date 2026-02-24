@@ -13,7 +13,7 @@ const roleLabel = (role) => ROLE_OPTIONS.find((o) => o.value === role)?.label ??
 
 const styles = `
   @import url('https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700;800&display=swap');
-  .sec-root { font-family: 'Geist', -apple-system, BlinkMacSystemFont, sans-serif; max-width: 820px; }
+  .sec-root { font-family: 'Geist', -apple-system, BlinkMacSystemFont, sans-serif; width: 100%; }
 
   .sec-page-title { font-size: 18px; font-weight: 750; letter-spacing: -0.4px; color: #0a0a0a; margin: 0 0 4px; }
   .sec-page-sub { font-size: 13px; color: #64748b; margin: 0 0 28px; }

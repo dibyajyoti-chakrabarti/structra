@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Outlet, useNavigate, useOutletContext, useParams } from "react-router-dom";
+import { Outlet, useLocation, useNavigate, useOutletContext, useParams } from "react-router-dom";
 import {
   Menu, Settings, Trash2, X, CheckCircle, AlertCircle,
   ChevronRight, Search, Users, ChevronDown, ChevronUp, Star, Plus, Layout,
@@ -16,6 +16,7 @@ const styles = `
   .wi-body { display: flex; flex: 1; overflow: hidden; position: relative; }
   .wi-main { flex: 1; overflow: hidden; background: #fafafa; position: relative; z-index: 0; }
   .wi-main-inner { height: 100%; overflow-y: auto; padding: 32px 36px 60px; max-width: 1200px; margin: 0 auto; }
+  .wi-main-inner.wi-main-inner-wide { max-width: none; margin: 0; padding: 0; }
 
   /* Mobile top bar */
   .wi-mobile-bar {
@@ -259,11 +260,13 @@ const Toast = ({ message, type, onClose }) => {
 
 // ─── WorkspaceInstance (layout) ───────────────────────────────────────────────
 const WorkspaceInstance = () => {
+  const location = useLocation();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isDesktopNavbarCollapsed, setIsDesktopNavbarCollapsed] = useState(false);
   const [workspaces, setWorkspaces] = useState([]);
   const [areWorkspacesLoading, setAreWorkspacesLoading] = useState(true);
   const [starringWorkspaceIds, setStarringWorkspaceIds] = useState([]);
+  const isSettingsRoute = location.pathname.includes('/settings');
 
   const fetchWorkspaces = async () => {
     try {
@@ -324,7 +327,7 @@ const WorkspaceInstance = () => {
         />
 
         <main className="wi-main">
-          <div className="wi-main-inner">
+          <div className={`wi-main-inner${isSettingsRoute ? ' wi-main-inner-wide' : ''}`}>
             <Outlet context={{ refreshWorkspaces: fetchWorkspaces, toggleWorkspaceStar, starringWorkspaceIds }} />
           </div>
         </main>
