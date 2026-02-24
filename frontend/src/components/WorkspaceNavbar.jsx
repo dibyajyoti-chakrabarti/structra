@@ -1,6 +1,7 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Plus, ChevronLeft, ChevronRight, X, Star } from 'lucide-react';
+import LoadingState from './LoadingState';
 
 const styles = `
   @import url('https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700;800&display=swap');
@@ -235,7 +236,7 @@ export default function WorkspaceNavbar({
 
       <div className="wsnav-list">
         {loading ? (
-          <div className="wsnav-loading">Loading workspaces…</div>
+          <LoadingState message="Loading workspaces" minHeight={200} imageWidth={108} />
         ) : (
           sortedWorkspaces.map((ws) => (
             <div

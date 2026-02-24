@@ -4,6 +4,7 @@ import { Search, Globe, Clock, Star } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import AuthenticatedNavbar from '../../components/AuthenticatedNavbar';
 import api from '../../api';
+import LoadingState from '../../components/LoadingState';
 
 const DiscoverWorkspaces = () => {
   const navigate = useNavigate();
@@ -134,7 +135,9 @@ const DiscoverWorkspaces = () => {
         </div>
 
         {isLoading ? (
-          <div className="rounded-xl border border-gray-200 p-10 text-center text-gray-500">Loading workspaces...</div>
+          <div className="rounded-xl border border-gray-200 p-6 bg-white">
+            <LoadingState message="Loading workspaces" minHeight={280} imageWidth={142} />
+          </div>
         ) : errorMessage ? (
           <div className="rounded-xl border border-red-200 bg-red-50 p-6 text-red-700">{errorMessage}</div>
         ) : workspaces.length === 0 ? (

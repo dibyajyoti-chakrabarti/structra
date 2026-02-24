@@ -4,6 +4,7 @@ import { Plus, Layout, Users, Clock, Star, Grid3X3, ArrowUpRight } from 'lucide-
 import { formatDistanceToNow } from 'date-fns';
 import AuthenticatedNavbar from '../../components/AuthenticatedNavbar';
 import api from '../../api';
+import LoadingState from '../../components/LoadingState';
 
 // ─── Styles ─────────────────────────────────────────────────────────────────
 const styles = `
@@ -573,10 +574,7 @@ const WorkspaceHome = () => {
     return (
       <div className="wsh-loading">
         <style>{styles}</style>
-        <div className="wsh-loading-inner">
-          <div className="wsh-loading-spinner" />
-          <span className="wsh-loading-text">Loading workspaces…</span>
-        </div>
+        <LoadingState message="Loading workspaces" minHeight={360} />
       </div>
     );
   }

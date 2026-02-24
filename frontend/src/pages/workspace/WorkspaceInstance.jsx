@@ -7,6 +7,7 @@ import {
 import AuthenticatedNavbar from "../../components/AuthenticatedNavbar";
 import WorkspaceNavbar from "../../components/WorkspaceNavbar";
 import api from "../../api";
+import LoadingState from "../../components/LoadingState";
 
 // ─── Shared styles ────────────────────────────────────────────────────────────
 const styles = `
@@ -436,7 +437,7 @@ export const WorkspaceOverview = () => {
     return `${days}d ago`;
   };
 
-  if (loading) return <div style={{ padding: 40, color: '#94a3b8', fontFamily: 'Geist,sans-serif', fontSize: 13 }}>Loading workspace…</div>;
+  if (loading) return <LoadingState message="Loading workspace" minHeight={420} />;
   if (!workspace) return <div style={{ padding: 40, color: '#dc2626', fontFamily: 'Geist,sans-serif', fontSize: 13 }}>Workspace not found.</div>;
 
   const isMember = Boolean(workspace.is_member);
@@ -557,7 +558,7 @@ export const WorkspaceOverview = () => {
           </div>
 
           {systemsLoading ? (
-            <div style={{ color: '#94a3b8', fontSize: 13, padding: '32px 0', textAlign: 'center' }}>Loading systems…</div>
+            <LoadingState message="Loading systems" minHeight={260} imageWidth={140} />
           ) : filteredSystems.length > 0 ? (
             filteredSystems.map((sys) => (
               <div key={sys.id} className="wo-system-row" onClick={() => handleOpenSystem(sys.id)}>

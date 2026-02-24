@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, useOutletContext } from 'react-router-dom';
 import { Trash2, Building, FileText, X, CheckCircle, AlertCircle } from 'lucide-react';
 import api from '../../../api';
+import LoadingState from '../../../components/LoadingState';
 
 const styles = `
   @import url('https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700;800&display=swap');
@@ -204,7 +205,7 @@ const GeneralSettings = () => {
     }
   };
 
-  if (loading) return <div style={{ color: '#94a3b8', fontSize: 13, fontFamily: 'Geist,sans-serif' }}>Loading settings…</div>;
+  if (loading) return <LoadingState message="Loading settings" minHeight={360} />;
 
   return (
     <div className="gs-root">

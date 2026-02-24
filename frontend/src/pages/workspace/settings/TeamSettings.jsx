@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { Mail, Trash2, Send, X, CheckCircle, AlertCircle } from 'lucide-react';
 import { useOutletContext, useParams } from 'react-router-dom';
 import api from '../../../api';
+import LoadingState from '../../../components/LoadingState';
 
 const styles = `
   @import url('https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700;800&display=swap');
@@ -267,7 +268,9 @@ const TeamSettings = () => {
           <span className="ts-count">{members.length}</span>
         </div>
         {loading ? (
-          <div className="ts-empty">Loading members…</div>
+          <div style={{ padding: '12px 0' }}>
+            <LoadingState message="Loading members" minHeight={220} imageWidth={132} />
+          </div>
         ) : members.length === 0 ? (
           <div className="ts-empty">No members found.</div>
         ) : (

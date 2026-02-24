@@ -5,6 +5,7 @@ import {
   AlertCircle, ShieldAlert, ChevronDown, Plus, X,
 } from "lucide-react";
 import api from "../../api";
+import LoadingState from "../../components/LoadingState";
 
 const ROLE_OPTIONS = [
   { value: "viewer", label: "Viewer" },
@@ -399,7 +400,7 @@ const CreateSystem = () => {
             </div>
             <div className="cs-member-list">
               {loadingMembers ? (
-                <div className="cs-member-empty">Loading members…</div>
+                <LoadingState message="Loading members" minHeight={220} imageWidth={122} />
               ) : filteredMembers.length === 0 ? (
                 <div className="cs-member-empty">No members found{searchQuery ? ` matching "${searchQuery}"` : ''}.</div>
               ) : filteredMembers.map((m) => {

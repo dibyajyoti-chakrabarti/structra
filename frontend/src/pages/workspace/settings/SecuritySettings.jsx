@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { useOutletContext, useParams } from 'react-router-dom';
 import { Shield, Globe, Lock, ChevronDown, ChevronUp, Plus, Trash2, Save, Search, CheckCircle, AlertCircle, X } from 'lucide-react';
 import api from '../../../api';
+import LoadingState from '../../../components/LoadingState';
 
 const ROLE_OPTIONS = [
   { value: 'viewer', label: 'Viewer' },
@@ -391,7 +392,7 @@ const SecuritySettings = () => {
           <div className="sec-iam-head"><Shield size={15} /> IAM — Identity & Access Management</div>
 
           {loadingIam ? (
-            <div style={{ color: '#94a3b8', fontSize: 13, padding: '16px 0' }}>Loading IAM policies…</div>
+            <LoadingState message="Loading IAM policies" minHeight={240} imageWidth={138} />
           ) : systems.length === 0 ? (
             <div style={{ color: '#94a3b8', fontSize: 13, background: '#fff', border: '1.5px solid #e2e8f0', borderRadius: 11, padding: 20 }}>
               No systems found in this workspace yet.
