@@ -352,7 +352,7 @@ const styles = `
 
   /* ── Add new card ── */
   .wsh-card-new {
-    border: 1.5px dashed #e2e8f0;
+    border: 1.5px dashed #cbd5e1;
     border-radius: 12px;
     padding: 20px;
     display: flex;
@@ -360,40 +360,45 @@ const styles = `
     align-items: center;
     justify-content: center;
     cursor: pointer;
-    transition: border-color 0.15s, background 0.15s;
+    transition: border-color 0.15s, background 0.15s, box-shadow 0.15s, transform 0.1s;
     min-height: 148px;
-    background: transparent;
+    background: #fff;
     width: 100%;
     font-family: inherit;
     gap: 10px;
+    box-shadow: inset 0 0 0 1px #f1f5f9;
   }
 
   .wsh-card-new:hover {
-    border-color: #93c5fd;
-    background: #f8fbff;
+    border-color: #60a5fa;
+    background: #f0f7ff;
+    box-shadow: inset 0 0 0 1px #bfdbfe, 0 8px 24px rgba(37, 99, 235, 0.08);
+    transform: translateY(-1px);
   }
 
   .wsh-card-new-icon {
     width: 36px;
     height: 36px;
-    border-radius: 50%;
-    background: #f1f5f9;
+    border-radius: 10px;
+    background: #eef2f7;
+    border: 1.5px solid #e2e8f0;
     display: flex;
     align-items: center;
     justify-content: center;
-    color: #94a3b8;
-    transition: background 0.15s, color 0.15s;
+    color: #64748b;
+    transition: background 0.15s, color 0.15s, border-color 0.15s;
   }
 
   .wsh-card-new:hover .wsh-card-new-icon {
     background: #dbeafe;
     color: #2563eb;
+    border-color: #bfdbfe;
   }
 
   .wsh-card-new-label {
     font-size: 13.5px;
-    font-weight: 600;
-    color: #94a3b8;
+    font-weight: 650;
+    color: #64748b;
     transition: color 0.15s;
   }
 
