@@ -30,11 +30,11 @@ const styles = `
     padding-right: 0; padding-bottom: 24px;
   }
   @media (min-width: 900px) {
-    .cs-left { padding-right: 36px; padding-bottom: 0; border-right: 1.5px solid #f1f5f9; }
+    .cs-left { padding-right: 36px; padding-bottom: 0; border-right: 1.5px solid var(--border); }
   }
 
-  .cs-panel-title { font-size: 20px; font-weight: 800; letter-spacing: -0.5px; color: #0a0a0a; margin: 0 0 6px; }
-  .cs-panel-sub { font-size: 13px; color: #64748b; margin: 0 0 28px; }
+  .cs-panel-title { font-size: 20px; font-weight: 800; letter-spacing: -0.5px; color: var(--text); margin: 0 0 6px; }
+  .cs-panel-sub { font-size: 13px; color: var(--text-muted); margin: 0 0 28px; }
 
   /* Alerts */
   .cs-alert {
@@ -44,8 +44,8 @@ const styles = `
     animation: csAlertIn 0.15s ease;
   }
   @keyframes csAlertIn { from { opacity:0; transform: translateY(-3px); } to { opacity:1; transform: translateY(0); } }
-  .cs-alert.error { background: #fef2f2; border-color: #fecaca; color: #b91c1c; }
-  .cs-alert.warning { background: #fef9c3; border-color: #fde68a; color: #854d0e; }
+  .cs-alert.error { background: rgba(239, 68, 68, 0.12); border-color: rgba(239, 68, 68, 0.35); color: var(--danger); }
+  .cs-alert.warning { background: rgba(251, 191, 36, 0.14); border-color: rgba(251, 191, 36, 0.35); color: var(--warning); }
   .cs-alert-title { font-weight: 700; margin-bottom: 2px; }
   .cs-alert-body { color: inherit; opacity: 0.85; }
 
@@ -54,119 +54,119 @@ const styles = `
   .cs-label {
     display: block; font-size: 10.5px; font-weight: 700;
     text-transform: uppercase; letter-spacing: 0.07em;
-    color: #64748b; margin-bottom: 8px;
+    color: var(--text-muted); margin-bottom: 8px;
   }
-  .cs-label .required { color: #ef4444; margin-left: 3px; }
+  .cs-label .required { color: var(--danger); margin-left: 3px; }
 
   .cs-input {
     width: 100%; height: 40px; padding: 0 14px;
-    border: 1.5px solid #e2e8f0; border-radius: 8px;
+    border: 1.5px solid var(--border); border-radius: 8px;
     font-size: 13.5px; font-family: inherit;
-    color: #0a0a0a; background: #fafafa; outline: none;
+    color: var(--text); background: var(--surface-2); outline: none;
     transition: border-color 0.15s, box-shadow 0.15s, background 0.15s;
   }
-  .cs-input:focus { border-color: #2563eb; background: #fff; box-shadow: 0 0 0 3px rgba(37,99,235,0.08); }
-  .cs-input::placeholder { color: #94a3b8; }
-  .cs-input:disabled { background: #f1f5f9; color: #94a3b8; cursor: not-allowed; }
+  .cs-input:focus { border-color: var(--accent); background: var(--surface); box-shadow: 0 0 0 3px rgba(37,99,235,0.08); }
+  .cs-input::placeholder { color: var(--text-subtle); }
+  .cs-input:disabled { background: var(--surface-3); color: var(--text-subtle); cursor: not-allowed; }
 
   .cs-textarea {
     width: 100%; padding: 10px 14px;
-    border: 1.5px solid #e2e8f0; border-radius: 8px;
-    font-size: 13.5px; font-family: inherit; color: #0a0a0a;
-    background: #fafafa; outline: none; resize: none; line-height: 1.55;
+    border: 1.5px solid var(--border); border-radius: 8px;
+    font-size: 13.5px; font-family: inherit; color: var(--text);
+    background: var(--surface-2); outline: none; resize: none; line-height: 1.55;
     transition: border-color 0.15s, box-shadow 0.15s, background 0.15s;
   }
-  .cs-textarea:focus { border-color: #2563eb; background: #fff; box-shadow: 0 0 0 3px rgba(37,99,235,0.08); }
-  .cs-textarea:disabled { background: #f1f5f9; color: #94a3b8; cursor: not-allowed; }
+  .cs-textarea:focus { border-color: var(--accent); background: var(--surface); box-shadow: 0 0 0 3px rgba(37,99,235,0.08); }
+  .cs-textarea:disabled { background: var(--surface-3); color: var(--text-subtle); cursor: not-allowed; }
 
   .cs-select-wrap { position: relative; }
   .cs-select {
     width: 100%; height: 40px; padding: 0 36px 0 14px;
-    border: 1.5px solid #e2e8f0; border-radius: 8px;
-    font-size: 13.5px; font-family: inherit; color: #1e293b;
-    background: #fafafa; outline: none; appearance: none; cursor: pointer;
+    border: 1.5px solid var(--border); border-radius: 8px;
+    font-size: 13.5px; font-family: inherit; color: var(--text);
+    background: var(--surface-2); outline: none; appearance: none; cursor: pointer;
     transition: border-color 0.15s, box-shadow 0.15s, background 0.15s;
   }
-  .cs-select:focus { border-color: #2563eb; background: #fff; box-shadow: 0 0 0 3px rgba(37,99,235,0.08); }
-  .cs-select:disabled { background: #f1f5f9; color: #94a3b8; cursor: not-allowed; }
-  .cs-select-icon { position: absolute; right: 13px; top: 50%; transform: translateY(-50%); color: #94a3b8; pointer-events: none; }
-  .cs-select-note { font-size: 12px; color: #b45309; margin-top: 5px; }
+  .cs-select:focus { border-color: var(--accent); background: var(--surface); box-shadow: 0 0 0 3px rgba(37,99,235,0.08); }
+  .cs-select:disabled { background: var(--surface-3); color: var(--text-subtle); cursor: not-allowed; }
+  .cs-select-icon { position: absolute; right: 13px; top: 50%; transform: translateY(-50%); color: var(--text-subtle); pointer-events: none; }
+  .cs-select-note { font-size: 12px; color: var(--warning); margin-top: 5px; }
 
   /* Actions */
-  .cs-actions { display: flex; align-items: center; justify-content: flex-end; gap: 8px; padding-top: 24px; margin-top: auto; border-top: 1.5px solid #f1f5f9; }
+  .cs-actions { display: flex; align-items: center; justify-content: flex-end; gap: 8px; padding-top: 24px; margin-top: auto; border-top: 1.5px solid var(--border); }
   .cs-cancel-btn {
     height: 38px; padding: 0 16px;
-    background: none; border: 1.5px solid #e2e8f0; border-radius: 8px;
-    font-size: 13.5px; font-weight: 500; color: #64748b;
+    background: none; border: 1.5px solid var(--border); border-radius: 8px;
+    font-size: 13.5px; font-weight: 500; color: var(--text-muted);
     cursor: pointer; font-family: inherit;
     transition: border-color 0.1s, color 0.1s, background 0.1s;
   }
-  .cs-cancel-btn:hover { border-color: #cbd5e1; color: #1e293b; background: #f8fafc; }
+  .cs-cancel-btn:hover { border-color: var(--border-strong); color: var(--text); background: var(--surface-2); }
   .cs-cancel-btn:disabled { opacity: 0.4; cursor: not-allowed; }
 
   .cs-submit-btn {
     height: 38px; padding: 0 20px;
-    background: #0a0a0a; color: #fff; border: none; border-radius: 8px;
+    background: var(--text); color: var(--bg); border: none; border-radius: 8px;
     font-size: 13.5px; font-weight: 650; cursor: pointer; font-family: inherit;
     display: flex; align-items: center; gap: 7px;
     transition: background 0.15s, transform 0.1s;
   }
-  .cs-submit-btn:hover { background: #1e293b; }
+  .cs-submit-btn:hover { background: color-mix(in srgb, var(--text), #000 12%); }
   .cs-submit-btn:active { transform: scale(0.98); }
-  .cs-submit-btn:disabled { background: #e2e8f0; color: #94a3b8; cursor: not-allowed; transform: none; }
+  .cs-submit-btn:disabled { background: var(--border); color: var(--text-subtle); cursor: not-allowed; transform: none; }
 
   /* ── Right panel (team access) ── */
   .cs-right {
     width: 100%; display: flex; flex-direction: column;
-    border-top: 1.5px solid #f1f5f9; padding-top: 24px;
+    border-top: 1.5px solid var(--border); padding-top: 24px;
   }
   @media (min-width: 900px) {
     .cs-right { width: 300px; flex-shrink: 0; padding-left: 36px; padding-top: 0; border-top: none; }
   }
 
-  .cs-right-title { font-size: 14px; font-weight: 700; color: #0a0a0a; margin: 0 0 3px; display: flex; align-items: center; gap: 8px; letter-spacing: -0.2px; }
-  .cs-right-title svg { color: #2563eb; }
-  .cs-right-sub { font-size: 12.5px; color: #94a3b8; margin: 0 0 14px; }
+  .cs-right-title { font-size: 14px; font-weight: 700; color: var(--text); margin: 0 0 3px; display: flex; align-items: center; gap: 8px; letter-spacing: -0.2px; }
+  .cs-right-title svg { color: var(--accent); }
+  .cs-right-sub { font-size: 12.5px; color: var(--text-subtle); margin: 0 0 14px; }
 
   /* Search */
   .cs-member-search-wrap { position: relative; margin-bottom: 10px; }
-  .cs-member-search-icon { position: absolute; left: 11px; top: 50%; transform: translateY(-50%); color: #94a3b8; pointer-events: none; }
+  .cs-member-search-icon { position: absolute; left: 11px; top: 50%; transform: translateY(-50%); color: var(--text-subtle); pointer-events: none; }
   .cs-member-search {
     width: 100%; height: 36px; padding: 0 14px 0 32px;
-    border: 1.5px solid #e2e8f0; border-radius: 8px;
-    font-size: 13px; font-family: inherit; background: #fafafa;
-    color: #0a0a0a; outline: none;
+    border: 1.5px solid var(--border); border-radius: 8px;
+    font-size: 13px; font-family: inherit; background: var(--surface-2);
+    color: var(--text); outline: none;
     transition: border-color 0.15s, box-shadow 0.15s, background 0.15s;
   }
-  .cs-member-search:focus { border-color: #2563eb; background: #fff; box-shadow: 0 0 0 3px rgba(37,99,235,0.08); }
-  .cs-member-search::placeholder { color: #94a3b8; }
-  .cs-member-search:disabled { background: #f1f5f9; cursor: not-allowed; }
+  .cs-member-search:focus { border-color: var(--accent); background: var(--surface); box-shadow: 0 0 0 3px rgba(37,99,235,0.08); }
+  .cs-member-search::placeholder { color: var(--text-subtle); }
+  .cs-member-search:disabled { background: var(--surface-3); cursor: not-allowed; }
 
   /* Member list */
   .cs-member-list-wrap {
-    flex: 1; background: #fff; border: 1.5px solid #e2e8f0; border-radius: 11px; overflow: hidden;
+    flex: 1; background: var(--surface); border: 1.5px solid var(--border); border-radius: 11px; overflow: hidden;
     display: flex; flex-direction: column; min-height: 200px;
   }
   .cs-member-list-head {
     display: flex; align-items: center; justify-content: space-between;
-    padding: 10px 14px; border-bottom: 1.5px solid #f1f5f9; background: #fafafa;
+    padding: 10px 14px; border-bottom: 1.5px solid var(--border); background: var(--surface-2);
   }
-  .cs-member-list-label { font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em; color: #94a3b8; }
-  .cs-selected-count { font-size: 11px; font-weight: 700; color: #2563eb; background: #eff6ff; padding: 2px 8px; border-radius: 20px; }
+  .cs-member-list-label { font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em; color: var(--text-subtle); }
+  .cs-selected-count { font-size: 11px; font-weight: 700; color: var(--accent); background: var(--accent-soft); padding: 2px 8px; border-radius: 20px; }
 
   .cs-member-list { flex: 1; overflow-y: auto; padding: 8px; }
   .cs-member-list::-webkit-scrollbar { width: 4px; }
-  .cs-member-list::-webkit-scrollbar-thumb { background: #e2e8f0; border-radius: 4px; }
+  .cs-member-list::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
 
-  .cs-member-empty { text-align: center; padding: 24px 12px; font-size: 12.5px; color: #94a3b8; }
+  .cs-member-empty { text-align: center; padding: 24px 12px; font-size: 12.5px; color: var(--text-subtle); }
 
   .cs-member-item {
-    border-radius: 9px; border: 1.5px solid #f1f5f9;
+    border-radius: 9px; border: 1.5px solid var(--border);
     margin-bottom: 6px; overflow: hidden;
     transition: border-color 0.15s;
   }
   .cs-member-item:last-child { margin-bottom: 0; }
-  .cs-member-item.selected { border-color: #bfdbfe; background: #f0f7ff; }
+  .cs-member-item.selected { border-color: var(--accent-2); background: var(--accent-soft); }
 
   .cs-member-row {
     display: flex; align-items: center; justify-content: space-between;
@@ -179,22 +179,22 @@ const styles = `
     display: flex; align-items: center; justify-content: center;
     font-size: 11px; font-weight: 800; flex-shrink: 0;
   }
-  .cs-member-avatar.idle { background: #f1f5f9; color: #64748b; }
-  .cs-member-avatar.active { background: #dbeafe; color: #1d4ed8; }
-  .cs-member-name { font-size: 13px; font-weight: 650; color: #1e293b; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; letter-spacing: -0.1px; }
-  .cs-member-email { font-size: 11.5px; color: #94a3b8; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .cs-member-avatar.idle { background: var(--surface-3); color: var(--text-muted); }
+  .cs-member-avatar.active { background: color-mix(in srgb, var(--accent), transparent 75%); color: var(--accent); }
+  .cs-member-name { font-size: 13px; font-weight: 650; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; letter-spacing: -0.1px; }
+  .cs-member-email { font-size: 11.5px; color: var(--text-subtle); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
   /* Role selector inline */
-  .cs-member-role { padding: 8px 10px 10px 10px; border-top: 1px solid #e2e8f0; background: #f8fafc; }
-  .cs-member-role-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em; color: #94a3b8; margin-bottom: 5px; }
+  .cs-member-role { padding: 8px 10px 10px 10px; border-top: 1px solid var(--border); background: var(--surface-2); }
+  .cs-member-role-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em; color: var(--text-subtle); margin-bottom: 5px; }
   .cs-member-role-select {
     width: 100%; height: 32px; padding: 0 28px 0 10px;
-    border: 1.5px solid #e2e8f0; border-radius: 6px;
-    font-size: 12.5px; font-family: inherit; color: #1e293b;
-    background: #fff; outline: none; appearance: none; cursor: pointer;
+    border: 1.5px solid var(--border); border-radius: 6px;
+    font-size: 12.5px; font-family: inherit; color: var(--text);
+    background: var(--surface); outline: none; appearance: none; cursor: pointer;
     transition: border-color 0.15s;
   }
-  .cs-member-role-select:focus { border-color: #2563eb; }
+  .cs-member-role-select:focus { border-color: var(--accent); }
 
   @keyframes cs-spin { to { transform: rotate(360deg); } }
 `;
@@ -421,8 +421,8 @@ const CreateSystem = () => {
                         </div>
                       </div>
                       {isSelected
-                        ? <CheckCircle size={16} style={{ color: '#2563eb', flexShrink: 0 }} />
-                        : <Circle size={16} style={{ color: '#e2e8f0', flexShrink: 0 }} />
+                        ? <CheckCircle size={16} style={{ color: 'var(--accent)', flexShrink: 0 }} />
+                        : <Circle size={16} style={{ color: 'var(--border)', flexShrink: 0 }} />
                       }
                     </div>
                     {isSelected && (
@@ -436,7 +436,7 @@ const CreateSystem = () => {
                           >
                             {ROLE_OPTIONS.map((r) => <option key={r.value} value={r.value}>{r.label}</option>)}
                           </select>
-                          <ChevronDown size={12} style={{ position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)', color: '#94a3b8', pointerEvents: 'none' }} />
+                          <ChevronDown size={12} style={{ position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-subtle)', pointerEvents: 'none' }} />
                         </div>
                       </div>
                     )}

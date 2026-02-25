@@ -35,7 +35,7 @@ export default function Navbar() {
             </Link>
             
             <div className="h-6 w-px bg-blue-100" />
-            
+
             <button onClick={() => navigate("/login")} className="text-sm font-bold text-slate-700 transition-colors hover:text-blue-700">
               Log in
             </button>
