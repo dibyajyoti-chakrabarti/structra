@@ -1,11 +1,13 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import logo from '../assets/logo.png';
-import { Menu, X } from 'lucide-react';
+import { Menu, X, Sun, Moon } from 'lucide-react';
+import { useTheme } from '../contexts/ThemeContext.jsx';
 
 export default function Navbar() {
   const navigate = useNavigate();
   const [isOpen, setIsOpen] = useState(false);
+  const { theme, toggleTheme } = useTheme();
 
   return (
     <nav className="fixed top-0 z-50 w-full border-b border-blue-100 bg-white/95 backdrop-blur">
@@ -35,6 +37,16 @@ export default function Navbar() {
             </Link>
             
             <div className="h-6 w-px bg-blue-100" />
+
+            <button
+              onClick={toggleTheme}
+              className="flex items-center gap-2 rounded-lg border border-blue-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 transition hover:bg-blue-50"
+              title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+              aria-label="Toggle theme"
+            >
+              {theme === 'dark' ? <Sun size={16} /> : <Moon size={16} />}
+              Theme
+            </button>
             
             <button onClick={() => navigate("/login")} className="text-sm font-bold text-slate-700 transition-colors hover:text-blue-700">
               Log in
@@ -59,6 +71,17 @@ export default function Navbar() {
       {/* Mobile Menu Overlay */}
       {isOpen && (
         <div className="animate-in slide-in-from-top-5 space-y-4 border-b border-blue-100 bg-white px-4 pb-6 pt-2 duration-200 md:hidden">
+          <button
+            onClick={() => {
+              toggleTheme();
+              setIsOpen(false);
+            }}
+            className="flex items-center gap-2 py-2 text-base font-semibold text-slate-700 hover:text-blue-700"
+          >
+            {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
+            Theme
+          </button>
+          <div className="my-2 h-px bg-blue-100" />
           <button
             onClick={() => {
               window.scrollTo({ top: 0, left: 0, behavior: "smooth" });

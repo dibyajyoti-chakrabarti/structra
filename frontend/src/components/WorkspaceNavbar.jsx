@@ -8,17 +8,18 @@ const styles = `
 
   .wsnav-root {
     font-family: 'Geist', -apple-system, BlinkMacSystemFont, sans-serif;
+    color: var(--text);
   }
 
   /* ── Desktop sidebar ── */
   .wsnav-desktop {
     height: 100%;
-    background: #fff;
+    background: var(--surface);
     display: none;
     flex-direction: column;
     transition: width 0.25s ease, opacity 0.2s ease, transform 0.25s ease;
     overflow: hidden;
-    border-right: 1.5px solid #f1f5f9;
+    border-right: 1.5px solid var(--border);
   }
   .wsnav-desktop.expanded { width: 252px; opacity: 1; }
   .wsnav-desktop.collapsed { width: 0; opacity: 0; pointer-events: none; border-right: none; transform: translateX(-8px); }
@@ -27,8 +28,8 @@ const styles = `
   .wsnav-collapsed-strip {
     width: 44px;
     flex-shrink: 0;
-    border-right: 1.5px solid #f1f5f9;
-    background: #fff;
+    border-right: 1.5px solid var(--border);
+    background: var(--surface);
     display: none;
     flex-direction: column;
     align-items: center;
@@ -39,16 +40,16 @@ const styles = `
   .wsnav-expand-btn {
     width: 30px; height: 30px;
     display: flex; align-items: center; justify-content: center;
-    border: 1.5px solid #e2e8f0; border-radius: 7px;
-    background: #fff; color: #64748b; cursor: pointer;
+    border: 1.5px solid var(--border); border-radius: 7px;
+    background: var(--surface); color: var(--text-muted); cursor: pointer;
     transition: color 0.1s, border-color 0.1s, background 0.1s;
   }
-  .wsnav-expand-btn:hover { color: #0a0a0a; border-color: #cbd5e1; background: #f8fafc; }
+  .wsnav-expand-btn:hover { color: var(--text); border-color: var(--border-strong); background: var(--surface-2); }
 
   /* ── Header ── */
   .wsnav-header {
     padding: 12px 14px;
-    border-bottom: 1.5px solid #f1f5f9;
+    border-bottom: 1.5px solid var(--border);
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -62,21 +63,21 @@ const styles = `
     font-weight: 700;
     letter-spacing: 0.09em;
     text-transform: uppercase;
-    color: #94a3b8;
+    color: var(--text-subtle);
     cursor: pointer;
     transition: color 0.1s;
   }
-  .wsnav-header-label:hover { color: #64748b; }
+  .wsnav-header-label:hover { color: var(--text-muted); }
 
   .wsnav-header-btns { display: flex; align-items: center; gap: 2px; }
 
   .wsnav-icon-btn {
     background: none; border: none; cursor: pointer;
-    color: #94a3b8; padding: 5px; border-radius: 6px;
+    color: var(--text-subtle); padding: 5px; border-radius: 6px;
     display: flex; align-items: center; justify-content: center;
     transition: color 0.1s, background 0.1s;
   }
-  .wsnav-icon-btn:hover { color: #475569; background: #f1f5f9; }
+  .wsnav-icon-btn:hover { color: var(--text-muted); background: var(--surface-2); }
 
   /* ── Search ── */
   .wsnav-search {
@@ -99,23 +100,23 @@ const styles = `
     width: 100%;
     height: 32px;
     padding: 0 10px 0 30px;
-    border: 1.5px solid #e2e8f0;
+    border: 1.5px solid var(--border);
     border-radius: 8px;
     font-size: 12.5px;
     font-family: inherit;
-    color: #0a0a0a;
-    background: #fff;
+    color: var(--text);
+    background: var(--surface);
     outline: none;
     transition: border-color 0.15s, box-shadow 0.15s;
     box-sizing: border-box;
   }
 
   .wsnav-search-input:focus {
-    border-color: #2563eb;
+    border-color: var(--accent);
     box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.08);
   }
 
-  .wsnav-search-input::placeholder { color: #94a3b8; }
+  .wsnav-search-input::placeholder { color: var(--text-subtle); }
 
   /* ── Items list ── */
   .wsnav-list {
@@ -125,7 +126,7 @@ const styles = `
   }
   .wsnav-list::-webkit-scrollbar { width: 4px; }
   .wsnav-list::-webkit-scrollbar-track { background: transparent; }
-  .wsnav-list::-webkit-scrollbar-thumb { background: #e2e8f0; border-radius: 4px; }
+  .wsnav-list::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
 
   .wsnav-item {
     width: 100%;
@@ -142,19 +143,19 @@ const styles = `
     text-align: left;
     font-family: inherit;
   }
-  .wsnav-item:hover { background: #f8fafc; border-color: #f1f5f9; }
+  .wsnav-item:hover { background: var(--surface-2); border-color: var(--border); }
 
   .wsnav-item-left { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1; }
 
   .wsnav-item-name {
     font-size: 13px; font-weight: 650;
-    color: #1e293b; white-space: nowrap;
+    color: var(--text); white-space: nowrap;
     overflow: hidden; text-overflow: ellipsis;
     letter-spacing: -0.1px;
   }
 
   .wsnav-item-meta {
-    font-size: 11px; color: #94a3b8;
+    font-size: 11px; color: var(--text-subtle);
     font-weight: 500; white-space: nowrap;
     overflow: hidden; text-overflow: ellipsis;
   }
@@ -167,27 +168,27 @@ const styles = `
   .wsnav-star-btn {
     background: none; border: none;
     cursor: pointer; padding: 4px;
-    border-radius: 5px; color: #cbd5e1;
+    border-radius: 5px; color: var(--border-strong);
     display: flex; align-items: center;
     transition: color 0.1s, background 0.1s;
   }
-  .wsnav-star-btn:hover { color: #d97706; background: #fef9f0; }
-  .wsnav-star-btn.active { color: #d97706; }
+  .wsnav-star-btn:hover { color: var(--warning); background: color-mix(in srgb, var(--warning), transparent 85%); }
+  .wsnav-star-btn.active { color: var(--warning); }
   .wsnav-star-btn:disabled { opacity: 0.4; cursor: not-allowed; }
 
-  .wsnav-chevron { color: #cbd5e1; transition: color 0.1s; }
-  .wsnav-item:hover .wsnav-chevron { color: #94a3b8; }
+  .wsnav-chevron { color: var(--border-strong); transition: color 0.1s; }
+  .wsnav-item:hover .wsnav-chevron { color: var(--text-subtle); }
 
   /* ── Loading ── */
   .wsnav-loading {
     padding: 16px 12px;
-    font-size: 12px; color: #94a3b8; font-weight: 500;
+    font-size: 12px; color: var(--text-subtle); font-weight: 500;
   }
 
   /* ── Footer ── */
   .wsnav-footer {
     padding: 10px;
-    border-top: 1.5px solid #f1f5f9;
+    border-top: 1.5px solid var(--border);
     flex-shrink: 0;
   }
 
@@ -195,16 +196,16 @@ const styles = `
     width: 100%;
     display: flex; align-items: center; justify-content: center;
     gap: 7px; padding: 9px 12px;
-    border: 1.5px dashed #e2e8f0; border-radius: 9px;
+    border: 1.5px dashed var(--border); border-radius: 9px;
     background: none; cursor: pointer;
     font-size: 12.5px; font-weight: 600;
-    color: #64748b; font-family: inherit;
+    color: var(--text-muted); font-family: inherit;
     transition: border-color 0.15s, color 0.15s, background 0.15s;
   }
   .wsnav-create-btn:hover {
-    border-color: #93c5fd;
-    color: #2563eb;
-    background: #f0f7ff;
+    border-color: var(--accent-2);
+    color: var(--accent);
+    background: var(--accent-soft);
   }
 
   /* ── Mobile overlay ── */
@@ -217,7 +218,7 @@ const styles = `
 
   .wsnav-mobile-backdrop {
     position: absolute; inset: 0;
-    background: rgba(15, 23, 42, 0.45);
+    background: rgba(15, 23, 42, 0.55);
     backdrop-filter: blur(3px);
     -webkit-backdrop-filter: blur(3px);
   }
@@ -225,7 +226,7 @@ const styles = `
   .wsnav-mobile-drawer {
     position: absolute; left: 0; top: 0; bottom: 0;
     width: 280px;
-    background: #fff;
+    background: var(--surface);
     box-shadow: 0 0 40px rgba(0,0,0,0.12);
     display: flex; flex-direction: column;
     animation: wsDrawerIn 0.2s ease;
