@@ -2040,126 +2040,148 @@ const Canvas = () => {
       timeStyle: 'short',
     });
 
-  const renderCommentNode = (comment, depth = 0) => (
-    <div key={comment.id} className="space-y-3" style={{ marginLeft: `${depth * 18}px` }}>
-      <div className="flex items-start gap-3">
-        <div className="h-8 w-8 shrink-0 rounded-full bg-slate-100 border border-slate-200 flex items-center justify-center text-xs font-semibold text-slate-700">
-          {(comment.author_name || 'U').charAt(0).toUpperCase()}
-        </div>
-        <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2 text-xs text-gray-500">
-            <span className="text-sm font-semibold text-gray-900 truncate">
-              {comment.author_name || 'Unknown'}
-            </span>
-            <span>{formatCommentTimestamp(comment.created_at)}</span>
-          </div>
+  // Max depth before we stop indenting further and show an expand hint
+  const COMMENT_DEPTH_LIMIT = 3;
 
-          {editingCommentId === comment.id ? (
-            <div className="mt-2 space-y-2">
-              <textarea
-                value={editingCommentBody}
-                onChange={(event) => setEditingCommentBody(event.target.value)}
-                rows={3}
-                className="w-full border border-gray-300 rounded-md px-2.5 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-blue-100"
-              />
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={handleSaveCommentEdit}
-                  className="px-3 py-1.5 text-xs font-semibold rounded-full bg-blue-600 text-white hover:bg-blue-700"
-                >
-                  Save
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setEditingCommentId(null);
-                    setEditingCommentBody('');
-                  }}
-                  className="px-3 py-1.5 text-xs font-semibold rounded-full border border-gray-300 text-gray-700"
-                >
-                  Cancel
-                </button>
-              </div>
+  const renderCommentNode = (comment, depth = 0) => {
+    // Once we hit the depth limit we still render, but no further left-indent is added.
+    // Instead, a subtle banner asks the user to expand the panel for deep threads.
+    const isCapped = depth >= COMMENT_DEPTH_LIMIT;
+
+    return (
+      <div key={comment.id} className="space-y-2 min-w-0 w-full overflow-hidden">
+        {/* Depth-capped hint – shown once at the boundary depth */}
+        {isCapped && depth === COMMENT_DEPTH_LIMIT && (
+          <p className="text-[10px] text-amber-600 bg-amber-50 border border-amber-200 rounded px-2 py-1 flex items-center gap-1 truncate">
+            <ChevronLeft size={11} className="shrink-0" />
+            Deep thread — expand the panel for a better view.
+          </p>
+        )}
+
+        <div className="flex items-start gap-2 min-w-0 overflow-hidden">
+          <div className="h-7 w-7 shrink-0 rounded-full bg-slate-100 border border-slate-200 flex items-center justify-center text-xs font-semibold text-slate-700">
+            {(comment.author_name || 'U').charAt(0).toUpperCase()}
+          </div>
+          <div className="min-w-0 flex-1 overflow-hidden">
+            <div className="flex items-center gap-2 text-xs text-gray-500 min-w-0 overflow-hidden">
+              <span className="text-sm font-semibold text-gray-900 truncate">
+                {comment.author_name || 'Unknown'}
+              </span>
+              <span className="shrink-0">{formatCommentTimestamp(comment.created_at)}</span>
             </div>
-          ) : (
-            <p className="mt-1.5 text-sm text-gray-800 whitespace-pre-wrap leading-6">{comment.body}</p>
-          )}
 
-          <div className="mt-2 flex items-center gap-4 text-xs">
-            {canComment && (
-              <button
-                type="button"
-                onClick={() =>
-                  setActiveReplyParentId((prev) => (prev === comment.id ? null : comment.id))
-                }
-                className="font-semibold text-gray-600 hover:text-gray-900"
-              >
-                Reply
-              </button>
+            {editingCommentId === comment.id ? (
+              <div className="mt-2 space-y-2">
+                <textarea
+                  value={editingCommentBody}
+                  onChange={(event) => setEditingCommentBody(event.target.value)}
+                  rows={3}
+                  className="w-full border border-gray-300 rounded-md px-2.5 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-blue-100"
+                />
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={handleSaveCommentEdit}
+                    className="px-3 py-1.5 text-xs font-semibold rounded-full bg-blue-600 text-white hover:bg-blue-700"
+                  >
+                    Save
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setEditingCommentId(null);
+                      setEditingCommentBody('');
+                    }}
+                    className="px-3 py-1.5 text-xs font-semibold rounded-full border border-gray-300 text-gray-700"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <p className="mt-1.5 text-sm text-gray-800 whitespace-pre-wrap leading-6 break-words overflow-hidden">
+                {comment.body}
+              </p>
             )}
-            {(comment.is_author || workspace.is_admin) && (
-              <>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setEditingCommentId(comment.id);
-                    setEditingCommentBody(comment.body || '');
-                  }}
-                  className="font-semibold text-blue-700 hover:text-blue-800"
-                >
-                  Edit
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleDeleteComment(comment.id)}
-                  className="font-semibold text-red-600 hover:text-red-700"
-                >
-                  Delete
-                </button>
-              </>
-            )}
-          </div>
 
-          {canComment && activeReplyParentId === comment.id && (
-            <div className="mt-3 space-y-2">
-              <textarea
-                value={replyDrafts[comment.id] || ''}
-                onChange={(event) =>
-                  setReplyDrafts((prev) => ({ ...prev, [comment.id]: event.target.value }))
-                }
-                rows={2}
-                placeholder="Add a reply..."
-                className="w-full border border-gray-300 rounded-md px-2.5 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-blue-100"
-              />
-              <div className="flex items-center gap-2">
+            <div className="mt-2 flex items-center gap-4 text-xs">
+              {canComment && (
                 <button
                   type="button"
-                  onClick={() => handleCreateReply(comment.id)}
-                  className="px-3 py-1.5 text-xs font-semibold rounded-full bg-blue-600 text-white hover:bg-blue-700"
+                  onClick={() =>
+                    setActiveReplyParentId((prev) => (prev === comment.id ? null : comment.id))
+                  }
+                  className="font-semibold text-gray-600 hover:text-gray-900"
                 >
                   Reply
                 </button>
-                <button
-                  type="button"
-                  onClick={() => setActiveReplyParentId(null)}
-                  className="px-3 py-1.5 text-xs font-semibold rounded-full border border-gray-300 text-gray-700"
-                >
-                  Cancel
-                </button>
-              </div>
+              )}
+              {(comment.is_author || workspace.is_admin) && (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setEditingCommentId(comment.id);
+                      setEditingCommentBody(comment.body || '');
+                    }}
+                    className="font-semibold text-blue-700 hover:text-blue-800"
+                  >
+                    Edit
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleDeleteComment(comment.id)}
+                    className="font-semibold text-red-600 hover:text-red-700"
+                  >
+                    Delete
+                  </button>
+                </>
+              )}
             </div>
-          )}
-        </div>
-      </div>
 
-      {Array.isArray(comment.replies) && comment.replies.length > 0 && (
-        <div className="space-y-3 border-l border-gray-200 pl-3 ml-4">
-          {comment.replies.map((reply) => renderCommentNode(reply, depth + 1))}
+            {canComment && activeReplyParentId === comment.id && (
+              <div className="mt-3 space-y-2 overflow-hidden">
+                <textarea
+                  value={replyDrafts[comment.id] || ''}
+                  onChange={(event) =>
+                    setReplyDrafts((prev) => ({ ...prev, [comment.id]: event.target.value }))
+                  }
+                  rows={2}
+                  placeholder="Add a reply..."
+                  className="w-full border border-gray-300 rounded-md px-2.5 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-blue-100"
+                />
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => handleCreateReply(comment.id)}
+                    className="px-3 py-1.5 text-xs font-semibold rounded-full bg-blue-600 text-white hover:bg-blue-700"
+                  >
+                    Reply
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setActiveReplyParentId(null)}
+                    className="px-3 py-1.5 text-xs font-semibold rounded-full border border-gray-300 text-gray-700"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
-      )}
-    </div>
-  );
+
+        {Array.isArray(comment.replies) && comment.replies.length > 0 && (
+          <div
+            className="space-y-2 overflow-hidden"
+            style={!isCapped ? { borderLeft: '2px solid #e5e7eb', paddingLeft: '10px', marginLeft: '14px' } : { borderLeft: '2px solid #e5e7eb', paddingLeft: '8px', marginLeft: '8px' }}
+          >
+            {comment.replies.map((reply) => renderCommentNode(reply, depth + 1))}
+          </div>
+        )}
+      </div>
+    );
+  };
 
   return (
     <div className="h-screen flex flex-col bg-white overflow-hidden">
@@ -2950,8 +2972,11 @@ const Canvas = () => {
                 )}
               </div>
             ) : (
-              <div className="space-y-3 overflow-y-auto pr-1 max-h-[calc(100vh-220px)]">
+              <div className="space-y-3 overflow-y-auto overflow-x-hidden pr-1 max-h-[calc(100vh-220px)]">
                 <p className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Canvas Comments</p>
+                <p className="text-[11px] text-gray-500">
+                  Long threads? Expand this panel to read more comfortably.
+                </p>
                 {commentError && (
                   <div className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-700">
                     {commentError}
@@ -2984,7 +3009,9 @@ const Canvas = () => {
                 )}
 
                 {areCommentsLoading ? (
-                  <LoadingState message="Loading comments" minHeight={120} imageWidth={96} />
+                  <div className="flex justify-center py-6">
+                    <span className="inline-flex h-5 w-5 animate-spin rounded-full border-2 border-blue-200 border-t-blue-600" />
+                  </div>
                 ) : comments.length === 0 ? (
                   <div className="rounded-md border border-gray-200 p-3 text-sm text-gray-600">
                     No comments yet.
