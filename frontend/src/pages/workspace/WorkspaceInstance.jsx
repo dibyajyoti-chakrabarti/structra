@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { Outlet, useLocation, useNavigate, useOutletContext, useParams } from "react-router-dom";
 import {
   Menu, Settings, Trash2, X, CheckCircle, AlertCircle,
-  ChevronRight, Search, Users, ChevronDown, ChevronUp, Star, Plus, Layout,
+  Search, Users, Star, Plus,
 } from "lucide-react";
 import AuthenticatedNavbar from "../../components/AuthenticatedNavbar";
 import WorkspaceNavbar from "../../components/WorkspaceNavbar";
@@ -16,7 +16,7 @@ const styles = `
   .wi-root { display: flex; flex-direction: column; height: 100vh; background: #fafafa; overflow: hidden; font-family: 'Geist', -apple-system, BlinkMacSystemFont, sans-serif; }
   .wi-body { display: flex; flex: 1; overflow: hidden; position: relative; }
   .wi-main { flex: 1; overflow: hidden; background: #fafafa; position: relative; z-index: 0; }
-  .wi-main-inner { height: 100%; overflow-y: auto; padding: 32px 36px 60px; max-width: 1200px; margin: 0 auto; }
+  .wi-main-inner { height: 100%; overflow-y: auto; padding: 32px 36px 24px; max-width: 1200px; margin: 0 auto; }
   .wi-main-inner.wi-main-inner-wide { max-width: none; margin: 0; padding: 0; }
 
   /* Mobile top bar */
@@ -176,20 +176,52 @@ const styles = `
   }
   .wo-empty-title { font-size: 14px; font-weight: 650; color: #94a3b8; margin: 0 0 16px; }
 
-  /* Public aside */
-  .wo-aside {
+  .wo-content-grid {
+    display: grid;
+    gap: 20px;
+    grid-template-columns: minmax(0, 1fr) 300px;
+    align-items: stretch;
+  }
+
+  .wo-members-sidebar {
     background: #fff; border: 1.5px solid #e2e8f0; border-radius: 12px;
-    padding: 20px; height: fit-content; position: sticky; top: 24px;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    position: static;
   }
-  .wo-aside-title { font-size: 14.5px; font-weight: 750; color: #0a0a0a; margin: 0 0 8px; letter-spacing: -0.3px; }
-  .wo-aside-desc { font-size: 13px; color: #64748b; line-height: 1.6; margin: 0; }
-  .wo-aside-more-btn {
-    background: none; border: none; cursor: pointer;
-    font-family: inherit; font-size: 12.5px; font-weight: 650;
-    color: #2563eb; display: flex; align-items: center; gap: 4px;
-    margin-top: 12px; padding: 0; transition: color 0.1s;
+  .wo-members-head {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 12px; padding-bottom: 10px; border-bottom: 1.5px solid #f1f5f9;
   }
-  .wo-aside-more-btn:hover { color: #1d4ed8; }
+  .wo-members-title {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-size: 11px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 0.08em; color: #94a3b8;
+  }
+  .wo-members-count {
+    font-size: 11.5px; font-weight: 650; color: #64748b;
+    background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 999px; padding: 2px 8px;
+  }
+  .wo-members-list { max-height: 360px; overflow: auto; padding-right: 2px; }
+  .wo-members-list::-webkit-scrollbar { width: 4px; }
+  .wo-members-list::-webkit-scrollbar-track { background: transparent; }
+  .wo-members-list::-webkit-scrollbar-thumb { background: #e2e8f0; border-radius: 6px; }
+  .wo-members-search-wrap { position: relative; margin-bottom: 10px; }
+  .wo-members-search-input {
+    width: 100%; height: 34px; padding: 0 12px 0 34px;
+    border: 1.5px solid #e2e8f0; border-radius: 8px;
+    font-size: 12.5px; font-family: inherit; background: #fff;
+    color: #0a0a0a; outline: none;
+    transition: border-color 0.15s, box-shadow 0.15s;
+  }
+  .wo-members-search-input:focus { border-color: #2563eb; box-shadow: 0 0 0 3px rgba(37,99,235,0.08); }
+  .wo-members-search-input::placeholder { color: #94a3b8; }
+  .wo-members-search-icon {
+    position: absolute; left: 10px; top: 50%;
+    transform: translateY(-50%); color: #94a3b8; pointer-events: none;
+  }
 
   .wo-member-pill {
     background: #fafafa; border: 1.5px solid #f1f5f9; border-radius: 8px;
@@ -197,6 +229,36 @@ const styles = `
   }
   .wo-member-pill-name { font-size: 13px; font-weight: 600; color: #0a0a0a; }
   .wo-member-pill-role { font-size: 11.5px; color: #94a3b8; margin-top: 1px; }
+  .wo-members-empty {
+    font-size: 12.5px; color: #94a3b8; text-align: center;
+    border: 1.5px dashed #e2e8f0; border-radius: 10px; padding: 16px 12px; margin-top: 8px;
+  }
+
+  @media (min-width: 1025px) {
+    .wo-members-list {
+      max-height: none;
+      flex: 1;
+    }
+  }
+
+  @media (max-width: 1024px) {
+    .wo-content-grid { grid-template-columns: 1fr; }
+    .wo-members-sidebar { min-height: 0; }
+    .wo-members-list {
+      max-height: none;
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 8px;
+      padding-right: 0;
+    }
+    .wo-member-pill { margin-top: 0; }
+  }
+
+  @media (max-width: 767px) {
+    .wo-systems-head { flex-direction: column; align-items: stretch; }
+    .wo-search-input { width: 100%; }
+    .wo-members-list { grid-template-columns: 1fr; }
+  }
 
   /* Delete modal */
   .wi-modal-overlay {
@@ -356,7 +418,7 @@ export const WorkspaceOverview = () => {
   const [deleting, setDeleting] = useState(false);
   const [systemToDelete, setSystemToDelete] = useState(null);
   const [searchQuery, setSearchQuery] = useState("");
-  const [showMoreAbout, setShowMoreAbout] = useState(false);
+  const [memberSearchQuery, setMemberSearchQuery] = useState("");
 
   useEffect(() => {
     const handleResize = () => setIsMobileViewport(window.innerWidth <= 767);
@@ -442,13 +504,16 @@ export const WorkspaceOverview = () => {
 
   const isMember = Boolean(workspace.is_member);
   const canStar = isMember || workspace.visibility === "public";
-  const filteredSystems = isMember
-    ? systems
-    : systems.filter((s) => {
-        const q = searchQuery.trim().toLowerCase();
-        if (!q) return true;
-        return (s.name || "").toLowerCase().includes(q) || (s.description || "").toLowerCase().includes(q);
-      });
+  const filteredSystems = systems.filter((s) => {
+    const q = searchQuery.trim().toLowerCase();
+    if (!q) return true;
+    return (s.name || "").toLowerCase().includes(q) || (s.description || "").toLowerCase().includes(q);
+  });
+  const filteredMembers = (workspace.team_members || []).filter((m) => {
+    const q = memberSearchQuery.trim().toLowerCase();
+    if (!q) return true;
+    return (m.full_name || "").toLowerCase().includes(q) || (m.email || "").toLowerCase().includes(q);
+  });
 
   const stats = [
     { label: "Total Systems", value: systems.length },
@@ -539,22 +604,20 @@ export const WorkspaceOverview = () => {
         ))}
       </div>
 
-      {/* Systems + optional aside */}
-      <div style={{ display: 'grid', gap: 20, gridTemplateColumns: isMember ? '1fr' : 'minmax(0,1fr) 300px' }}>
+      {/* Systems + team sidebar */}
+      <div className="wo-content-grid">
         <div>
           <div className="wo-systems-head">
             <span className="wo-systems-title">Systems</span>
-            {!isMember && (
-              <div className="wo-search-wrap">
-                <Search size={13} className="wo-search-icon" />
-                <input
-                  className="wo-search-input"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="Search systems…"
-                />
-              </div>
-            )}
+            <div className="wo-search-wrap">
+              <Search size={13} className="wo-search-icon" />
+              <input
+                className="wo-search-input"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search systems…"
+              />
+            </div>
           </div>
 
           {systemsLoading ? (
@@ -580,43 +643,50 @@ export const WorkspaceOverview = () => {
             ))
           ) : (
             <div className="wo-empty">
-              <p className="wo-empty-title">{isMember ? "No systems yet" : "No public systems found"}</p>
+              <p className="wo-empty-title">{searchQuery.trim() ? "No systems found" : "No systems yet"}</p>
               {workspace.is_admin ? (
                 <button className="wo-new-btn" style={{ margin: '0 auto' }} onClick={() => navigate(`/app/ws/${workspaceId}/create-system`)}>
                   <Plus size={15} /> Create Your First System
                 </button>
               ) : (
                 <p style={{ fontSize: 13, color: '#94a3b8' }}>
-                  {isMember ? "Ask a workspace admin to create a system." : "Try a different search."}
+                  {searchQuery.trim() ? "Try a different search." : "Ask a workspace admin to create a system."}
                 </p>
               )}
             </div>
           )}
         </div>
 
-        {!isMember && (
-          <aside className="wo-aside">
-            <h3 className="wo-aside-title">{workspace.name}</h3>
-            <p className="wo-aside-desc">{workspace.description || "No description provided."}</p>
-            <button className="wo-aside-more-btn" onClick={() => setShowMoreAbout((p) => !p)}>
-              {showMoreAbout ? 'Less' : 'More'}
-              {showMoreAbout ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
-            </button>
-            {showMoreAbout && (
-              <div style={{ marginTop: 14, paddingTop: 14, borderTop: '1.5px solid #f1f5f9' }}>
-                <div style={{ fontSize: 10.5, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#94a3b8', display: 'flex', alignItems: 'center', gap: 6, marginBottom: 10 }}>
-                  <Users size={12} /> Team Members
+        <aside className="wo-members-sidebar">
+          <div className="wo-members-head">
+            <div className="wo-members-title">
+              <Users size={12} />
+              Team Members
+            </div>
+            <div className="wo-members-count">{workspace.member_count || 0}</div>
+          </div>
+          <div className="wo-members-search-wrap">
+            <Search size={13} className="wo-members-search-icon" />
+            <input
+              className="wo-members-search-input"
+              value={memberSearchQuery}
+              onChange={(e) => setMemberSearchQuery(e.target.value)}
+              placeholder="Search members..."
+            />
+          </div>
+          {filteredMembers.length > 0 ? (
+            <div className="wo-members-list">
+              {filteredMembers.map((m, i) => (
+                <div key={`${m.user_id || m.email || m.full_name}-${i}`} className="wo-member-pill">
+                  <div className="wo-member-pill-name">{m.full_name || m.email || "Unknown member"}</div>
+                  <div className="wo-member-pill-role">{(m.role || "member").toUpperCase()}</div>
                 </div>
-                {(workspace.team_members || []).map((m, i) => (
-                  <div key={`${m.full_name}-${i}`} className="wo-member-pill">
-                    <div className="wo-member-pill-name">{m.full_name}</div>
-                    <div className="wo-member-pill-role">{m.role}</div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </aside>
-        )}
+              ))}
+            </div>
+          ) : (
+            <div className="wo-members-empty">{memberSearchQuery.trim() ? "No matching members found." : "No members available."}</div>
+          )}
+        </aside>
       </div>
     </div>
   );

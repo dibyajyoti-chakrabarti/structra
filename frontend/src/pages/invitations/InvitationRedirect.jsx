@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import api from '../../api';
+import LoadingState from '../../components/LoadingState';
 
 export default function InvitationRedirect() {
   const navigate = useNavigate();
@@ -45,11 +46,12 @@ export default function InvitationRedirect() {
 
     navigate(`/invite/${token}/respond`);
   };
+
+  if (loading) return <LoadingState message="Loading invitation details" minHeight="100vh" />;
   
   return (
     <div className="min-h-screen flex flex-col items-center justify-center gap-4 p-8">
       <h1 className="text-4xl font-bold">Workspace Invitation</h1>
-      {loading && <p className="text-gray-600">Loading invitation details...</p>}
       {!loading && error && <p className="text-red-600">{error}</p>}
       {!loading && details && (
         <>
