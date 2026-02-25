@@ -14,7 +14,7 @@ const styles = `
   .wsnav-desktop {
     height: 100%;
     background: #fff;
-    display: flex;
+    display: none;
     flex-direction: column;
     transition: width 0.25s ease, opacity 0.2s ease, transform 0.25s ease;
     overflow: hidden;
@@ -29,7 +29,7 @@ const styles = `
     flex-shrink: 0;
     border-right: 1.5px solid #f1f5f9;
     background: #fff;
-    display: flex;
+    display: none;
     flex-direction: column;
     align-items: center;
     padding: 12px 0;
@@ -56,12 +56,17 @@ const styles = `
   }
 
   .wsnav-header-label {
+    background: none; border: none; padding: 0;
+    font-family: inherit;
     font-size: 10px;
     font-weight: 700;
     letter-spacing: 0.09em;
     text-transform: uppercase;
     color: #94a3b8;
+    cursor: pointer;
+    transition: color 0.1s;
   }
+  .wsnav-header-label:hover { color: #64748b; }
 
   .wsnav-header-btns { display: flex; align-items: center; gap: 2px; }
 
@@ -192,6 +197,11 @@ const styles = `
   }
 
   @media (min-width: 768px) {
+    .wsnav-desktop,
+    .wsnav-collapsed-strip {
+      display: flex;
+    }
+
     .wsnav-mobile-overlay { display: none !important; }
   }
 `;
@@ -216,7 +226,14 @@ export default function WorkspaceNavbar({
   const NavContent = ({ onItemClick }) => (
     <>
       <div className="wsnav-header">
-        <span className="wsnav-header-label">Workspaces</span>
+        <button
+          className="wsnav-header-label"
+          onClick={onItemClick || onDesktopToggle}
+          title={onItemClick ? "Close workspaces" : "Collapse sidebar"}
+          aria-label={onItemClick ? "Close workspaces" : "Collapse sidebar"}
+        >
+          Workspaces
+        </button>
         <div className="wsnav-header-btns">
           <button
             className="wsnav-icon-btn"
@@ -299,13 +316,13 @@ export default function WorkspaceNavbar({
       <style>{styles}</style>
 
       {/* Desktop sidebar */}
-      <div className={`wsnav-desktop ${isDesktopCollapsed ? 'collapsed' : 'expanded'} hidden md:flex md:flex-col`}>
+      <div className={`wsnav-desktop ${isDesktopCollapsed ? 'collapsed' : 'expanded'}`}>
         <NavContent />
       </div>
 
       {/* Collapsed expand strip */}
       {isDesktopCollapsed && (
-        <div className="wsnav-collapsed-strip hidden md:flex">
+        <div className="wsnav-collapsed-strip">
           <button
             className="wsnav-expand-btn"
             onClick={onDesktopToggle}
@@ -318,7 +335,7 @@ export default function WorkspaceNavbar({
       )}
 
       {/* Mobile drawer */}
-      <div className={`wsnav-mobile-overlay ${isOpen ? 'open' : ''} md:hidden`}>
+      <div className={`wsnav-mobile-overlay ${isOpen ? 'open' : ''}`}>
         <div className="wsnav-mobile-backdrop" onClick={onClose} />
         <div className="wsnav-mobile-drawer">
           <NavContent onItemClick={onClose} />
