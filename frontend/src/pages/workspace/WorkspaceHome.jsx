@@ -12,9 +12,9 @@ const styles = `
 
   .wsh-root {
     min-height: 100vh;
-    background: #fafafa;
+    background: var(--bg);
     font-family: 'Geist', -apple-system, BlinkMacSystemFont, sans-serif;
-    color: #0a0a0a;
+    color: var(--text);
   }
 
   .wsh-main {
@@ -41,34 +41,34 @@ const styles = `
     left: 12px;
     top: 50%;
     transform: translateY(-50%);
-    color: #94a3b8;
+    color: var(--text-subtle);
   }
 
   .wsh-search-input {
     width: 100%;
     height: 40px;
     padding: 0 14px 0 36px;
-    border: 1.5px solid #e2e8f0;
+    border: 1.5px solid var(--border);
     border-radius: 10px;
     font-size: 13.5px;
     font-family: inherit;
-    background: #fff;
-    color: #0a0a0a;
+    background: var(--surface);
+    color: var(--text);
     outline: none;
     transition: border-color 0.15s, box-shadow 0.15s;
   }
 
   .wsh-search-input:focus {
-    border-color: #2563eb;
+    border-color: var(--accent);
     box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.08);
   }
 
-  .wsh-search-input::placeholder { color: #94a3b8; }
+  .wsh-search-input::placeholder { color: var(--text-subtle); }
 
   /* ── Loading ── */
   .wsh-loading {
     min-height: 100vh;
-    background: #fafafa;
+    background: var(--bg);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -85,8 +85,8 @@ const styles = `
   .wsh-loading-spinner {
     width: 32px;
     height: 32px;
-    border: 2px solid #e2e8f0;
-    border-top-color: #2563eb;
+    border: 2px solid var(--border);
+    border-top-color: var(--accent);
     border-radius: 50%;
     animation: wsh-spin 0.7s linear infinite;
   }
@@ -97,7 +97,7 @@ const styles = `
 
   .wsh-loading-text {
     font-size: 13.5px;
-    color: #94a3b8;
+    color: var(--text-subtle);
     font-weight: 500;
   }
 
@@ -114,37 +114,35 @@ const styles = `
     font-weight: 700;
     letter-spacing: 0.06em;
     text-transform: uppercase;
-    color: #64748b;
+    color: var(--text-muted);
     display: flex;
     align-items: center;
     gap: 8px;
   }
 
-  .wsh-section-title svg {
-    color: #94a3b8;
-  }
+  .wsh-section-title svg { color: var(--text-subtle); }
 
   .wsh-count-pill {
     font-size: 11px;
     font-weight: 700;
     letter-spacing: 0.04em;
     text-transform: uppercase;
-    color: #b45309;
-    background: #fef3c7;
-    border: 1px solid #fde68a;
+    color: var(--warning);
+    background: color-mix(in srgb, var(--warning), transparent 80%);
+    border: 1px solid color-mix(in srgb, var(--warning), transparent 60%);
     padding: 3px 8px;
     border-radius: 20px;
   }
 
   /* ── Empty state ── */
   .wsh-empty {
-    border: 1.5px dashed #e2e8f0;
+    border: 1.5px dashed var(--border);
     border-radius: 12px;
     padding: 24px 20px;
     font-size: 13px;
-    color: #94a3b8;
+    color: var(--text-subtle);
     line-height: 1.6;
-    background: #fff;
+    background: var(--surface);
   }
 
   /* ── Grid ── */
@@ -156,8 +154,8 @@ const styles = `
 
   /* ── Starred card ── */
   .wsh-card-starred {
-    background: #fff;
-    border: 1.5px solid #fde68a;
+    background: var(--surface);
+    border: 1.5px solid color-mix(in srgb, var(--warning), transparent 60%);
     border-radius: 12px;
     padding: 20px;
     cursor: pointer;
@@ -171,13 +169,13 @@ const styles = `
     position: absolute;
     top: 0; left: 0; right: 0;
     height: 2px;
-    background: linear-gradient(90deg, #f59e0b, #fbbf24);
+    background: linear-gradient(90deg, var(--warning), color-mix(in srgb, var(--warning), #fff 25%));
     opacity: 0;
     transition: opacity 0.15s;
   }
 
   .wsh-card-starred:hover {
-    border-color: #f59e0b;
+    border-color: var(--warning);
     box-shadow: 0 4px 20px rgba(245, 158, 11, 0.12);
     transform: translateY(-1px);
   }
@@ -194,21 +192,21 @@ const styles = `
   .wsh-card-icon-starred {
     width: 36px;
     height: 36px;
-    background: #fef3c7;
+    background: color-mix(in srgb, var(--warning), transparent 80%);
     border-radius: 8px;
     display: flex;
     align-items: center;
     justify-content: center;
-    color: #d97706;
+    color: var(--warning);
   }
 
   .wsh-unstar-btn {
     background: none;
-    border: 1.5px solid #fde68a;
+    border: 1.5px solid color-mix(in srgb, var(--warning), transparent 60%);
     border-radius: 7px;
     padding: 5px;
     cursor: pointer;
-    color: #d97706;
+    color: var(--warning);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -217,8 +215,8 @@ const styles = `
   }
 
   .wsh-unstar-btn:not(:disabled):hover {
-    border-color: #f59e0b;
-    background: #fef3c7;
+    border-color: var(--warning);
+    background: color-mix(in srgb, var(--warning), transparent 80%);
     opacity: 1;
   }
 
@@ -226,8 +224,8 @@ const styles = `
 
   /* ── Regular workspace card ── */
   .wsh-card {
-    background: #fff;
-    border: 1.5px solid #e2e8f0;
+    background: var(--surface);
+    border: 1.5px solid var(--border);
     border-radius: 12px;
     padding: 20px;
     cursor: pointer;
@@ -241,13 +239,13 @@ const styles = `
     position: absolute;
     top: 0; left: 0; right: 0;
     height: 2px;
-    background: linear-gradient(90deg, #2563eb, #60a5fa);
+    background: linear-gradient(90deg, var(--accent), var(--accent-2));
     opacity: 0;
     transition: opacity 0.15s;
   }
 
   .wsh-card:hover {
-    border-color: #93c5fd;
+    border-color: var(--accent-2);
     box-shadow: 0 4px 20px rgba(37, 99, 235, 0.08);
     transform: translateY(-1px);
   }
@@ -257,17 +255,17 @@ const styles = `
   .wsh-card-icon {
     width: 36px;
     height: 36px;
-    background: #eff6ff;
+    background: var(--accent-soft);
     border-radius: 8px;
     display: flex;
     align-items: center;
     justify-content: center;
-    color: #2563eb;
+    color: var(--accent);
     transition: background 0.15s, color 0.15s;
   }
 
   .wsh-card:hover .wsh-card-icon {
-    background: #2563eb;
+    background: var(--accent);
     color: #fff;
   }
 
@@ -279,11 +277,11 @@ const styles = `
 
   .wsh-star-btn {
     background: none;
-    border: 1.5px solid #e2e8f0;
+    border: 1.5px solid var(--border);
     border-radius: 7px;
     padding: 5px;
     cursor: pointer;
-    color: #94a3b8;
+    color: var(--text-subtle);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -291,14 +289,14 @@ const styles = `
   }
 
   .wsh-star-btn:not(:disabled):hover {
-    color: #d97706;
-    border-color: #fde68a;
-    background: #fef9f0;
+    color: var(--warning);
+    border-color: color-mix(in srgb, var(--warning), transparent 60%);
+    background: color-mix(in srgb, var(--warning), transparent 85%);
   }
 
   .wsh-star-btn.active {
-    color: #d97706;
-    border-color: #fde68a;
+    color: var(--warning);
+    border-color: color-mix(in srgb, var(--warning), transparent 60%);
   }
 
   .wsh-star-btn:disabled { cursor: not-allowed; opacity: 0.4; }
@@ -308,9 +306,9 @@ const styles = `
     font-weight: 700;
     letter-spacing: 0.07em;
     text-transform: uppercase;
-    color: #64748b;
-    background: #f1f5f9;
-    border: 1px solid #e2e8f0;
+    color: var(--text-muted);
+    background: var(--surface-2);
+    border: 1px solid var(--border);
     padding: 3px 7px;
     border-radius: 5px;
   }
@@ -319,23 +317,23 @@ const styles = `
   .wsh-card-name {
     font-size: 14.5px;
     font-weight: 650;
-    color: #0a0a0a;
+    color: var(--text);
     margin: 0 0 4px;
     letter-spacing: -0.2px;
     transition: color 0.15s;
   }
 
-  .wsh-card:hover .wsh-card-name { color: #2563eb; }
+  .wsh-card:hover .wsh-card-name { color: var(--accent); }
 
   .wsh-card-meta {
     display: flex;
     align-items: center;
     gap: 14px;
     font-size: 12.5px;
-    color: #94a3b8;
+    color: var(--text-subtle);
     margin-top: 14px;
     padding-top: 14px;
-    border-top: 1px solid #f1f5f9;
+    border-top: 1px solid var(--border);
   }
 
   .wsh-card-meta-item {
@@ -358,14 +356,14 @@ const styles = `
     font-size: 26px;
     font-weight: 800;
     letter-spacing: -0.7px;
-    color: #0a0a0a;
+    color: var(--text);
     margin: 0 0 4px;
     line-height: 1.15;
   }
 
   .wsh-page-subtitle {
     font-size: 13.5px;
-    color: #64748b;
+    color: var(--text-muted);
     margin: 0;
     font-weight: 400;
   }
@@ -374,8 +372,8 @@ const styles = `
     display: flex;
     align-items: center;
     gap: 7px;
-    background: #0a0a0a;
-    color: #fff;
+    background: var(--text);
+    color: var(--bg);
     border: none;
     border-radius: 8px;
     padding: 9px 16px;
@@ -389,12 +387,12 @@ const styles = `
     flex-shrink: 0;
   }
 
-  .wsh-create-btn:hover { background: #1e293b; }
+  .wsh-create-btn:hover { background: color-mix(in srgb, var(--text), #000 12%); }
   .wsh-create-btn:active { transform: scale(0.98); }
 
   /* ── Add new card ── */
   .wsh-card-new {
-    border: 1.5px dashed #cbd5e1;
+    border: 1.5px dashed var(--border-strong);
     border-radius: 12px;
     padding: 20px;
     display: flex;
@@ -404,17 +402,17 @@ const styles = `
     cursor: pointer;
     transition: border-color 0.15s, background 0.15s, box-shadow 0.15s, transform 0.1s;
     min-height: 148px;
-    background: #fff;
+    background: var(--surface);
     width: 100%;
     font-family: inherit;
     gap: 10px;
-    box-shadow: inset 0 0 0 1px #f1f5f9;
+    box-shadow: inset 0 0 0 1px var(--border);
   }
 
   .wsh-card-new:hover {
-    border-color: #60a5fa;
-    background: #f0f7ff;
-    box-shadow: inset 0 0 0 1px #bfdbfe, 0 8px 24px rgba(37, 99, 235, 0.08);
+    border-color: var(--accent-2);
+    background: var(--accent-soft);
+    box-shadow: inset 0 0 0 1px var(--accent-2), 0 8px 24px rgba(37, 99, 235, 0.08);
     transform: translateY(-1px);
   }
 
@@ -422,29 +420,29 @@ const styles = `
     width: 36px;
     height: 36px;
     border-radius: 10px;
-    background: #eef2f7;
-    border: 1.5px solid #e2e8f0;
+    background: var(--surface-3);
+    border: 1.5px solid var(--border);
     display: flex;
     align-items: center;
     justify-content: center;
-    color: #64748b;
+    color: var(--text-muted);
     transition: background 0.15s, color 0.15s, border-color 0.15s;
   }
 
   .wsh-card-new:hover .wsh-card-new-icon {
-    background: #dbeafe;
-    color: #2563eb;
-    border-color: #bfdbfe;
+    background: color-mix(in srgb, var(--accent), transparent 75%);
+    color: var(--accent);
+    border-color: var(--accent-2);
   }
 
   .wsh-card-new-label {
     font-size: 13.5px;
     font-weight: 650;
-    color: #64748b;
+    color: var(--text-muted);
     transition: color 0.15s;
   }
 
-  .wsh-card-new:hover .wsh-card-new-label { color: #2563eb; }
+  .wsh-card-new:hover .wsh-card-new-label { color: var(--accent); }
 
   /* ── Section spacing ── */
   .wsh-section {

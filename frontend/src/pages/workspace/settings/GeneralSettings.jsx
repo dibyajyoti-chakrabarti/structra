@@ -11,72 +11,72 @@ const styles = `
   /* Toast */
   .gs-toast-wrap { position: fixed; top: 68px; left: 50%; transform: translateX(-50%); z-index: 200; animation: gsToastIn 0.15s ease; }
   @keyframes gsToastIn { from { opacity:0; transform: translateX(-50%) translateY(-5px); } to { opacity:1; transform: translateX(-50%) translateY(0); } }
-  .gs-toast { display: flex; align-items: center; gap: 9px; padding: 10px 16px; border-radius: 10px; font-size: 13px; font-weight: 600; font-family: inherit; border: 1.5px solid; white-space: nowrap; box-shadow: 0 8px 24px rgba(0,0,0,0.08); }
-  .gs-toast.success { background: #f0fdf4; border-color: #bbf7d0; color: #15803d; }
-  .gs-toast.error { background: #fef2f2; border-color: #fecaca; color: #dc2626; }
+  .gs-toast { display: flex; align-items: center; gap: 9px; padding: 10px 16px; border-radius: 10px; font-size: 13px; font-weight: 600; font-family: inherit; border: 1.5px solid; white-space: nowrap; box-shadow: var(--shadow-1); }
+  .gs-toast.success { background: rgba(34, 197, 94, 0.12); border-color: rgba(34, 197, 94, 0.35); color: #22c55e; }
+  .gs-toast.error { background: rgba(239, 68, 68, 0.12); border-color: rgba(239, 68, 68, 0.35); color: var(--danger); }
   .gs-toast-close { background: none; border: none; cursor: pointer; color: inherit; opacity: 0.5; padding: 0; margin-left: 2px; display: flex; align-items: center; }
   .gs-toast-close:hover { opacity: 1; }
 
   /* Page head */
-  .gs-page-title { font-size: 18px; font-weight: 750; letter-spacing: -0.4px; color: #0a0a0a; margin: 0 0 4px; }
-  .gs-page-sub { font-size: 13px; color: #64748b; margin: 0 0 28px; }
+  .gs-page-title { font-size: 18px; font-weight: 750; letter-spacing: -0.4px; color: var(--text); margin: 0 0 4px; }
+  .gs-page-sub { font-size: 13px; color: var(--text-muted); margin: 0 0 28px; }
 
   /* Card */
-  .gs-card { background: #fff; border: 1.5px solid #e2e8f0; border-radius: 12px; padding: 22px 24px; margin-bottom: 20px; }
+  .gs-card { background: var(--surface); border: 1.5px solid var(--border); border-radius: 12px; padding: 22px 24px; margin-bottom: 20px; }
 
   /* Field */
   .gs-field { margin-bottom: 20px; }
-  .gs-label { display: flex; align-items: center; gap: 6px; font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em; color: #64748b; margin-bottom: 8px; }
+  .gs-label { display: flex; align-items: center; gap: 6px; font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em; color: var(--text-muted); margin-bottom: 8px; }
   .gs-input {
     width: 100%; height: 40px; padding: 0 14px;
-    border: 1.5px solid #e2e8f0; border-radius: 8px;
+    border: 1.5px solid var(--border); border-radius: 8px;
     font-size: 13.5px; font-family: inherit;
-    color: #0a0a0a; background: #fafafa; outline: none;
+    color: var(--text); background: var(--surface-2); outline: none;
     transition: border-color 0.15s, box-shadow 0.15s, background 0.15s;
   }
-  .gs-input:focus { border-color: #2563eb; background: #fff; box-shadow: 0 0 0 3px rgba(37,99,235,0.08); }
-  .gs-input::placeholder { color: #94a3b8; }
-  .gs-input:disabled { background: #f1f5f9; color: #94a3b8; cursor: not-allowed; }
+  .gs-input:focus { border-color: var(--accent); background: var(--surface); box-shadow: 0 0 0 3px rgba(37,99,235,0.08); }
+  .gs-input::placeholder { color: var(--text-subtle); }
+  .gs-input:disabled { background: var(--surface-3); color: var(--text-subtle); cursor: not-allowed; }
 
   .gs-textarea {
     width: 100%; padding: 10px 14px;
-    border: 1.5px solid #e2e8f0; border-radius: 8px;
+    border: 1.5px solid var(--border); border-radius: 8px;
     font-size: 13.5px; font-family: inherit;
-    color: #0a0a0a; background: #fafafa; outline: none; resize: none;
+    color: var(--text); background: var(--surface-2); outline: none; resize: none;
     line-height: 1.55;
     transition: border-color 0.15s, box-shadow 0.15s, background 0.15s;
   }
-  .gs-textarea:focus { border-color: #2563eb; background: #fff; box-shadow: 0 0 0 3px rgba(37,99,235,0.08); }
-  .gs-textarea:disabled { background: #f1f5f9; color: #94a3b8; cursor: not-allowed; }
+  .gs-textarea:focus { border-color: var(--accent); background: var(--surface); box-shadow: 0 0 0 3px rgba(37,99,235,0.08); }
+  .gs-textarea:disabled { background: var(--surface-3); color: var(--text-subtle); cursor: not-allowed; }
 
-  .gs-card-footer { display: flex; justify-content: flex-end; padding-top: 16px; border-top: 1.5px solid #f1f5f9; margin-top: 4px; }
+  .gs-card-footer { display: flex; justify-content: flex-end; padding-top: 16px; border-top: 1.5px solid var(--border); margin-top: 4px; }
   .gs-save-btn {
     height: 38px; padding: 0 20px;
-    background: #0a0a0a; color: #fff;
+    background: var(--text); color: var(--bg);
     border: none; border-radius: 8px;
     font-size: 13.5px; font-weight: 650;
     cursor: pointer; font-family: inherit;
     display: flex; align-items: center; gap: 7px;
     transition: background 0.15s, transform 0.1s;
   }
-  .gs-save-btn:hover { background: #1e293b; }
+  .gs-save-btn:hover { background: color-mix(in srgb, var(--text), #000 12%); }
   .gs-save-btn:active { transform: scale(0.98); }
-  .gs-save-btn:disabled { background: #e2e8f0; color: #94a3b8; cursor: not-allowed; transform: none; }
+  .gs-save-btn:disabled { background: var(--border); color: var(--text-subtle); cursor: not-allowed; transform: none; }
 
   /* Danger zone */
   .gs-danger-zone {
-    background: #fff; border: 1.5px solid #fecaca; border-radius: 12px; padding: 20px 24px;
+    background: var(--surface); border: 1.5px solid rgba(239, 68, 68, 0.35); border-radius: 12px; padding: 20px 24px;
   }
-  .gs-danger-title { display: flex; align-items: center; gap: 8px; font-size: 13.5px; font-weight: 700; color: #dc2626; margin: 0 0 6px; }
-  .gs-danger-desc { font-size: 13px; color: #b91c1c; margin: 0 0 16px; line-height: 1.55; }
+  .gs-danger-title { display: flex; align-items: center; gap: 8px; font-size: 13.5px; font-weight: 700; color: var(--danger); margin: 0 0 6px; }
+  .gs-danger-desc { font-size: 13px; color: var(--danger); margin: 0 0 16px; line-height: 1.55; opacity: 0.8; }
   .gs-danger-btn {
     height: 36px; padding: 0 16px;
-    background: #fff; border: 1.5px solid #fca5a5; border-radius: 8px;
-    font-size: 13px; font-weight: 600; color: #dc2626;
+    background: var(--surface); border: 1.5px solid rgba(239, 68, 68, 0.35); border-radius: 8px;
+    font-size: 13px; font-weight: 600; color: var(--danger);
     cursor: pointer; font-family: inherit;
     transition: background 0.15s, border-color 0.15s, color 0.15s;
   }
-  .gs-danger-btn:hover { background: #dc2626; color: #fff; border-color: #dc2626; }
+  .gs-danger-btn:hover { background: var(--danger); color: #fff; border-color: var(--danger); }
   .gs-danger-btn:disabled { opacity: 0.4; cursor: not-allowed; }
 
   /* Modal */
@@ -86,39 +86,39 @@ const styles = `
     z-index: 100; display: flex; align-items: center; justify-content: center; padding: 16px;
   }
   .gs-modal {
-    background: #fff; border-radius: 14px; border: 1.5px solid #e2e8f0;
+    background: var(--surface); border-radius: 14px; border: 1.5px solid var(--border);
     box-shadow: 0 24px 64px rgba(0,0,0,0.14); padding: 28px;
     max-width: 420px; width: 100%; animation: gsModalIn 0.15s ease;
   }
   @keyframes gsModalIn { from { opacity:0; transform: scale(0.97) translateY(4px); } to { opacity:1; transform: scale(1) translateY(0); } }
   .gs-modal-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
-  .gs-modal-title { display: flex; align-items: center; gap: 10px; font-size: 15px; font-weight: 750; color: #0a0a0a; letter-spacing: -0.2px; }
+  .gs-modal-title { display: flex; align-items: center; gap: 10px; font-size: 15px; font-weight: 750; color: var(--text); letter-spacing: -0.2px; }
   .gs-modal-icon { width: 30px; height: 30px; border-radius: 8px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-  .gs-modal-close { background: none; border: none; cursor: pointer; color: #94a3b8; padding: 4px; border-radius: 6px; display: flex; align-items: center; transition: color 0.1s; }
-  .gs-modal-close:hover { color: #475569; }
-  .gs-modal-body { font-size: 13px; color: #64748b; line-height: 1.65; margin-bottom: 18px; }
-  .gs-modal-body strong { color: #0a0a0a; font-weight: 650; }
-  .gs-modal-body .danger { color: #dc2626; font-weight: 650; }
+  .gs-modal-close { background: none; border: none; cursor: pointer; color: var(--text-subtle); padding: 4px; border-radius: 6px; display: flex; align-items: center; transition: color 0.1s; }
+  .gs-modal-close:hover { color: var(--text); }
+  .gs-modal-body { font-size: 13px; color: var(--text-muted); line-height: 1.65; margin-bottom: 18px; }
+  .gs-modal-body strong { color: var(--text); font-weight: 650; }
+  .gs-modal-body .danger { color: var(--danger); font-weight: 650; }
   .gs-modal-input {
     width: 100%; height: 40px; padding: 0 14px; margin-bottom: 12px;
-    border: 1.5px solid #e2e8f0; border-radius: 8px;
-    font-size: 13.5px; font-family: inherit; color: #0a0a0a; background: #fafafa; outline: none;
+    border: 1.5px solid var(--border); border-radius: 8px;
+    font-size: 13.5px; font-family: inherit; color: var(--text); background: var(--surface-2); outline: none;
     transition: border-color 0.15s, background 0.15s;
   }
-  .gs-modal-input:focus { background: #fff; }
-  .gs-modal-input.save:focus { border-color: #2563eb; }
-  .gs-modal-input.delete:focus { border-color: #dc2626; }
-  .gs-modal-input::placeholder { color: #cbd5e1; }
+  .gs-modal-input:focus { background: var(--surface); }
+  .gs-modal-input.save:focus { border-color: var(--accent); }
+  .gs-modal-input.delete:focus { border-color: var(--danger); }
+  .gs-modal-input::placeholder { color: var(--text-subtle); }
   .gs-modal-btn {
     width: 100%; height: 40px;
     border: none; border-radius: 8px;
     font-size: 13.5px; font-weight: 650;
     cursor: pointer; font-family: inherit; transition: background 0.15s;
   }
-  .gs-modal-btn.save { background: #0a0a0a; color: #fff; }
-  .gs-modal-btn.save:hover:not(:disabled) { background: #1e293b; }
-  .gs-modal-btn.delete { background: #dc2626; color: #fff; }
-  .gs-modal-btn.delete:hover:not(:disabled) { background: #b91c1c; }
+  .gs-modal-btn.save { background: var(--text); color: var(--bg); }
+  .gs-modal-btn.save:hover:not(:disabled) { background: color-mix(in srgb, var(--text), #000 12%); }
+  .gs-modal-btn.delete { background: var(--danger); color: #fff; }
+  .gs-modal-btn.delete:hover:not(:disabled) { background: color-mix(in srgb, var(--danger), #000 12%); }
   .gs-modal-btn:disabled { opacity: 0.4; cursor: not-allowed; }
 
   @keyframes gs-spin { to { transform: rotate(360deg); } }
@@ -219,7 +219,7 @@ const GeneralSettings = () => {
             <div className="gs-modal-head">
               <div className="gs-modal-title">
                 <div className="gs-modal-icon" style={{ background: '#eff6ff' }}>
-                  <CheckCircle size={15} style={{ color: '#2563eb' }} />
+                  <CheckCircle size={15} style={{ color: 'var(--accent)' }} />
                 </div>
                 Confirm Changes
               </div>
@@ -253,7 +253,7 @@ const GeneralSettings = () => {
             <div className="gs-modal-head">
               <div className="gs-modal-title">
                 <div className="gs-modal-icon" style={{ background: '#fef2f2' }}>
-                  <Trash2 size={15} style={{ color: '#dc2626' }} />
+                  <Trash2 size={15} style={{ color: 'var(--danger)' }} />
                 </div>
                 Delete Workspace
               </div>

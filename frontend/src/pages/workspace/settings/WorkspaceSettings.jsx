@@ -8,7 +8,7 @@ const styles = `
 
   .wset-root {
     height: 100%;
-    background: #fafafa;
+    background: var(--bg);
     display: flex;
     flex-direction: column;
     font-family: 'Geist', -apple-system, BlinkMacSystemFont, sans-serif;
@@ -16,8 +16,8 @@ const styles = `
 
   /* ── Top nav bar ── */
   .wset-topbar {
-    background: #fff;
-    border-bottom: 1.5px solid #f1f5f9;
+    background: var(--surface);
+    border-bottom: 1.5px solid var(--border);
     flex-shrink: 0;
     position: sticky;
     top: 0;
@@ -38,15 +38,15 @@ const styles = `
     height: 50px; padding: 0 12px 0 0;
     background: none; border: none; cursor: pointer;
     font-family: inherit; font-size: 13px; font-weight: 600;
-    color: #64748b; white-space: nowrap;
+    color: var(--text-muted); white-space: nowrap;
     transition: color 0.1s;
     flex-shrink: 0;
   }
-  .wset-back-btn:hover { color: #0a0a0a; }
+  .wset-back-btn:hover { color: var(--text); }
 
   .wset-divider {
     width: 1px; height: 18px;
-    background: #e2e8f0;
+    background: var(--border);
     margin: 0 12px 0 0;
     flex-shrink: 0;
   }
@@ -62,7 +62,7 @@ const styles = `
     display: inline-flex; align-items: center; gap: 7px;
     height: 50px; padding: 0 12px;
     font-family: inherit; font-size: 13px; font-weight: 500;
-    color: #64748b; white-space: nowrap;
+    color: var(--text-muted); white-space: nowrap;
     text-decoration: none; border: none; background: none;
     cursor: pointer; position: relative;
     transition: color 0.1s;
@@ -70,19 +70,19 @@ const styles = `
   .wset-nav-link::after {
     content: '';
     position: absolute; bottom: 0; left: 0; right: 0;
-    height: 2px; background: #2563eb;
+    height: 2px; background: var(--accent);
     opacity: 0; transition: opacity 0.15s;
   }
-  .wset-nav-link:hover { color: #1e293b; }
-  .wset-nav-link.active { color: #2563eb; font-weight: 650; }
+  .wset-nav-link:hover { color: var(--text); }
+  .wset-nav-link.active { color: var(--accent); font-weight: 650; }
   .wset-nav-link.active::after { opacity: 1; }
-  .wset-nav-link.disabled { color: #cbd5e1; cursor: not-allowed; }
-  .wset-nav-link.disabled:hover { color: #cbd5e1; }
+  .wset-nav-link.disabled { color: var(--border-strong); cursor: not-allowed; }
+  .wset-nav-link.disabled:hover { color: var(--border-strong); }
 
   .wset-role-error {
-    font-size: 11.5px; color: #dc2626;
-    padding: 6px 24px; background: #fef2f2;
-    border-top: 1px solid #fecaca;
+    font-size: 11.5px; color: var(--danger);
+    padding: 6px 24px; background: rgba(239, 68, 68, 0.12);
+    border-top: 1px solid rgba(239, 68, 68, 0.35);
     font-weight: 500;
   }
 

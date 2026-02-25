@@ -29,7 +29,7 @@ const styles = `
     display: inline-flex;
     align-items: center;
     gap: 9px;
-    color: #64748b;
+    color: var(--text-muted);
     font-size: 13px;
     font-weight: 600;
     letter-spacing: -0.1px;
@@ -39,8 +39,8 @@ const styles = `
     width: 16px;
     height: 16px;
     border-radius: 999px;
-    border: 2px solid #dbeafe;
-    border-top-color: #2563eb;
+    border: 2px solid color-mix(in srgb, var(--accent), transparent 70%);
+    border-top-color: var(--accent);
     animation: lcat-spin 0.7s linear infinite;
     flex-shrink: 0;
   }
