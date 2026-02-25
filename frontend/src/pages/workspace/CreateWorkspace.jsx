@@ -631,7 +631,7 @@ const CreateWorkspace = () => {
       <main className="cw-main">
         {/* Topbar */}
         <div className="cw-topbar">
-          <button className="cw-back-btn" onClick={() => navigate('/app')}>
+          <button className="cw-back-btn" onClick={() => navigate(-1)}>
             <ChevronLeft size={16} />
             Back
           </button>
