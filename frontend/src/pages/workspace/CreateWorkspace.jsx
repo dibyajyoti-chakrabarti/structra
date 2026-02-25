@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Save, UserPlus, X, ChevronRight, Globe, Lock, Plus } from 'lucide-react';
+import { UserPlus, Globe, Lock, Plus, ChevronLeft } from 'lucide-react';
 import AuthenticatedNavbar from '../../components/AuthenticatedNavbar';
 import api from '../../api';
 
@@ -15,9 +15,48 @@ const styles = `
   }
 
   .cw-main {
-    max-width: 1060px;
-    margin: 0 auto;
-    padding: 40px 24px 80px;
+    width: 100%;
+    margin: 0;
+    padding: 24px 24px 64px;
+  }
+
+  /* ── Topbar (settings-like) ── */
+  .cw-topbar {
+    background: #fff;
+    border: 1.5px solid #e2e8f0;
+    border-radius: 14px;
+    padding: 0 16px;
+    height: 54px;
+    display: flex;
+    align-items: center;
+    gap: 0;
+    margin-bottom: 18px;
+  }
+
+  .cw-back-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    height: 54px;
+    padding: 0 12px 0 0;
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 600;
+    color: #64748b;
+    white-space: nowrap;
+    transition: color 0.1s;
+  }
+  .cw-back-btn:hover { color: #0a0a0a; }
+
+  .cw-topbar-divider {
+    width: 1px;
+    height: 18px;
+    background: #e2e8f0;
+    margin: 0 12px 0 0;
+    flex-shrink: 0;
   }
 
   /* ── Breadcrumb ── */
@@ -27,7 +66,7 @@ const styles = `
     gap: 6px;
     font-size: 12.5px;
     color: #94a3b8;
-    margin-bottom: 28px;
+    margin: 0;
   }
   .cw-breadcrumb-link {
     background: none;
@@ -46,6 +85,7 @@ const styles = `
 
   /* ── Card shell ── */
   .cw-card {
+    width: 100%;
     background: #fff;
     border: 1.5px solid #e2e8f0;
     border-radius: 14px;
@@ -61,7 +101,7 @@ const styles = `
   /* ── Left panel ── */
   .cw-left {
     flex: 1 1 0%;
-    padding: 36px 40px;
+    padding: 40px 44px;
     display: flex;
     flex-direction: column;
     border-bottom: 1.5px solid #f1f5f9;
@@ -75,7 +115,7 @@ const styles = `
   }
 
   .cw-panel-title {
-    font-size: 20px;
+    font-size: 22px;
     font-weight: 750;
     letter-spacing: -0.5px;
     color: #0a0a0a;
@@ -83,7 +123,7 @@ const styles = `
   }
 
   .cw-panel-subtitle {
-    font-size: 13px;
+    font-size: 14px;
     color: #64748b;
     margin: 0 0 32px;
     font-weight: 400;
@@ -96,7 +136,7 @@ const styles = `
 
   .cw-label {
     display: block;
-    font-size: 11px;
+    font-size: 12px;
     font-weight: 700;
     letter-spacing: 0.07em;
     text-transform: uppercase;
@@ -106,11 +146,11 @@ const styles = `
 
   .cw-input {
     width: 100%;
-    height: 40px;
+    height: 44px;
     padding: 0 14px;
     border: 1.5px solid #e2e8f0;
     border-radius: 8px;
-    font-size: 13.5px;
+    font-size: 14.5px;
     font-family: inherit;
     color: #0a0a0a;
     background: #fafafa;
@@ -129,10 +169,10 @@ const styles = `
 
   .cw-textarea {
     width: 100%;
-    padding: 10px 14px;
+    padding: 12px 14px;
     border: 1.5px solid #e2e8f0;
     border-radius: 8px;
-    font-size: 13.5px;
+    font-size: 14.5px;
     font-family: inherit;
     color: #0a0a0a;
     background: #fafafa;
@@ -171,7 +211,7 @@ const styles = `
   .cw-vis-option {
     border: 1.5px solid #e2e8f0;
     border-radius: 10px;
-    padding: 14px 16px;
+    padding: 16px 18px;
     cursor: pointer;
     background: #fafafa;
     text-align: left;
@@ -212,8 +252,8 @@ const styles = `
   }
 
   .cw-vis-icon {
-    width: 30px;
-    height: 30px;
+    width: 34px;
+    height: 34px;
     border-radius: 7px;
     display: flex;
     align-items: center;
@@ -233,7 +273,7 @@ const styles = `
   }
 
   .cw-vis-name {
-    font-size: 13.5px;
+    font-size: 14.5px;
     font-weight: 650;
     letter-spacing: -0.1px;
   }
@@ -242,10 +282,10 @@ const styles = `
   .cw-vis-name.active { color: #1d4ed8; }
 
   .cw-vis-desc {
-    font-size: 12px;
+    font-size: 13px;
     color: #94a3b8;
     line-height: 1.5;
-    padding-left: 39px;
+    padding-left: 43px;
   }
 
   /* ── Footer actions ── */
@@ -260,12 +300,12 @@ const styles = `
   }
 
   .cw-cancel-btn {
-    height: 38px;
+    height: 42px;
     padding: 0 16px;
     background: none;
     border: 1.5px solid #e2e8f0;
     border-radius: 8px;
-    font-size: 13.5px;
+    font-size: 14px;
     font-weight: 500;
     color: #64748b;
     cursor: pointer;
@@ -279,13 +319,13 @@ const styles = `
   }
 
   .cw-submit-btn {
-    height: 38px;
+    height: 42px;
     padding: 0 20px;
     background: #0a0a0a;
     color: #fff;
     border: none;
     border-radius: 8px;
-    font-size: 13.5px;
+    font-size: 14px;
     font-weight: 600;
     cursor: pointer;
     font-family: inherit;
@@ -298,6 +338,9 @@ const styles = `
   .cw-submit-btn:hover { background: #1e293b; }
   .cw-submit-btn:active { transform: scale(0.98); }
   .cw-submit-btn:disabled { opacity: 0.45; cursor: not-allowed; transform: none; }
+
+  .cw-submit-text-mobile { display: none; }
+  .cw-submit-text-desktop { display: inline; }
 
   /* ── Right panel ── */
   .cw-right {
@@ -317,7 +360,7 @@ const styles = `
   }
 
   .cw-right-title {
-    font-size: 14px;
+    font-size: 15px;
     font-weight: 700;
     color: #0a0a0a;
     margin: 0 0 3px;
@@ -330,7 +373,7 @@ const styles = `
   .cw-right-title svg { color: #2563eb; }
 
   .cw-right-subtitle {
-    font-size: 12.5px;
+    font-size: 13.5px;
     color: #94a3b8;
     margin: 0;
     font-weight: 400;
@@ -349,11 +392,11 @@ const styles = `
 
   .cw-invite-input {
     flex: 1;
-    height: 36px;
+    height: 40px;
     padding: 0 12px;
     border: 1.5px solid #e2e8f0;
     border-radius: 8px;
-    font-size: 13px;
+    font-size: 14px;
     font-family: inherit;
     color: #0a0a0a;
     background: #fafafa;
@@ -370,8 +413,8 @@ const styles = `
   .cw-invite-input:disabled { opacity: 0.5; }
 
   .cw-invite-add-btn {
-    width: 36px;
-    height: 36px;
+    width: 40px;
+    height: 40px;
     flex-shrink: 0;
     background: #0a0a0a;
     color: #fff;
@@ -402,7 +445,7 @@ const styles = `
   }
 
   .cw-members-label {
-    font-size: 10.5px;
+    font-size: 11.5px;
     font-weight: 700;
     letter-spacing: 0.08em;
     text-transform: uppercase;
@@ -414,7 +457,7 @@ const styles = `
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 9px 12px;
+    padding: 11px 12px;
     border: 1.5px solid #f1f5f9;
     border-radius: 9px;
     margin-bottom: 7px;
@@ -443,13 +486,13 @@ const styles = `
   }
 
   .cw-avatar {
-    width: 30px;
-    height: 30px;
+    width: 32px;
+    height: 32px;
     border-radius: 8px;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 11.5px;
+    font-size: 12px;
     font-weight: 800;
     flex-shrink: 0;
     letter-spacing: 0;
@@ -466,7 +509,7 @@ const styles = `
   }
 
   .cw-member-email {
-    font-size: 12.5px;
+    font-size: 13.5px;
     font-weight: 500;
     color: #1e293b;
     white-space: nowrap;
@@ -502,6 +545,27 @@ const styles = `
   .cw-member-remove:hover {
     color: #ef4444;
     background: #fef2f2;
+  }
+
+  @media (max-width: 640px) {
+    .cw-main { padding: 16px 16px 48px; }
+    .cw-left { padding: 28px 22px; }
+    .cw-topbar {
+      height: 50px;
+      padding: 0 12px;
+      border-radius: 12px;
+    }
+    .cw-back-btn { height: 50px; font-size: 12.5px; }
+    .cw-topbar-divider { height: 16px; margin-right: 10px; }
+    .cw-breadcrumb { font-size: 12px; }
+    .cw-vis-desc { display: none; }
+    .cw-vis-option { padding: 10px 12px; }
+    .cw-vis-option-head { margin-bottom: 0; gap: 8px; }
+    .cw-vis-icon { width: 26px; height: 26px; border-radius: 6px; }
+    .cw-vis-name { font-size: 13px; }
+    .cw-submit-text-mobile { display: inline; }
+    .cw-submit-text-desktop { display: none; }
+    .cw-submit-icon { display: none; }
   }
 `;
 
@@ -565,11 +629,18 @@ const CreateWorkspace = () => {
       <AuthenticatedNavbar />
 
       <main className="cw-main">
-        {/* Breadcrumb */}
-        <div className="cw-breadcrumb">
-          <button className="cw-breadcrumb-link" onClick={() => navigate('/app')}>Home</button>
-          <span className="cw-breadcrumb-sep">/</span>
-          <span className="cw-breadcrumb-current">New Workspace</span>
+        {/* Topbar */}
+        <div className="cw-topbar">
+          <button className="cw-back-btn" onClick={() => navigate('/app')}>
+            <ChevronLeft size={16} />
+            Back
+          </button>
+          <div className="cw-topbar-divider" />
+          <div className="cw-breadcrumb">
+            <button className="cw-breadcrumb-link" onClick={() => navigate('/app')}>Home</button>
+            <span className="cw-breadcrumb-sep">/</span>
+            <span className="cw-breadcrumb-current">New Workspace</span>
+          </div>
         </div>
 
         <div className="cw-card">
@@ -660,8 +731,9 @@ const CreateWorkspace = () => {
                     </>
                   ) : (
                     <>
-                      <Plus size={15} />
-                      Create workspace
+                      <span className="cw-submit-icon"><Plus size={15} /></span>
+                      <span className="cw-submit-text-desktop">Create workspace</span>
+                      <span className="cw-submit-text-mobile">Create</span>
                     </>
                   )}
                 </button>
