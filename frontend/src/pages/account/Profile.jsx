@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom'; // Added for redirection
 import AuthenticatedNavbar from '../../components/AuthenticatedNavbar';
-import { User, Mail, MapPin, Calendar, Building, Globe, Lock, ArrowRight, Settings, Check, X, Camera, Edit2, Copy, Star } from 'lucide-react';
+import { User, Mail, MapPin, Calendar, Building, Globe, Lock, ArrowRight, Settings, Check, X, Camera, Edit2, Copy, Star, Search } from 'lucide-react';
 import api from '../../api';
 import { formatDistanceToNow } from 'date-fns'; // Added for relative time formatting
 import LoadingState from '../../components/LoadingState';
@@ -14,6 +14,8 @@ export default function Profile() {
   const [workspaces, setWorkspaces] = useState([]); // Replaces the hardcoded array
   const [loading, setLoading] = useState(true);
   const [starringWorkspaceIds, setStarringWorkspaceIds] = useState([]);
+  const [workspaceSearchInput, setWorkspaceSearchInput] = useState('');
+  const [workspaceSearchQuery, setWorkspaceSearchQuery] = useState('');
 
   // Edit Mode State
   const [isEditing, setIsEditing] = useState(false);
@@ -149,6 +151,19 @@ export default function Profile() {
     }
     return new Date(right.updated_at).getTime() - new Date(left.updated_at).getTime();
   });
+  const filteredWorkspaces = sortedWorkspaces.filter((workspace) => {
+    const q = workspaceSearchQuery.trim().toLowerCase();
+    if (!q) return true;
+    return (
+      (workspace.name || '').toLowerCase().includes(q) ||
+      (workspace.description || '').toLowerCase().includes(q) ||
+      (workspace.visibility || '').toLowerCase().includes(q)
+    );
+  });
+
+  const applyWorkspaceSearch = () => {
+    setWorkspaceSearchQuery(workspaceSearchInput);
+  };
 
   if (loading) return <LoadingState message="Loading profile" minHeight="100vh" />;
   if (!user) return <div className="h-screen flex items-center justify-center text-red-600">Failed to load profile.</div>;
@@ -317,13 +332,35 @@ export default function Profile() {
           <div className="max-w-4xl mx-auto md:mx-0">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
               <h1 className="text-2xl font-semibold text-gray-900 tracking-tight">Workspaces</h1>
-              <span className="text-sm text-gray-500 bg-white px-3 py-1 rounded-md border border-gray-200 w-fit">
-                {workspaces.length} Active
-              </span>
+              <div className="flex flex-wrap items-center gap-2">
+                <div className="relative">
+                  <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+                  <input
+                    type="text"
+                    value={workspaceSearchInput}
+                    onChange={(event) => setWorkspaceSearchInput(event.target.value)}
+                    onKeyDown={(event) => {
+                      if (event.key === 'Enter') applyWorkspaceSearch();
+                    }}
+                    placeholder="Search workspaces..."
+                    className="h-9 w-52 rounded-md border border-gray-200 bg-white pl-9 pr-3 text-sm text-gray-700 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100"
+                  />
+                </div>
+                <button
+                  type="button"
+                  onClick={applyWorkspaceSearch}
+                  className="h-9 px-3 rounded-md bg-gray-900 text-white text-sm font-medium hover:bg-black transition-colors"
+                >
+                  Search
+                </button>
+                <span className="text-sm text-gray-500 bg-white px-3 py-1 rounded-md border border-gray-200 w-fit">
+                  {filteredWorkspaces.length} Active
+                </span>
+              </div>
             </div>
 
             <div className="grid grid-cols-1 gap-4">
-              {sortedWorkspaces.map((workspace) => (
+              {filteredWorkspaces.map((workspace) => (
                 <div 
                   key={workspace.id}
                   onClick={() => navigate(`/app/ws/${workspace.id}`)} // Enables redirection
@@ -389,6 +426,11 @@ export default function Profile() {
                   </div>
                 </div>
               ))}
+              {filteredWorkspaces.length === 0 && (
+                <div className="bg-white border border-gray-200 rounded-xl p-8 text-center text-sm text-gray-500">
+                  No workspaces found.
+                </div>
+              )}
             </div>
           </div>
         </main>
