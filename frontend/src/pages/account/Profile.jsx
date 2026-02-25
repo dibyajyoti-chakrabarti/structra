@@ -4,6 +4,7 @@ import AuthenticatedNavbar from '../../components/AuthenticatedNavbar';
 import { User, Mail, MapPin, Calendar, Building, Globe, Lock, ArrowRight, Settings, Check, X, Camera, Edit2, Copy, Star } from 'lucide-react';
 import api from '../../api';
 import { formatDistanceToNow } from 'date-fns'; // Added for relative time formatting
+import LoadingState from '../../components/LoadingState';
 
 export default function Profile() {
   const navigate = useNavigate(); // Hook for navigation
@@ -149,16 +150,8 @@ export default function Profile() {
     return new Date(right.updated_at).getTime() - new Date(left.updated_at).getTime();
   });
 
-  if (loading || !user) {
-    return (
-      <div className="h-screen flex items-center justify-center bg-white text-gray-900">
-        <div className="animate-pulse flex flex-col items-center">
-          <div className="h-12 w-12 bg-gray-200 rounded-full mb-4"></div>
-          <div className="h-4 w-32 bg-gray-200 rounded"></div>
-        </div>
-      </div>
-    );
-  }
+  if (loading) return <LoadingState message="Loading profile" minHeight="100vh" />;
+  if (!user) return <div className="h-screen flex items-center justify-center text-red-600">Failed to load profile.</div>;
 
   return (
     <div className="h-screen flex flex-col bg-white text-gray-900 overflow-hidden">

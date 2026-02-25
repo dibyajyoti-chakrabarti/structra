@@ -30,6 +30,7 @@ import {
   AlertCircle,
 } from 'lucide-react';
 import api from '../../api';
+import LoadingState from '../../components/LoadingState';
 
 const NODE_WIDTH = 180;
 const NODE_HEIGHT = 96;
@@ -2015,7 +2016,7 @@ const Canvas = () => {
   const nodeIconSize = Math.max(10, Math.round(14 * nodeZoom));
 
   if (loading) {
-    return <div className="h-screen flex items-center justify-center text-gray-500">Loading canvas...</div>;
+    return <LoadingState message="Loading canvas" minHeight="100vh" />;
   }
 
   if (isMobileViewport) {
@@ -2983,7 +2984,7 @@ const Canvas = () => {
                 )}
 
                 {areCommentsLoading ? (
-                  <div className="text-sm text-gray-500">Loading comments...</div>
+                  <LoadingState message="Loading comments" minHeight={120} imageWidth={96} />
                 ) : comments.length === 0 ? (
                   <div className="rounded-md border border-gray-200 p-3 text-sm text-gray-600">
                     No comments yet.
