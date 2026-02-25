@@ -15,7 +15,6 @@ export default function Profile() {
   const [loading, setLoading] = useState(true);
   const [starringWorkspaceIds, setStarringWorkspaceIds] = useState([]);
   const [workspaceSearchInput, setWorkspaceSearchInput] = useState('');
-  const [workspaceSearchQuery, setWorkspaceSearchQuery] = useState('');
 
   // Edit Mode State
   const [isEditing, setIsEditing] = useState(false);
@@ -152,7 +151,7 @@ export default function Profile() {
     return new Date(right.updated_at).getTime() - new Date(left.updated_at).getTime();
   });
   const filteredWorkspaces = sortedWorkspaces.filter((workspace) => {
-    const q = workspaceSearchQuery.trim().toLowerCase();
+    const q = workspaceSearchInput.trim().toLowerCase();
     if (!q) return true;
     return (
       (workspace.name || '').toLowerCase().includes(q) ||
@@ -160,10 +159,6 @@ export default function Profile() {
       (workspace.visibility || '').toLowerCase().includes(q)
     );
   });
-
-  const applyWorkspaceSearch = () => {
-    setWorkspaceSearchQuery(workspaceSearchInput);
-  };
 
   if (loading) return <LoadingState message="Loading profile" minHeight="100vh" />;
   if (!user) return <div className="h-screen flex items-center justify-center text-red-600">Failed to load profile.</div>;
@@ -339,20 +334,10 @@ export default function Profile() {
                     type="text"
                     value={workspaceSearchInput}
                     onChange={(event) => setWorkspaceSearchInput(event.target.value)}
-                    onKeyDown={(event) => {
-                      if (event.key === 'Enter') applyWorkspaceSearch();
-                    }}
                     placeholder="Search workspaces..."
                     className="h-9 w-52 rounded-md border border-gray-200 bg-white pl-9 pr-3 text-sm text-gray-700 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100"
                   />
                 </div>
-                <button
-                  type="button"
-                  onClick={applyWorkspaceSearch}
-                  className="h-9 px-3 rounded-md bg-gray-900 text-white text-sm font-medium hover:bg-black transition-colors"
-                >
-                  Search
-                </button>
                 <span className="text-sm text-gray-500 bg-white px-3 py-1 rounded-md border border-gray-200 w-fit">
                   {filteredWorkspaces.length} Active
                 </span>
