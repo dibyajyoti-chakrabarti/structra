@@ -20,7 +20,7 @@ jobs:
       - name: Configure AWS Credentials (OIDC)
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: arn:aws:iam::042843883108:role/github-backend-deployer
+          role-to-assume: arn:aws:iam::042843883108:role/structra-github-OIDC-Role
           aws-region: ap-south-2
 
       - name: Deploy via SSM
