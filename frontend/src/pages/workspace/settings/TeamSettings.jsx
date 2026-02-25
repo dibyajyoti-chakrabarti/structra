@@ -45,7 +45,7 @@ const styles = `
   .ts-invite-input:disabled { background: var(--surface-3); color: var(--text-subtle); cursor: not-allowed; }
   .ts-invite-btn {
     height: 38px; padding: 0 16px;
-    background: var(--text); color: #fff;
+    background: var(--text); color: var(--bg);
     border: none; border-radius: 8px;
     font-size: 13px; font-weight: 650;
     cursor: pointer; font-family: inherit;

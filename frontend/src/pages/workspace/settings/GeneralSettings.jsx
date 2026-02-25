@@ -52,7 +52,7 @@ const styles = `
   .gs-card-footer { display: flex; justify-content: flex-end; padding-top: 16px; border-top: 1.5px solid var(--border); margin-top: 4px; }
   .gs-save-btn {
     height: 38px; padding: 0 20px;
-    background: var(--text); color: #fff;
+    background: var(--text); color: var(--bg);
     border: none; border-radius: 8px;
     font-size: 13.5px; font-weight: 650;
     cursor: pointer; font-family: inherit;
@@ -115,7 +115,7 @@ const styles = `
     font-size: 13.5px; font-weight: 650;
     cursor: pointer; font-family: inherit; transition: background 0.15s;
   }
-  .gs-modal-btn.save { background: var(--text); color: #fff; }
+  .gs-modal-btn.save { background: var(--text); color: var(--bg); }
   .gs-modal-btn.save:hover:not(:disabled) { background: color-mix(in srgb, var(--text), #000 12%); }
   .gs-modal-btn.delete { background: var(--danger); color: #fff; }
   .gs-modal-btn.delete:hover:not(:disabled) { background: color-mix(in srgb, var(--danger), #000 12%); }

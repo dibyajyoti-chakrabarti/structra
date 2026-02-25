@@ -86,7 +86,7 @@ const styles = `
 
   .wo-new-btn {
     height: 36px; padding: 0 16px;
-    background: var(--text); color: #fff;
+    background: var(--text); color: var(--bg);
     border: none; border-radius: 8px;
     font-size: 13px; font-weight: 650;
     cursor: pointer; font-family: inherit;

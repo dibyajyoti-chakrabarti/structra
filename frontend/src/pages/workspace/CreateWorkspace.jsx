@@ -322,7 +322,7 @@ const styles = `
     height: 42px;
     padding: 0 20px;
     background: var(--text);
-    color: #fff;
+    color: var(--bg);
     border: none;
     border-radius: 8px;
     font-size: 14px;
@@ -417,7 +417,7 @@ const styles = `
     height: 40px;
     flex-shrink: 0;
     background: var(--text);
-    color: #fff;
+    color: var(--bg);
     border: none;
     border-radius: 8px;
     cursor: pointer;

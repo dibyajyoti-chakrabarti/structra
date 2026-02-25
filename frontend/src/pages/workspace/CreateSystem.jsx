@@ -106,7 +106,7 @@ const styles = `
 
   .cs-submit-btn {
     height: 38px; padding: 0 20px;
-    background: var(--text); color: #fff; border: none; border-radius: 8px;
+    background: var(--text); color: var(--bg); border: none; border-radius: 8px;
     font-size: 13.5px; font-weight: 650; cursor: pointer; font-family: inherit;
     display: flex; align-items: center; gap: 7px;
     transition: background 0.15s, transform 0.1s;

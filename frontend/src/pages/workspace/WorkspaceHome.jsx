@@ -373,7 +373,7 @@ const styles = `
     align-items: center;
     gap: 7px;
     background: var(--text);
-    color: #fff;
+    color: var(--bg);
     border: none;
     border-radius: 8px;
     padding: 9px 16px;

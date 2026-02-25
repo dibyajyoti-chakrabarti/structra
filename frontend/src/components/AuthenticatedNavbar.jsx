@@ -322,7 +322,7 @@ export default function AuthenticatedNavbar() {
 
         .nav-upgrade-btn {
           background: var(--text);
-          color: #fff;
+          color: var(--bg);
           border: none;
           cursor: pointer;
           font-family: inherit;
@@ -368,7 +368,7 @@ export default function AuthenticatedNavbar() {
           background: var(--text);
           border: none;
           cursor: pointer;
-          color: #fff;
+          color: var(--bg);
           width: 32px;
           height: 32px;
           border-radius: 8px;

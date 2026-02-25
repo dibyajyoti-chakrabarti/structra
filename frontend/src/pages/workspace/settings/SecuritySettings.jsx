@@ -47,7 +47,7 @@ const styles = `
   .sec-select-icon { position: absolute; right: 11px; top: 50%; transform: translateY(-50%); color: var(--text-subtle); pointerEvents: none; }
   .sec-apply-btn {
     height: 38px; padding: 0 16px;
-    background: var(--text); color: #fff; border: none; border-radius: 8px;
+    background: var(--text); color: var(--bg); border: none; border-radius: 8px;
     font-size: 13px; font-weight: 650; cursor: pointer; font-family: inherit;
     display: flex; align-items: center; gap: 6px; white-space: nowrap;
     transition: background 0.15s;
@@ -144,7 +144,7 @@ const styles = `
 
   .sec-sub-save-btn {
     height: 36px; padding: 0 14px;
-    background: var(--text); color: #fff; border: none; border-radius: 8px;
+    background: var(--text); color: var(--bg); border: none; border-radius: 8px;
     font-size: 13px; font-weight: 650; cursor: pointer; font-family: inherit;
     display: flex; align-items: center; gap: 6px;
     transition: background 0.15s;
