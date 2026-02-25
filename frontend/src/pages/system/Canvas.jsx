@@ -2401,7 +2401,7 @@ const Canvas = () => {
                   <g key={edge.id}>
                     <path
                       d={pathDefinition}
-                      stroke={selectedEdgeId === edge.id ? '#0f172a' : '#111827'}
+                      stroke={selectedEdgeId === edge.id ? 'var(--edge-stroke-strong)' : 'var(--edge-stroke)'}
                       strokeWidth={edgeStrokeWidth}
                       opacity={edgeOpacity}
                       fill="none"
@@ -2409,7 +2409,7 @@ const Canvas = () => {
                     />
                     <path
                       d={pathDefinition}
-                      stroke="#2563eb"
+                      stroke="var(--edge-accent)"
                       strokeWidth={edgeStrokeWidth}
                       opacity={edgeOpacity}
                       fill="none"

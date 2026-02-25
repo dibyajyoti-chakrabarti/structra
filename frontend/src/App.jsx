@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom"; // 1. Import Navigate
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom"; // 1. Import Navigate
 import PrivateRoute from "./components/PrivateRoute";
+import { useTheme } from "./contexts/ThemeContext.jsx";
 
 // Page Imports
 import Lander from "./pages/public/Lander";
@@ -45,6 +46,19 @@ const PublicRoute = ({ children }) => {
   }
 
   return children;
+};
+
+const ThemeRouteSync = () => {
+  const location = useLocation();
+  const { theme } = useTheme();
+
+  useEffect(() => {
+    const isAppRoute = location.pathname.startsWith("/app");
+    const nextTheme = isAppRoute ? theme : "light";
+    document.documentElement.setAttribute("data-theme", nextTheme);
+  }, [location.pathname, theme]);
+
+  return null;
 };
 
 function App() {
@@ -106,6 +120,7 @@ function App() {
 
   return (
     <BrowserRouter>
+      <ThemeRouteSync />
       <Routes>
         <Route path="/auth/github/callback" element={<GitHubCallback />} />
         
