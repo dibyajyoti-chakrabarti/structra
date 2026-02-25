@@ -1,10 +1,11 @@
-name: Manual - Stop Infra
+name: Manual - Stop EC2
 
 on:
   workflow_dispatch:
 
 jobs:
-  stop-infra:
+  stop-ec2:
+    name: Stop EC2 instance
     runs-on: ubuntu-latest
 
     steps:
@@ -15,12 +16,7 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ secrets.AWS_REGION }}
 
-      - name: Stop EC2
+      - name: Stop EC2 instance
         run: |
           aws ec2 stop-instances \
             --instance-ids ${{ secrets.EC2_INSTANCE_ID }}
-
-      - name: Stop RDS
-        run: |
-          aws rds stop-db-instance \
-            --db-instance-identifier ${{ secrets.RDS_INSTANCE_ID }}
