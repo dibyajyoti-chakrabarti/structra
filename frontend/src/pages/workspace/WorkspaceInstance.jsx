@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { Outlet, useLocation, useNavigate, useOutletContext, useParams } from "react-router-dom";
 import {
-  Menu, Settings, Trash2, X, CheckCircle, AlertCircle,
+  LayoutGrid, Settings, Trash2, X, CheckCircle, AlertCircle,
   Search, Users, Star, Plus,
 } from "lucide-react";
 import AuthenticatedNavbar from "../../components/AuthenticatedNavbar";
@@ -372,7 +372,7 @@ const WorkspaceInstance = () => {
 
       <div className="wi-mobile-bar md:hidden">
         <button className="wi-mobile-menu-btn" onClick={() => setIsMobileMenuOpen(true)}>
-          <Menu size={20} />
+          <LayoutGrid size={20} />
         </button>
         <span className="wi-mobile-bar-label">Workspace</span>
       </div>

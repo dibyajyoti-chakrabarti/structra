@@ -1,6 +1,6 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, ChevronLeft, ChevronRight, X, Star } from 'lucide-react';
+import { Plus, ChevronLeft, ChevronRight, X, Star, Search } from 'lucide-react';
 import LoadingState from './LoadingState';
 
 const styles = `
@@ -20,7 +20,7 @@ const styles = `
     overflow: hidden;
     border-right: 1.5px solid #f1f5f9;
   }
-  .wsnav-desktop.expanded { width: 236px; opacity: 1; }
+  .wsnav-desktop.expanded { width: 252px; opacity: 1; }
   .wsnav-desktop.collapsed { width: 0; opacity: 0; pointer-events: none; border-right: none; transform: translateX(-8px); }
 
   /* ── Collapse strip ── */
@@ -77,6 +77,45 @@ const styles = `
     transition: color 0.1s, background 0.1s;
   }
   .wsnav-icon-btn:hover { color: #475569; background: #f1f5f9; }
+
+  /* ── Search ── */
+  .wsnav-search {
+    padding: 10px 12px 0;
+  }
+
+  .wsnav-search-wrap {
+    position: relative;
+  }
+
+  .wsnav-search-icon {
+    position: absolute;
+    left: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #94a3b8;
+  }
+
+  .wsnav-search-input {
+    width: 100%;
+    height: 32px;
+    padding: 0 10px 0 30px;
+    border: 1.5px solid #e2e8f0;
+    border-radius: 8px;
+    font-size: 12.5px;
+    font-family: inherit;
+    color: #0a0a0a;
+    background: #fff;
+    outline: none;
+    transition: border-color 0.15s, box-shadow 0.15s;
+    box-sizing: border-box;
+  }
+
+  .wsnav-search-input:focus {
+    border-color: #2563eb;
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.08);
+  }
+
+  .wsnav-search-input::placeholder { color: #94a3b8; }
 
   /* ── Items list ── */
   .wsnav-list {
@@ -206,6 +245,118 @@ const styles = `
   }
 `;
 
+const NavContent = ({
+  onItemClick,
+  onDesktopToggle,
+  onToggleWorkspaceStar,
+  loading,
+  filteredWorkspaces,
+  starringWorkspaceIds,
+  searchQuery,
+  setSearchQuery,
+  navigate,
+}) => (
+  <>
+    <div className="wsnav-header">
+      <button
+        className="wsnav-header-label"
+        onClick={onItemClick || onDesktopToggle}
+        title={onItemClick ? "Close workspaces" : "Collapse sidebar"}
+        aria-label={onItemClick ? "Close workspaces" : "Collapse sidebar"}
+      >
+        Workspaces
+      </button>
+      <div className="wsnav-header-btns">
+        <button
+          className="wsnav-icon-btn"
+          onClick={onDesktopToggle}
+          title="Collapse sidebar"
+          style={{ display: onItemClick ? 'none' : undefined }}
+        >
+          <ChevronLeft size={15} />
+        </button>
+        {onItemClick && (
+          <button className="wsnav-icon-btn" onClick={onItemClick} title="Close">
+            <X size={16} />
+          </button>
+        )}
+      </div>
+    </div>
+
+    <div className="wsnav-search">
+      <div className="wsnav-search-wrap">
+        <Search size={14} className="wsnav-search-icon" />
+        <input
+          type="text"
+          className="wsnav-search-input"
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          placeholder="Search workspaces..."
+          aria-label="Search workspaces"
+        />
+      </div>
+    </div>
+
+    <div className="wsnav-list">
+      {loading ? (
+        <LoadingState message="Loading workspaces" minHeight={200} imageWidth={108} />
+      ) : (
+        filteredWorkspaces.map((ws) => (
+          <div
+            key={ws.id}
+            className="wsnav-item"
+            role="button"
+            tabIndex={0}
+            onClick={() => { navigate(`/app/ws/${ws.id}`); if (onItemClick) onItemClick(); }}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                navigate(`/app/ws/${ws.id}`);
+                if (onItemClick) onItemClick();
+              }
+            }}
+          >
+            <div className="wsnav-item-left">
+              <span className="wsnav-item-name">{ws.name}</span>
+              <span className="wsnav-item-meta">
+                {ws.member_count} {ws.member_count === 1 ? 'member' : 'members'} · {ws.visibility}
+              </span>
+            </div>
+            <div className="wsnav-item-right">
+              <button
+                type="button"
+                className={`wsnav-star-btn ${ws.is_starred ? 'active' : ''}`}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (onToggleWorkspaceStar) onToggleWorkspaceStar(ws.id, !ws.is_starred);
+                }}
+                aria-label={ws.is_starred ? 'Unstar' : 'Star'}
+                disabled={starringWorkspaceIds.includes(ws.id)}
+              >
+                <Star
+                  size={13}
+                  style={ws.is_starred ? { fill: '#d97706', stroke: '#d97706' } : {}}
+                />
+              </button>
+              <ChevronRight size={13} className="wsnav-chevron" />
+            </div>
+          </div>
+        ))
+      )}
+    </div>
+
+    <div className="wsnav-footer">
+      <button
+        className="wsnav-create-btn"
+        onClick={() => { navigate('/app/create-workspace'); if (onItemClick) onItemClick(); }}
+      >
+        <Plus size={14} />
+        New workspace
+      </button>
+    </div>
+  </>
+);
+
 export default function WorkspaceNavbar({
   isOpen,
   onClose,
@@ -217,99 +368,28 @@ export default function WorkspaceNavbar({
   onToggleWorkspaceStar,
 }) {
   const navigate = useNavigate();
+  const [searchQuery, setSearchQuery] = React.useState('');
 
   const sortedWorkspaces = [...workspaces].sort((a, b) => {
     if (a.is_starred !== b.is_starred) return Number(b.is_starred) - Number(a.is_starred);
     return new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime();
   });
 
-  const NavContent = ({ onItemClick }) => (
-    <>
-      <div className="wsnav-header">
-        <button
-          className="wsnav-header-label"
-          onClick={onItemClick || onDesktopToggle}
-          title={onItemClick ? "Close workspaces" : "Collapse sidebar"}
-          aria-label={onItemClick ? "Close workspaces" : "Collapse sidebar"}
-        >
-          Workspaces
-        </button>
-        <div className="wsnav-header-btns">
-          <button
-            className="wsnav-icon-btn"
-            onClick={onDesktopToggle}
-            title="Collapse sidebar"
-            style={{ display: onItemClick ? 'none' : undefined }}
-          >
-            <ChevronLeft size={15} />
-          </button>
-          {onItemClick && (
-            <button className="wsnav-icon-btn" onClick={onItemClick} title="Close">
-              <X size={16} />
-            </button>
-          )}
-        </div>
-      </div>
+  const normalizedQuery = searchQuery.trim().toLowerCase();
+  const filteredWorkspaces = normalizedQuery
+    ? sortedWorkspaces.filter((ws) => ws.name.toLowerCase().includes(normalizedQuery))
+    : sortedWorkspaces;
 
-      <div className="wsnav-list">
-        {loading ? (
-          <LoadingState message="Loading workspaces" minHeight={200} imageWidth={108} />
-        ) : (
-          sortedWorkspaces.map((ws) => (
-            <div
-              key={ws.id}
-              className="wsnav-item"
-              role="button"
-              tabIndex={0}
-              onClick={() => { navigate(`/app/ws/${ws.id}`); if (onItemClick) onItemClick(); }}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' || e.key === ' ') {
-                  e.preventDefault();
-                  navigate(`/app/ws/${ws.id}`);
-                  if (onItemClick) onItemClick();
-                }
-              }}
-            >
-              <div className="wsnav-item-left">
-                <span className="wsnav-item-name">{ws.name}</span>
-                <span className="wsnav-item-meta">
-                  {ws.member_count} {ws.member_count === 1 ? 'member' : 'members'} · {ws.visibility}
-                </span>
-              </div>
-              <div className="wsnav-item-right">
-                <button
-                  type="button"
-                  className={`wsnav-star-btn ${ws.is_starred ? 'active' : ''}`}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    if (onToggleWorkspaceStar) onToggleWorkspaceStar(ws.id, !ws.is_starred);
-                  }}
-                  aria-label={ws.is_starred ? 'Unstar' : 'Star'}
-                  disabled={starringWorkspaceIds.includes(ws.id)}
-                >
-                  <Star
-                    size={13}
-                    style={ws.is_starred ? { fill: '#d97706', stroke: '#d97706' } : {}}
-                  />
-                </button>
-                <ChevronRight size={13} className="wsnav-chevron" />
-              </div>
-            </div>
-          ))
-        )}
-      </div>
-
-      <div className="wsnav-footer">
-        <button
-          className="wsnav-create-btn"
-          onClick={() => { navigate('/app/create-workspace'); if (onItemClick) onItemClick(); }}
-        >
-          <Plus size={14} />
-          New workspace
-        </button>
-      </div>
-    </>
-  );
+  const navContentProps = {
+    onDesktopToggle,
+    onToggleWorkspaceStar,
+    loading,
+    filteredWorkspaces,
+    starringWorkspaceIds,
+    searchQuery,
+    setSearchQuery,
+    navigate,
+  };
 
   return (
     <div className="wsnav-root" style={{ display: 'contents' }}>
@@ -317,7 +397,7 @@ export default function WorkspaceNavbar({
 
       {/* Desktop sidebar */}
       <div className={`wsnav-desktop ${isDesktopCollapsed ? 'collapsed' : 'expanded'}`}>
-        <NavContent />
+        <NavContent {...navContentProps} />
       </div>
 
       {/* Collapsed expand strip */}
@@ -338,7 +418,7 @@ export default function WorkspaceNavbar({
       <div className={`wsnav-mobile-overlay ${isOpen ? 'open' : ''}`}>
         <div className="wsnav-mobile-backdrop" onClick={onClose} />
         <div className="wsnav-mobile-drawer">
-          <NavContent onItemClick={onClose} />
+          <NavContent {...navContentProps} onItemClick={onClose} />
         </div>
       </div>
     </div>

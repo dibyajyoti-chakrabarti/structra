@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Layout, Users, Clock, Star, Grid3X3, ArrowUpRight } from 'lucide-react';
+import { Plus, Layout, Users, Clock, Star, Search } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import AuthenticatedNavbar from '../../components/AuthenticatedNavbar';
 import api from '../../api';
@@ -22,6 +22,48 @@ const styles = `
     margin: 0 auto;
     padding: 40px 24px 80px;
   }
+
+  /* ── Search ── */
+  .wsh-search-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 22px;
+  }
+
+  .wsh-search-wrap {
+    position: relative;
+    flex: 1;
+  }
+
+  .wsh-search-icon {
+    position: absolute;
+    left: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #94a3b8;
+  }
+
+  .wsh-search-input {
+    width: 100%;
+    height: 40px;
+    padding: 0 14px 0 36px;
+    border: 1.5px solid #e2e8f0;
+    border-radius: 10px;
+    font-size: 13.5px;
+    font-family: inherit;
+    background: #fff;
+    color: #0a0a0a;
+    outline: none;
+    transition: border-color 0.15s, box-shadow 0.15s;
+  }
+
+  .wsh-search-input:focus {
+    border-color: #2563eb;
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.08);
+  }
+
+  .wsh-search-input::placeholder { color: #94a3b8; }
 
   /* ── Loading ── */
   .wsh-loading {
@@ -413,6 +455,7 @@ const styles = `
     .wsh-main { padding: 24px 16px 60px; }
     .wsh-page-title { font-size: 22px; }
     .wsh-create-btn span { display: none; }
+    .wsh-search-input { height: 38px; }
   }
 `;
 
@@ -490,6 +533,7 @@ const WorkspaceHome = () => {
   const [starredWorkspaces, setStarredWorkspaces] = useState([]);
   const [loading, setLoading] = useState(true);
   const [starringWorkspaceIds, setStarringWorkspaceIds] = useState([]);
+  const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => {
     const fetchWorkspaces = async () => {
@@ -566,6 +610,8 @@ const WorkspaceHome = () => {
     }
   };
 
+  const normalizedQuery = searchQuery.trim().toLowerCase();
+
   const sortedWorkspaces = [...workspaces].sort((a, b) => {
     if (a.is_starred !== b.is_starred) return Number(b.is_starred) - Number(a.is_starred);
     return new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime();
@@ -574,6 +620,14 @@ const WorkspaceHome = () => {
   const sortedStarred = [...starredWorkspaces].sort(
     (a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()
   );
+
+  const filteredWorkspaces = normalizedQuery
+    ? sortedWorkspaces.filter((ws) => ws.name.toLowerCase().includes(normalizedQuery))
+    : sortedWorkspaces;
+
+  const filteredStarred = normalizedQuery
+    ? sortedStarred.filter((ws) => ws.name.toLowerCase().includes(normalizedQuery))
+    : sortedStarred;
 
   if (loading) {
     return (
@@ -590,6 +644,20 @@ const WorkspaceHome = () => {
       <AuthenticatedNavbar />
 
       <main className="wsh-main">
+        <div className="wsh-search-row">
+          <div className="wsh-search-wrap">
+            <Search size={16} className="wsh-search-icon" />
+            <input
+              type="text"
+              className="wsh-search-input"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search workspaces..."
+              aria-label="Search workspaces"
+            />
+          </div>
+        </div>
+
         {/* Starred section */}
         <section className="wsh-section">
           <div className="wsh-section-head">
@@ -597,18 +665,20 @@ const WorkspaceHome = () => {
               <Star size={14} />
               Starred
             </span>
-            {sortedStarred.length > 0 && (
-              <span className="wsh-count-pill">{sortedStarred.length} starred</span>
+            {filteredStarred.length > 0 && (
+              <span className="wsh-count-pill">{filteredStarred.length} starred</span>
             )}
           </div>
 
-          {sortedStarred.length === 0 ? (
+          {filteredStarred.length === 0 ? (
             <div className="wsh-empty">
-              No starred workspaces yet. Star any workspace to pin it here for quick access.
+              {normalizedQuery
+                ? 'No starred workspaces match your search.'
+                : 'No starred workspaces yet. Star any workspace to pin it here for quick access.'}
             </div>
           ) : (
             <div className="wsh-grid">
-              {sortedStarred.map((ws) => (
+              {filteredStarred.map((ws) => (
                 <StarredCard
                   key={`starred-${ws.id}`}
                   ws={ws}
@@ -634,7 +704,13 @@ const WorkspaceHome = () => {
         </div>
 
         <div className="wsh-grid">
-          {sortedWorkspaces.map((ws) => (
+          {filteredWorkspaces.length === 0 && (
+            <div className="wsh-empty">
+              {normalizedQuery ? 'No workspaces match your search.' : 'No workspaces found.'}
+            </div>
+          )}
+
+          {filteredWorkspaces.map((ws) => (
             <WorkspaceCard
               key={ws.id}
               ws={ws}
