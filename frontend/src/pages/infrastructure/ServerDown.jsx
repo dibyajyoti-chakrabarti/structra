@@ -1,10 +1,43 @@
 import { useEffect, useState } from "react";
 import serverDownIllustration from "../../assets/server-down-illustration.svg";
 
+const IST_OFFSET_MINUTES = 5.5 * 60;
+const SLEEP_START_HOUR_IST = 17;
+const WAKE_HOUR_IST = 9;
+
+const getIstDate = (date) => {
+  const utcMillis = date.getTime() + date.getTimezoneOffset() * 60 * 1000;
+  return new Date(utcMillis + IST_OFFSET_MINUTES * 60 * 1000);
+};
+
+const getSleepSchedule = (now = new Date()) => {
+  const istNow = getIstDate(now);
+  const istHour = istNow.getUTCHours();
+  const isSleeping = istHour >= SLEEP_START_HOUR_IST || istHour < WAKE_HOUR_IST;
+
+  if (!isSleeping) {
+    return { isSleeping: false, countdownMs: 0 };
+  }
+
+  // Build next 9:00 AM IST as a real UTC timestamp
+  // 9:00 AM IST = 3:30 AM UTC, so subtract the IST offset from the IST wall time
+  const year = istNow.getUTCFullYear();
+  const month = istNow.getUTCMonth();
+  const day = istNow.getUTCDate();
+  const wakeDay = istHour >= SLEEP_START_HOUR_IST ? day + 1 : day;
+  const nextWakeUtc = new Date(
+    Date.UTC(year, month, wakeDay, WAKE_HOUR_IST, 0, 0, 0) - IST_OFFSET_MINUTES * 60 * 1000
+  );
+  const countdownMs = Math.max(0, nextWakeUtc.getTime() - now.getTime());
+
+  return { isSleeping: true, countdownMs };
+};
+
 export default function ServerDown() {
   const [dots, setDots] = useState("");
   const [elapsed, setElapsed] = useState(0);
   const [pulseKey, setPulseKey] = useState(0);
+  const [sleepSchedule, setSleepSchedule] = useState(() => getSleepSchedule());
 
   useEffect(() => {
     const dotsInterval = setInterval(() => {
@@ -13,6 +46,9 @@ export default function ServerDown() {
     const elapsedInterval = setInterval(() => {
       setElapsed((e) => e + 1);
     }, 1000);
+    const scheduleInterval = setInterval(() => {
+      setSleepSchedule(getSleepSchedule());
+    }, 1000);
     const pulseInterval = setInterval(() => {
       setPulseKey((k) => k + 1);
     }, 15000);
@@ -20,6 +56,7 @@ export default function ServerDown() {
     return () => {
       clearInterval(dotsInterval);
       clearInterval(elapsedInterval);
+      clearInterval(scheduleInterval);
       clearInterval(pulseInterval);
     };
   }, []);
@@ -28,6 +65,20 @@ export default function ServerDown() {
     if (secs < 60) return `${secs}s`;
     return `${Math.floor(secs / 60)}m ${secs % 60}s`;
   };
+
+  const formatCountdown = (countdownMs) => {
+    const totalSeconds = Math.max(0, Math.floor(countdownMs / 1000));
+    const hours = Math.floor(totalSeconds / 3600);
+    const minutes = Math.floor((totalSeconds % 3600) / 60);
+    const seconds = totalSeconds % 60;
+    return `${String(hours).padStart(2, "0")}h ${String(minutes).padStart(2, "0")}m ${String(
+      seconds
+    ).padStart(2, "0")}s`;
+  };
+
+  const startupMessage = sleepSchedule.isSleeping
+    ? `${formatCountdown(sleepSchedule.countdownMs)} to 9:00 AM IST`
+    : "Servers will start any moment now";
 
   return (
     <>
@@ -349,6 +400,10 @@ export default function ServerDown() {
                 <div className="sd-status-row">
                   <span className="sd-status-label">Check interval</span>
                   <span className="sd-status-value">Every 15s</span>
+                </div>
+                <div className="sd-status-row">
+                  <span className="sd-status-label">Server start</span>
+                  <span className="sd-status-value">{startupMessage}</span>
                 </div>
                 <div className="sd-status-row">
                   <span className="sd-status-label">Waiting for</span>

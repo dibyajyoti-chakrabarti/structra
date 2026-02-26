@@ -36,6 +36,7 @@ import Privacy from "./pages/public/Privacy";
 import Terms from "./pages/public/Terms";
 import OnboardingQuestionnaire from "./pages/onboarding/OnboardingQuestionnaire";
 import GitHubCallback from "./pages/auth/GitHubCallback";
+import LoadingState from "./components/LoadingState";
 
 // 2. Create a helper component to handle the redirection
 const PublicRoute = ({ children }) => {
@@ -106,10 +107,12 @@ function App() {
   if (!healthReady) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-gradient-to-b from-blue-50 via-white to-white px-4">
-        <div className="rounded-2xl border border-blue-100 bg-white px-8 py-6 text-center shadow-md shadow-blue-100/70">
-          <p className="text-lg font-semibold text-slate-800">Checking server status...</p>
-          <p className="mt-1 text-sm text-slate-600">Please wait a moment.</p>
-        </div>
+        <LoadingState
+          message="Checking backend server status..."
+          minHeight={280}
+          imageWidth={176}
+          className="w-full max-w-md rounded-2xl border border-blue-100 bg-white px-6 py-6 shadow-md shadow-blue-100/70"
+        />
       </div>
     );
   }
