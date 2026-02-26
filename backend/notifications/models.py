@@ -2,6 +2,7 @@ from django.db import models
 from django.conf import settings
 from django.utils import timezone
 from datetime import timedelta
+from audit.models import AuditLog
 from workspaces.models import Workspace
 from canvases.models import Canvas
 from core.constants import InvitationStatus, NotificationType, WorkspaceRole
@@ -123,3 +124,28 @@ class Notification(models.Model):
 
     def __str__(self):
         return f"{self.type} for {self.user.email}"
+
+
+class AuditNotificationState(models.Model):
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="audit_notification_states",
+    )
+    audit_log = models.ForeignKey(
+        AuditLog,
+        on_delete=models.CASCADE,
+        related_name="read_states",
+    )
+    read_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "audit_notification_states"
+        unique_together = ("user", "audit_log")
+        indexes = [
+            models.Index(fields=["user", "read_at"]),
+            models.Index(fields=["user", "audit_log"]),
+        ]
+
+    def __str__(self):
+        return f"{self.user.email} read {self.audit_log_id}"

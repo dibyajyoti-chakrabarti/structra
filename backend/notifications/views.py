@@ -8,11 +8,13 @@ from rest_framework import permissions, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from audit.models import AuditLog
+from audit.services import record_workspace_event
 from core.constants import InvitationStatus, WorkspaceRole
 from permissions.checks import user_is_workspace_admin
 from permissions.models import WorkspaceMember
 from workspaces.models import Workspace
-from .models import Invitation
+from .models import AuditNotificationState, Invitation
 from .serializers import (
     InvitationTokenSerializer,
     WorkspaceInvitationCreateSerializer,
@@ -155,6 +157,16 @@ class WorkspaceInvitationCreateView(APIView):
                     {"error": "Invitation exists but email could not be sent right now."},
                     status=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 )
+            record_workspace_event(
+                workspace=workspace,
+                actor=request.user,
+                request=request,
+                category="user",
+                action="Invitation Resent",
+                target_name=email,
+                target_id=pending_invitation.token,
+                message="Pending invitation email resent.",
+            )
             return Response(
                 {"message": "Invitation already pending. Invitation email resent."},
                 status=status.HTTP_200_OK,
@@ -177,6 +189,18 @@ class WorkspaceInvitationCreateView(APIView):
                 {"error": "Failed to send invitation email. Please verify SMTP configuration."},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
+
+        record_workspace_event(
+            workspace=workspace,
+            actor=request.user,
+            request=request,
+            category="user",
+            action="Invitation Sent",
+            target_name=email,
+            target_id=invitation.token,
+            message="Workspace invitation sent.",
+            metadata={"role": invitation.role},
+        )
 
         return Response(
             {"message": "Invitation sent successfully."},
@@ -214,6 +238,16 @@ class WorkspaceInvitationCancelView(APIView):
 
         invitation.status = InvitationStatus.REJECTED
         invitation.save(update_fields=["status"])
+        record_workspace_event(
+            workspace=workspace,
+            actor=request.user,
+            request=request,
+            category="user",
+            action="Invitation Cancelled",
+            target_name=invitation.email,
+            target_id=invitation.token,
+            message="Workspace invitation cancelled by admin.",
+        )
         return Response({"message": "Invitation cancelled successfully."}, status=status.HTTP_200_OK)
 
 
@@ -278,6 +312,18 @@ class InvitationAcceptView(APIView):
         invitation.user = request.user
         invitation.save(update_fields=["status", "user"])
 
+        record_workspace_event(
+            workspace=invitation.workspace,
+            actor=request.user,
+            request=request,
+            category="user",
+            action="Invitation Accepted",
+            target_name=request.user.full_name or request.user.email,
+            target_id=str(request.user.user_id),
+            message=f"{request.user.email} accepted invitation.",
+            metadata={"invited_email": invitation.email},
+        )
+
         return Response(
             {
                 "message": (
@@ -306,4 +352,139 @@ class InvitationRejectView(APIView):
 
         invitation.status = InvitationStatus.REJECTED
         invitation.save(update_fields=["status"])
+        record_workspace_event(
+            workspace=invitation.workspace,
+            actor=request.user if request.user.is_authenticated else None,
+            request=request,
+            category="user",
+            action="Invitation Rejected",
+            target_name=invitation.email,
+            target_id=invitation.token,
+            message=f"{invitation.email} rejected invitation.",
+            metadata={"invited_email": invitation.email},
+        )
         return Response({"message": "Invitation rejected successfully."}, status=status.HTTP_200_OK)
+
+
+def _format_notification_item(log, is_read):
+    workspace_name = log.workspace.name if log.workspace else "Unknown workspace"
+    actor_name = None
+    if log.actor:
+        actor_name = log.actor.full_name or log.actor.email
+    elif isinstance(log.metadata, dict):
+        actor_name = log.metadata.get("actor_name") or log.metadata.get("invited_email")
+    actor_name = actor_name or "System"
+
+    body_parts = [f"Workspace: {workspace_name}"]
+    if log.system:
+        body_parts.append(f"System: {log.system.name}")
+    if log.target_name:
+        body_parts.append(f"Target: {log.target_name}")
+
+    return {
+        "id": str(log.id),
+        "title": log.action,
+        "body": " - ".join(body_parts),
+        "status": log.status,
+        "category": log.category,
+        "scope": log.scope,
+        "workspace_id": log.workspace_id,
+        "workspace_name": workspace_name,
+        "system_id": log.system_id,
+        "system_name": log.system.name if log.system else None,
+        "actor_name": actor_name,
+        "created_at": log.created_at,
+        "is_read": is_read,
+    }
+
+
+class AdminNotificationFeedView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        try:
+            limit = int(request.query_params.get("limit", 50))
+        except (TypeError, ValueError):
+            limit = 50
+        limit = max(1, min(limit, 200))
+
+        admin_workspace_ids = WorkspaceMember.objects.filter(
+            user=request.user,
+            role=WorkspaceRole.ADMIN,
+        ).values_list("workspace_id", flat=True)
+
+        audit_qs = (
+            AuditLog.objects.filter(workspace_id__in=admin_workspace_ids)
+            .select_related("workspace", "system", "actor")
+            .order_by("-created_at")
+        )
+
+        unread_count = audit_qs.exclude(read_states__user=request.user).count()
+        logs = list(audit_qs[:limit])
+
+        read_ids = set(
+            AuditNotificationState.objects.filter(
+                user=request.user,
+                audit_log_id__in=[log.id for log in logs],
+            ).values_list("audit_log_id", flat=True)
+        )
+
+        items = [_format_notification_item(log, log.id in read_ids) for log in logs]
+        return Response(
+            {"unread_count": unread_count, "items": items},
+            status=status.HTTP_200_OK,
+        )
+
+
+class AdminNotificationMarkReadView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request, audit_log_id):
+        admin_workspace_ids = WorkspaceMember.objects.filter(
+            user=request.user,
+            role=WorkspaceRole.ADMIN,
+        ).values_list("workspace_id", flat=True)
+
+        audit_log = get_object_or_404(
+            AuditLog,
+            id=audit_log_id,
+            workspace_id__in=admin_workspace_ids,
+        )
+
+        AuditNotificationState.objects.update_or_create(
+            user=request.user,
+            audit_log=audit_log,
+        )
+        return Response({"message": "Notification marked as read."}, status=status.HTTP_200_OK)
+
+
+class AdminNotificationMarkAllReadView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request):
+        admin_workspace_ids = WorkspaceMember.objects.filter(
+            user=request.user,
+            role=WorkspaceRole.ADMIN,
+        ).values_list("workspace_id", flat=True)
+
+        unread_ids = list(
+            AuditLog.objects.filter(workspace_id__in=admin_workspace_ids)
+            .exclude(read_states__user=request.user)
+            .values_list("id", flat=True)
+        )
+        if unread_ids:
+            existing = set(
+                AuditNotificationState.objects.filter(
+                    user=request.user,
+                    audit_log_id__in=unread_ids,
+                ).values_list("audit_log_id", flat=True)
+            )
+            to_create = [
+                AuditNotificationState(user=request.user, audit_log_id=log_id)
+                for log_id in unread_ids
+                if log_id not in existing
+            ]
+            if to_create:
+                AuditNotificationState.objects.bulk_create(to_create, ignore_conflicts=True)
+
+        return Response({"message": "All notifications marked as read."}, status=status.HTTP_200_OK)
