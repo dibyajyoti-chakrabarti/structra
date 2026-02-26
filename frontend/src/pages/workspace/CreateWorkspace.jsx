@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { UserPlus, Globe, Lock, Plus, ChevronLeft } from 'lucide-react';
+import { UserPlus, Globe, Lock, Plus, ChevronLeft, X } from 'lucide-react';
 import AuthenticatedNavbar from '../../components/AuthenticatedNavbar';
 import api from '../../api';
 
