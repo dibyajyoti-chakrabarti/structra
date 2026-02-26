@@ -14,8 +14,8 @@ from rest_framework.response import Response
 from rest_framework import status
 from rest_framework_simplejwt.tokens import RefreshToken
 from django.conf import settings
-from django.core.mail import send_mail
 from django.utils import timezone
+from .email_utils import send_otp_email
 
 User = get_user_model()
 
@@ -236,21 +236,8 @@ class EmailOTPRequestView(APIView):
             expires_at=expires_at,
         )
 
-        subject = "Your Structra verification code"
-        message = (
-            f"Your verification code is: {otp}\n\n"
-            f"This code expires in {OTP_TTL_MINUTES} minutes.\n"
-            "If you did not request this, please ignore this email."
-        )
-
         try:
-            send_mail(
-                subject=subject,
-                message=message,
-                from_email=settings.DEFAULT_FROM_EMAIL,
-                recipient_list=[email],
-                fail_silently=False,
-            )
+            send_otp_email(email, otp, OTP_TTL_MINUTES)
         except Exception:
             return Response(
                 {'error': 'Failed to send OTP email. Check email configuration.'},
