@@ -98,6 +98,10 @@ const invalidateApiCacheByUrlHint = (url = '') => {
   const systemId = normalized.match(/^systems\/([^/]+)\//)?.[1] || null;
 
   invalidateApiCacheByPredicate((key) => {
+    if (normalized.startsWith('notifications/')) {
+      return key.includes('|notifications/');
+    }
+
     if (key.includes(`|${normalized}|`) || key.includes('|workspaces/')) {
       return true;
     }

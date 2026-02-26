@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { User, Bell, Zap, Search, Menu, X, LogOut, Sun, Moon } from 'lucide-react';
 import { NotificationDrawer } from '../pages/account/Notification';
@@ -14,6 +14,7 @@ export default function AuthenticatedNavbar() {
   const location = useLocation();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isNotificationOpen, setIsNotificationOpen] = useState(false);
+  const [unreadNotificationCount, setUnreadNotificationCount] = useState(0);
   const [searchQuery, setSearchQuery] = useState('');
   const [debouncedSearchQuery, setDebouncedSearchQuery] = useState('');
   const [isSearchDropdownOpen, setIsSearchDropdownOpen] = useState(false);
@@ -37,12 +38,27 @@ export default function AuthenticatedNavbar() {
     navigate('/login');
   };
 
+  const fetchUnreadNotificationCount = useCallback(async () => {
+    try {
+      const response = await api.get('notifications/feed/', { params: { limit: 1 } });
+      setUnreadNotificationCount(response.data?.unread_count || 0);
+    } catch {
+      // Keep navbar resilient if notification endpoint fails.
+    }
+  }, []);
+
   useEffect(() => {
     const timeoutId = setTimeout(() => {
       setDebouncedSearchQuery(searchQuery.trim());
     }, SEARCH_DEBOUNCE_MS);
     return () => clearTimeout(timeoutId);
   }, [searchQuery]);
+
+  useEffect(() => {
+    fetchUnreadNotificationCount();
+    const intervalId = setInterval(fetchUnreadNotificationCount, 45000);
+    return () => clearInterval(intervalId);
+  }, [fetchUnreadNotificationCount]);
 
   useEffect(() => {
     if (!isSearchDropdownOpen) return;
@@ -363,6 +379,25 @@ export default function AuthenticatedNavbar() {
         .nav-icon-btn.active { color: var(--accent); background: var(--accent-soft); }
 
         .nav-icon-btn.danger:hover { color: var(--danger); background: rgba(239, 68, 68, 0.12); }
+        .nav-notif-badge {
+          position: absolute;
+          top: 3px;
+          right: 3px;
+          min-width: 16px;
+          height: 16px;
+          padding: 0 4px;
+          border-radius: 999px;
+          background: var(--danger);
+          color: #fff;
+          border: 2px solid var(--surface);
+          font-size: 9px;
+          font-weight: 700;
+          line-height: 12px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          pointer-events: none;
+        }
 
         .nav-avatar-btn {
           background: var(--text);
@@ -556,6 +591,11 @@ export default function AuthenticatedNavbar() {
               title="Notifications"
             >
               <Bell size={18} />
+              {unreadNotificationCount > 0 && (
+                <span className="nav-notif-badge">
+                  {unreadNotificationCount > 99 ? '99+' : unreadNotificationCount}
+                </span>
+              )}
             </button>
 
             <button
@@ -629,7 +669,11 @@ export default function AuthenticatedNavbar() {
         )}
       </nav>
 
-      <NotificationDrawer isOpen={isNotificationOpen} onClose={() => setIsNotificationOpen(false)} />
+      <NotificationDrawer
+        isOpen={isNotificationOpen}
+        onClose={() => setIsNotificationOpen(false)}
+        onUnreadCountChange={setUnreadNotificationCount}
+      />
     </>
   );
 }
