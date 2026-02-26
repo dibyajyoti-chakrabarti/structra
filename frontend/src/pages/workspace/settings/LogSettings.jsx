@@ -22,12 +22,6 @@ const styles = `
   }
   .ls-export-btn:hover { border-color: var(--border-strong); color: var(--text); background: var(--surface-2); }
 
-  .ls-section { margin-top: 20px; }
-  .ls-section:first-of-type { margin-top: 0; }
-  .ls-section-head { margin-bottom: 14px; }
-  .ls-section-title { margin: 0; font-size: 15px; font-weight: 730; letter-spacing: -0.2px; color: var(--text); display: flex; align-items: center; gap: 8px; }
-  .ls-section-sub { margin: 5px 0 0; font-size: 12.5px; color: var(--text-muted); }
-
   .ls-error {
     margin: 0 0 16px;
     padding: 10px 12px;
@@ -200,6 +194,7 @@ const toLogRow = (raw) => {
     user: raw.actor_name || 'System',
     status: raw.status || 'success',
     system: raw.system_name || null,
+    scope: raw.scope || 'workspace',
     date: dateParts.date,
     time: dateParts.time,
   };
@@ -250,7 +245,7 @@ const LogStats = ({ summary }) => (
   </div>
 );
 
-const LogTable = ({ logs, showSystemColumn = false }) => {
+const LogTable = ({ logs }) => {
   if (!logs.length) {
     return <div className="ls-empty">No events match the selected filters.</div>;
   }
@@ -273,7 +268,7 @@ const LogTable = ({ logs, showSystemColumn = false }) => {
             <div>
               <div className="ls-action">{log.action}</div>
               <div className="ls-target">
-                {showSystemColumn && log.system ? `System: ${log.system} - ` : ''}
+                {log.system ? `System: ${log.system} - ` : ''}
                 Target: {log.target}
               </div>
             </div>
@@ -305,16 +300,12 @@ const LogTable = ({ logs, showSystemColumn = false }) => {
 
 const parseApiError = (error) => error?.response?.data?.detail || 'Failed to load audit logs.';
 
-const exportCsv = (workspaceRows, systemRows) => {
-  const headers = ['section', 'action', 'target', 'user', 'status', 'system', 'date', 'time'];
+const exportCsv = (rows) => {
+  const headers = ['action', 'target', 'user', 'status', 'scope', 'system', 'date', 'time'];
   const escapeCsv = (value) => `"${String(value ?? '').replaceAll('"', '""')}"`;
 
-  const rows = [
-    ...workspaceRows.map((row) => ['workspace', row.action, row.target, row.user, row.status, row.system || '', row.date, row.time]),
-    ...systemRows.map((row) => ['system', row.action, row.target, row.user, row.status, row.system || '', row.date, row.time]),
-  ];
-
-  const csvContent = [headers, ...rows].map((cols) => cols.map(escapeCsv).join(',')).join('\n');
+  const csvRows = rows.map((row) => [row.action, row.target, row.user, row.status, row.scope, row.system || '', row.date, row.time]);
+  const csvContent = [headers, ...csvRows].map((cols) => cols.map(escapeCsv).join(',')).join('\n');
   const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
   const url = window.URL.createObjectURL(blob);
   const a = document.createElement('a');
@@ -331,79 +322,34 @@ const LogSettings = () => {
   const { workspaceId } = useParams();
   const { isAdmin } = useOutletContext();
 
-  const [workspaceFilter, setWorkspaceFilter] = useState('all');
-  const [workspaceQuery, setWorkspaceQuery] = useState('');
+  const [category, setCategory] = useState('all');
+  const [query, setQuery] = useState('');
+  const [scope, setScope] = useState('all');
 
-  const [systemFilter, setSystemFilter] = useState('all');
-  const [systemQuery, setSystemQuery] = useState('');
-  const [systemName, setSystemName] = useState('all');
-
-  const [workspaceLogs, setWorkspaceLogs] = useState([]);
-  const [systemLogs, setSystemLogs] = useState([]);
-  const [workspaceSummary, setWorkspaceSummary] = useState(emptySummary);
-  const [systemSummary, setSystemSummary] = useState(emptySummary);
-  const [systems, setSystems] = useState([]);
+  const [logs, setLogs] = useState([]);
+  const [summary, setSummary] = useState(emptySummary);
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
   useEffect(() => {
     let ignore = false;
-
-    const fetchSystems = async () => {
-      try {
-        const res = await api.get(`workspaces/${workspaceId}/audit/systems/`);
-        if (ignore) return;
-        setSystems(res.data || []);
-      } catch (e) {
-        if (!ignore) setError(parseApiError(e));
-      }
-    };
-
-    fetchSystems();
-    return () => {
-      ignore = true;
-    };
-  }, [workspaceId]);
-
-  useEffect(() => {
-    let ignore = false;
     setLoading(true);
 
-    const fetchWorkspaceSection = async () => {
-      const params = { scope: 'workspace', limit: 200 };
-      if (workspaceFilter !== 'all') params.category = workspaceFilter;
-      if (workspaceQuery.trim()) params.q = workspaceQuery.trim();
+    const params = { limit: 200 };
+    if (category !== 'all') params.category = category;
+    if (scope !== 'all') params.scope = scope;
+    if (query.trim()) params.q = query.trim();
 
-      const [summaryRes, logsRes] = await Promise.all([
-        api.get(`workspaces/${workspaceId}/audit/summary/`, { params }),
-        api.get(`workspaces/${workspaceId}/audit/logs/`, { params }),
-      ]);
-
-      if (ignore) return;
-      setWorkspaceSummary(summaryRes.data || emptySummary);
-      setWorkspaceLogs((logsRes.data || []).map(toLogRow));
-    };
-
-    const fetchSystemSection = async () => {
-      const params = { scope: 'system', limit: 200 };
-      if (systemFilter !== 'all') params.category = systemFilter;
-      if (systemQuery.trim()) params.q = systemQuery.trim();
-      if (systemName !== 'all') params.system_id = systemName;
-
-      const [summaryRes, logsRes] = await Promise.all([
-        api.get(`workspaces/${workspaceId}/audit/summary/`, { params }),
-        api.get(`workspaces/${workspaceId}/audit/logs/`, { params }),
-      ]);
-
-      if (ignore) return;
-      setSystemSummary(summaryRes.data || emptySummary);
-      setSystemLogs((logsRes.data || []).map(toLogRow));
-    };
-
-    Promise.all([fetchWorkspaceSection(), fetchSystemSection()])
-      .then(() => {
-        if (!ignore) setError('');
+    Promise.all([
+      api.get(`workspaces/${workspaceId}/audit/summary/`, { params }),
+      api.get(`workspaces/${workspaceId}/audit/logs/`, { params }),
+    ])
+      .then(([summaryRes, logsRes]) => {
+        if (ignore) return;
+        setSummary(summaryRes.data || emptySummary);
+        setLogs((logsRes.data || []).map(toLogRow));
+        setError('');
       })
       .catch((e) => {
         if (!ignore) setError(parseApiError(e));
@@ -415,12 +361,9 @@ const LogSettings = () => {
     return () => {
       ignore = true;
     };
-  }, [workspaceId, workspaceFilter, workspaceQuery, systemFilter, systemQuery, systemName]);
+  }, [workspaceId, category, scope, query]);
 
-  const availableSystems = useMemo(
-    () => [{ id: 'all', name: 'All Systems' }, ...systems],
-    [systems],
-  );
+  const csvRows = useMemo(() => logs, [logs]);
 
   if (!isAdmin) {
     return (
@@ -453,110 +396,62 @@ const LogSettings = () => {
       <div className="ls-page-head">
         <div>
           <h2 className="ls-page-title">Audit Logs</h2>
-          <p className="ls-page-sub">Track workspace activity and monitor system-specific operational changes.</p>
+          <p className="ls-page-sub">All workspace and system audits in one timeline.</p>
         </div>
-        <button className="ls-export-btn" onClick={() => exportCsv(workspaceLogs, systemLogs)}>
+        <button className="ls-export-btn" onClick={() => exportCsv(csvRows)}>
           <Download size={14} /> Export CSV
         </button>
       </div>
 
       {error && <div className="ls-error">{error}</div>}
 
-      <section className="ls-section">
-        <div className="ls-section-head">
-          <h3 className="ls-section-title"><Activity size={15} /> Workspace Logs</h3>
-          <p className="ls-section-sub">Member actions and workspace-level configuration events.</p>
+      <LogStats summary={summary} />
+
+      <div className="ls-filters">
+        <div className="ls-filter-input-wrap">
+          <Search size={14} className="ls-filter-input-icon" />
+          <input
+            className="ls-filter-input"
+            type="text"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Search by user, action, system, or target..."
+          />
         </div>
 
-        <LogStats summary={workspaceSummary} />
-
-        <div className="ls-filters">
-          <div className="ls-filter-input-wrap">
-            <Search size={14} className="ls-filter-input-icon" />
-            <input
-              className="ls-filter-input"
-              type="text"
-              value={workspaceQuery}
-              onChange={(e) => setWorkspaceQuery(e.target.value)}
-              placeholder="Search by user, action, or resource..."
-            />
-          </div>
-          <div className="ls-filter-select-wrap">
-            <Filter size={14} className="ls-filter-select-icon" />
-            <select
-              className="ls-filter-select"
-              value={workspaceFilter}
-              onChange={(e) => setWorkspaceFilter(e.target.value)}
-            >
-              <option value="all">All Events</option>
-              <option value="security">Security</option>
-              <option value="workspace">Workspace</option>
-              <option value="user">User Actions</option>
-              <option value="system">System</option>
-              <option value="general">General</option>
-            </select>
-          </div>
+        <div className="ls-filter-select-wrap">
+          <Filter size={14} className="ls-filter-select-icon" />
+          <select
+            className="ls-filter-select"
+            value={scope}
+            onChange={(e) => setScope(e.target.value)}
+          >
+            <option value="all">All Scopes</option>
+            <option value="workspace">Workspace</option>
+            <option value="system">System</option>
+          </select>
         </div>
 
-        <div className="ls-table-card">
-          <LogTable logs={workspaceLogs} />
+        <div className="ls-filter-select-wrap">
+          <Filter size={14} className="ls-filter-select-icon" />
+          <select
+            className="ls-filter-select"
+            value={category}
+            onChange={(e) => setCategory(e.target.value)}
+          >
+            <option value="all">All Categories</option>
+            <option value="security">Security</option>
+            <option value="workspace">Workspace</option>
+            <option value="system">System</option>
+            <option value="user">User</option>
+            <option value="general">General</option>
+          </select>
         </div>
-      </section>
+      </div>
 
-      <section className="ls-section">
-        <div className="ls-section-head">
-          <h3 className="ls-section-title"><FileText size={15} /> System Logs</h3>
-          <p className="ls-section-sub">Runtime and service events grouped by system inside this workspace.</p>
-        </div>
-
-        <LogStats summary={systemSummary} />
-
-        <div className="ls-filters">
-          <div className="ls-filter-input-wrap">
-            <Search size={14} className="ls-filter-input-icon" />
-            <input
-              className="ls-filter-input"
-              type="text"
-              value={systemQuery}
-              onChange={(e) => setSystemQuery(e.target.value)}
-              placeholder="Search by system, action, user, or target..."
-            />
-          </div>
-
-          <div className="ls-filter-select-wrap">
-            <Filter size={14} className="ls-filter-select-icon" />
-            <select
-              className="ls-filter-select"
-              value={systemName}
-              onChange={(e) => setSystemName(e.target.value)}
-            >
-              {availableSystems.map((system) => (
-                <option key={system.id} value={system.id}>
-                  {system.name}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div className="ls-filter-select-wrap">
-            <Filter size={14} className="ls-filter-select-icon" />
-            <select
-              className="ls-filter-select"
-              value={systemFilter}
-              onChange={(e) => setSystemFilter(e.target.value)}
-            >
-              <option value="all">All Event Types</option>
-              <option value="security">Security</option>
-              <option value="system">System</option>
-              <option value="general">General</option>
-            </select>
-          </div>
-        </div>
-
-        <div className="ls-table-card">
-          <LogTable logs={systemLogs} showSystemColumn />
-        </div>
-      </section>
+      <div className="ls-table-card">
+        <LogTable logs={logs} />
+      </div>
     </div>
   );
 };
