@@ -5,6 +5,7 @@ from rest_framework.exceptions import PermissionDenied
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from audit.services import record_system_event, record_workspace_event
 from canvases.models import Canvas
 from core.constants import WorkspaceRole
 from workspaces.models import Workspace
@@ -66,7 +67,20 @@ class WorkspaceMemberDeleteView(APIView):
             system__workspace=workspace,
             user=membership.user,
         ).delete()
+        removed_member_name = membership.user.full_name or membership.user.email
+        removed_member_id = str(membership.user.user_id)
         membership.delete()
+
+        record_workspace_event(
+            workspace=workspace,
+            actor=request.user,
+            request=request,
+            category="user",
+            action="Member Removed",
+            target_name=removed_member_name,
+            target_id=removed_member_id,
+        )
+
         return Response({"message": "Member removed successfully."}, status=status.HTTP_200_OK)
 
 
@@ -139,6 +153,18 @@ class SystemPermissionGrantView(APIView):
             defaults={"role": role},
         )
 
+        record_system_event(
+            workspace=workspace,
+            system=system,
+            actor=request.user,
+            request=request,
+            category="security",
+            action="Permission Granted" if created else "Permission Updated",
+            target_name=target_user.full_name or target_user.email,
+            target_id=str(target_user.user_id),
+            metadata={"role": role},
+        )
+
         return Response(
             {
                 "message": (
@@ -169,5 +195,20 @@ class SystemPermissionRevokeView(APIView):
                 status=status.HTTP_404_NOT_FOUND,
             )
 
+        target_user = permission.user
+        target_role = permission.role
         permission.delete()
+
+        record_system_event(
+            workspace=workspace,
+            system=system,
+            actor=request.user,
+            request=request,
+            category="security",
+            action="Permission Revoked",
+            target_name=target_user.full_name or target_user.email,
+            target_id=str(target_user.user_id),
+            metadata={"role": target_role},
+        )
+
         return Response({"message": "System access revoked successfully."}, status=status.HTTP_200_OK)

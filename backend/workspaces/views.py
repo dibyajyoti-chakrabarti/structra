@@ -12,6 +12,7 @@ from rest_framework.pagination import LimitOffsetPagination
 from rest_framework.permissions import SAFE_METHODS
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from audit.services import record_workspace_event
 from .models import Workspace, WorkspaceStar
 from permissions.models import WorkspaceMember
 from permissions.checks import user_is_workspace_admin
@@ -38,6 +39,16 @@ class WorkspaceListCreateView(generics.ListCreateAPIView):
             user=self.request.user,
             role=WorkspaceRole.ADMIN,
         )
+        record_workspace_event(
+            workspace=workspace,
+            actor=self.request.user,
+            request=self.request,
+            category="workspace",
+            action="Workspace Created",
+            target_name=workspace.name,
+            target_id=workspace.id,
+            message="Workspace created.",
+        )
 
 class WorkspaceDetailView(generics.RetrieveUpdateDestroyAPIView):
     serializer_class = WorkspaceDetailSerializer
@@ -57,8 +68,35 @@ class WorkspaceDetailView(generics.RetrieveUpdateDestroyAPIView):
             raise PermissionDenied("Only workspace admins can modify workspace settings.")
 
     def perform_update(self, serializer):
-        self._assert_admin(serializer.instance)
-        serializer.save()
+        workspace = serializer.instance
+        self._assert_admin(workspace)
+
+        previous_name = workspace.name
+        previous_description = workspace.description or ""
+        previous_visibility = workspace.visibility
+
+        updated_workspace = serializer.save()
+
+        changed_fields = []
+        if previous_name != updated_workspace.name:
+            changed_fields.append("name")
+        if previous_description != (updated_workspace.description or ""):
+            changed_fields.append("description")
+        if previous_visibility != updated_workspace.visibility:
+            changed_fields.append("visibility")
+
+        if changed_fields:
+            record_workspace_event(
+                workspace=updated_workspace,
+                actor=self.request.user,
+                request=self.request,
+                category="workspace",
+                action="Workspace Updated",
+                target_name=updated_workspace.name,
+                target_id=updated_workspace.id,
+                message=f"Updated fields: {', '.join(changed_fields)}.",
+                metadata={"changed_fields": changed_fields},
+            )
 
     def perform_destroy(self, instance):
         self._assert_admin(instance)
@@ -157,8 +195,26 @@ class WorkspaceStarToggleView(APIView):
 
         if target_state and not star_exists:
             WorkspaceStar.objects.create(workspace=workspace, user=request.user)
+            record_workspace_event(
+                workspace=workspace,
+                actor=request.user,
+                request=request,
+                category="user",
+                action="Workspace Starred",
+                target_name=workspace.name,
+                target_id=workspace.id,
+            )
         if not target_state and star_exists:
             WorkspaceStar.objects.filter(workspace=workspace, user=request.user).delete()
+            record_workspace_event(
+                workspace=workspace,
+                actor=request.user,
+                request=request,
+                category="user",
+                action="Workspace Unstarred",
+                target_name=workspace.name,
+                target_id=workspace.id,
+            )
 
         return Response(
             {

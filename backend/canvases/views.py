@@ -4,6 +4,7 @@ from rest_framework.exceptions import PermissionDenied, ValidationError
 from rest_framework.permissions import SAFE_METHODS, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from audit.services import record_system_event, record_workspace_event
 from core.constants import CanvasRole
 from permissions.checks import (
     resolve_canvas_role,
@@ -100,6 +101,17 @@ class CanvasListCreateView(generics.ListCreateAPIView):
             last_modified_by=self.request.user
         )
 
+        record_system_event(
+            workspace=workspace,
+            system=system,
+            actor=self.request.user,
+            request=self.request,
+            category="system",
+            action="System Created",
+            target_name=system.name,
+            target_id=system.id,
+        )
+
         for target_user, role in validated_permissions:
             CanvasPermission.objects.update_or_create(
                 system=system,
@@ -159,7 +171,41 @@ class CanvasDetailView(generics.RetrieveUpdateDestroyAPIView):
         ).distinct()
     
     def perform_update(self, serializer):
-        serializer.save(last_modified_by=self.request.user)
+        system = serializer.instance
+        previous_name = system.name
+        previous_visibility = system.visibility
+
+        updated_system = serializer.save(last_modified_by=self.request.user)
+
+        changed_fields = []
+        if previous_name != updated_system.name:
+            changed_fields.append("name")
+        if previous_visibility != updated_system.visibility:
+            changed_fields.append("visibility")
+
+        record_system_event(
+            workspace=updated_system.workspace,
+            system=updated_system,
+            actor=self.request.user,
+            request=self.request,
+            category="system",
+            action="System Updated",
+            target_name=updated_system.name,
+            target_id=updated_system.id,
+            metadata={"changed_fields": changed_fields},
+        )
+
+    def perform_destroy(self, instance):
+        record_workspace_event(
+            workspace=instance.workspace,
+            actor=self.request.user,
+            request=self.request,
+            category="system",
+            action="System Deleted",
+            target_name=instance.name,
+            target_id=instance.id,
+        )
+        instance.delete()
 
 
 class CanvasAutosaveView(APIView):
