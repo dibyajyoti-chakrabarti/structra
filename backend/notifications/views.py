@@ -1,7 +1,8 @@
 from django.conf import settings
 from django.contrib.auth import get_user_model
-from django.core.mail import send_mail
+from django.core.mail import EmailMultiAlternatives
 from django.shortcuts import get_object_or_404
+from django.template.loader import render_to_string
 from django.utils import timezone
 from rest_framework import permissions, status
 from rest_framework.response import Response
@@ -58,19 +59,30 @@ def _send_invitation_email(invitation):
     )
     invite_link = _build_invitation_link(invitation.token)
     subject = f"Invitation to join {invitation.workspace.name} on Structra"
-    message = (
+    text_message = (
         f"{inviter_name} invited you to join workspace '{invitation.workspace.name}' on Structra.\n\n"
         f"Open this link to review and accept the invitation:\n{invite_link}\n\n"
         "This invitation expires in 48 hours."
     )
 
-    send_mail(
-        subject=subject,
-        message=message,
-        from_email=getattr(settings, "DEFAULT_FROM_EMAIL", "sarthshah333@gmail.com"),
-        recipient_list=[invitation.email],
-        fail_silently=False,
+    html_message = render_to_string(
+        "notifications/emails/workspace_invitation.html",
+        {
+            "inviter_name": inviter_name,
+            "workspace_name": invitation.workspace.name,
+            "invite_link": invite_link,
+            "invited_email": invitation.email,
+        },
     )
+
+    message = EmailMultiAlternatives(
+        subject=subject,
+        body=text_message,
+        from_email=getattr(settings, "DEFAULT_FROM_EMAIL", "sarthshah333@gmail.com"),
+        to=[invitation.email],
+    )
+    message.attach_alternative(html_message, "text/html")
+    message.send(fail_silently=False)
 
 
 class WorkspaceInvitationCreateView(APIView):
