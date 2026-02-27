@@ -19,7 +19,7 @@ export default function Login() {
   const inviteToken = searchParams.get("invite_token") || "";
   const inviteEmail = searchParams.get("invite_email") || "";
 
-  const [formData, setFormData] = useState({ email: "", password: "" });
+  const [formData, setFormData] = useState({ identifier: "", password: "" });
   const [authMethod, setAuthMethod] = useState("password");
   const [otpCode, setOtpCode] = useState("");
   const [otpSent, setOtpSent] = useState(false);
@@ -32,7 +32,7 @@ export default function Login() {
 
   useEffect(() => {
     if (!inviteEmail) return;
-    setFormData((prev) => ({ ...prev, email: prev.email || inviteEmail }));
+    setFormData((prev) => ({ ...prev, identifier: prev.identifier || inviteEmail }));
   }, [inviteEmail]);
 
   const resolvePostAuthRoute = async (isNewUser) => {
@@ -110,8 +110,8 @@ export default function Login() {
   };
 
   const handleRequestOtp = async () => {
-    if (!formData.email.trim()) {
-      setError("Please enter your email first.");
+    if (!formData.identifier.trim()) {
+      setError("Please enter your email or username first.");
       return;
     }
 
@@ -120,7 +120,7 @@ export default function Login() {
     setLoading(true);
     try {
       const res = await api.post("auth/email-otp/request/", {
-        email: formData.email,
+        identifier: formData.identifier,
         purpose: "login",
       });
       setOtpSent(true);
@@ -135,8 +135,8 @@ export default function Login() {
   };
 
   const handleVerifyOtp = async () => {
-    if (!formData.email.trim() || !otpCode.trim()) {
-      setError("Please enter email and OTP.");
+    if (!formData.identifier.trim() || !otpCode.trim()) {
+      setError("Please enter email/username and OTP.");
       return;
     }
 
@@ -144,7 +144,7 @@ export default function Login() {
     setLoading(true);
     try {
       const response = await api.post("auth/email-otp/verify/", {
-        email: formData.email,
+        identifier: formData.identifier,
         otp: otpCode,
         purpose: "login",
       });
@@ -272,11 +272,11 @@ export default function Login() {
                       size={16}
                     />
                     <input
-                      name="email"
-                      value={formData.email}
+                      name="identifier"
+                      value={formData.identifier}
                       onChange={handleChange}
-                      type="email"
-                      placeholder="Work email"
+                      type="text"
+                      placeholder="Email or Username"
                       required
                       readOnly={!!inviteEmail}
                       className="w-full rounded-xl border border-slate-200 bg-white py-3 pl-10 pr-4 text-sm text-slate-800 placeholder:text-slate-400 focus:border-blue-400 focus:outline-none"
@@ -364,7 +364,9 @@ export default function Login() {
                     onClick={() =>
                       navigate(
                         inviteToken
-                          ? `/signup?invite_token=${encodeURIComponent(inviteToken)}&invite_email=${encodeURIComponent(formData.email)}`
+                          ? `/signup?invite_token=${encodeURIComponent(inviteToken)}&invite_email=${encodeURIComponent(
+                              inviteEmail || (formData.identifier.includes("@") ? formData.identifier : "")
+                            )}`
                           : "/signup"
                       )
                     }

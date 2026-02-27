@@ -1,12 +1,22 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { ArrowRight, Check } from "lucide-react";
 import api from "../../api";
 import logo from "../../assets/logo.png";
 
+const USERNAME_REGEX = /^[A-Za-z0-9_-]+$/;
+
 const questions = [
   {
     id: 1,
+    type: "text",
+    text: "Pick your username",
+    subtext: "This is your public handle. You can edit the auto-generated one now.",
+    field: "username",
+    placeholder: "your_handle",
+  },
+  {
+    id: 2,
     type: "text",
     text: "Which organization are you representing?",
     subtext: "We'll customize your workspace based on your company profile.",
@@ -14,7 +24,7 @@ const questions = [
     placeholder: "e.g. Acme Corp, Freelance...",
   },
   {
-    id: 2,
+    id: 3,
     type: "text",
     text: "Where is your organization based?",
     subtext: "This helps us optimize data regions and compliance.",
@@ -22,7 +32,7 @@ const questions = [
     placeholder: "e.g. San Francisco, London...",
   },
   {
-    id: 3,
+    id: 4,
     type: "text",
     text: "What is your professional designation?",
     subtext: "We will tailor the tools to your specific role.",
@@ -30,7 +40,7 @@ const questions = [
     placeholder: "e.g. System Architect, Product Manager...",
   },
   {
-    id: 4,
+    id: 5,
     type: "select",
     text: "What is your primary objective with Structra?",
     field: null,
@@ -42,7 +52,7 @@ const questions = [
     ],
   },
   {
-    id: 5,
+    id: 6,
     type: "select",
     text: "How did you discover us?",
     field: null,
@@ -57,40 +67,89 @@ const questions = [
   },
 ];
 
+const normalizeUsername = (value) => value.replace(/^@+/, "").replace(/\s+/g, "");
+
 const OnboardingQuestionnaire = () => {
   const [step, setStep] = useState(0);
   const [answers, setAnswers] = useState({
+    username: "",
     org_name: "",
     org_loc: "",
     user_role: "",
   });
   const [inputValue, setInputValue] = useState("");
   const [loading, setLoading] = useState(false);
+  const [loadingProfile, setLoadingProfile] = useState(true);
+  const [error, setError] = useState("");
   const navigate = useNavigate();
 
   const currentQ = questions[step];
   const progress = ((step + 1) / questions.length) * 100;
 
+  useEffect(() => {
+    const loadProfile = async () => {
+      try {
+        const res = await api.get("auth/profile/");
+        const profile = res.data || {};
+        setAnswers((prev) => ({
+          ...prev,
+          username: profile.username || prev.username,
+          org_name: profile.org_name || prev.org_name,
+          org_loc: profile.org_loc || prev.org_loc,
+          user_role: profile.user_role || prev.user_role,
+        }));
+      } catch (profileError) {
+        console.error("Failed to fetch profile for onboarding", profileError);
+      } finally {
+        setLoadingProfile(false);
+      }
+    };
+
+    loadProfile();
+  }, []);
+
+  useEffect(() => {
+    if (currentQ.type !== "text" || !currentQ.field) {
+      setInputValue("");
+      return;
+    }
+    setInputValue(answers[currentQ.field] || "");
+  }, [step, currentQ.type, currentQ.field, answers]);
+
   const handleNext = async (answerOverride = null) => {
-    const finalAnswer = answerOverride !== null ? answerOverride : inputValue;
+    const rawAnswer = answerOverride !== null ? answerOverride : inputValue;
+    const finalAnswer = typeof rawAnswer === "string" ? rawAnswer.trim() : rawAnswer;
     if (!finalAnswer && !finalAnswer?.trim()) return;
 
+    setError("");
+
+    let processedAnswer = finalAnswer;
+    if (currentQ.field === "username") {
+      processedAnswer = normalizeUsername(finalAnswer);
+      if (!processedAnswer) {
+        setError("Username is required.");
+        return;
+      }
+      if (!USERNAME_REGEX.test(processedAnswer)) {
+        setError("Username can only include letters, numbers, '-' and '_'.");
+        return;
+      }
+    }
+
     if (currentQ.field) {
-      setAnswers((prev) => ({ ...prev, [currentQ.field]: finalAnswer }));
+      setAnswers((prev) => ({ ...prev, [currentQ.field]: processedAnswer }));
     }
 
     if (step < questions.length - 1) {
       if (currentQ.type === "select") {
         setTimeout(() => {
           setStep(step + 1);
-          setInputValue("");
         }, 150);
       } else {
         setStep(step + 1);
-        setInputValue("");
       }
     } else {
-      await handleSubmit(finalAnswer);
+      await handleSubmit(processedAnswer);
     }
   };
 
@@ -103,17 +162,24 @@ const OnboardingQuestionnaire = () => {
       }
       await api.patch("auth/profile/", payload);
       navigate("/app");
-    } catch (error) {
-      console.error("Onboarding failed", error);
-      navigate("/app");
+    } catch (submitError) {
+      console.error("Onboarding failed", submitError);
+      setError(submitError.response?.data?.username?.[0] || "Failed to save onboarding data.");
     } finally {
       setLoading(false);
     }
   };
 
+  if (loadingProfile) {
+    return (
+      <div className="fixed inset-0 bg-[#0a0a0a] text-white flex items-center justify-center">
+        <p className="text-sm font-semibold text-neutral-400">Loading your onboarding...</p>
+      </div>
+    );
+  }
+
   return (
     <div className="fixed inset-0 bg-[#0a0a0a] text-white flex flex-col font-sans overflow-hidden">
-      {/* PROGRESS BAR */}
       <div className="w-full h-1 bg-neutral-900 fixed top-0 left-0 z-50">
         <div
           className="h-full bg-blue-500 transition-all duration-500 ease-out"
@@ -121,19 +187,17 @@ const OnboardingQuestionnaire = () => {
         />
       </div>
 
-      {/* TOP LEFT BRANDING */}
       <div className="fixed top-4 left-4 md:top-6 md:left-6 z-40 flex items-center gap-2 group">
-        <img 
-          src={logo} 
-          alt="Structra Logo" 
-          className="h-6 md:h-7 w-auto object-contain" 
+        <img
+          src={logo}
+          alt="Structra Logo"
+          className="h-6 md:h-7 w-auto object-contain"
         />
         <span className="text-sm md:text-base font-extrabold tracking-tighter text-white md:inline">
           structra<span className="text-blue-500">.cloud</span>
         </span>
       </div>
 
-      {/* TOP RIGHT PROGRESS COUNTER */}
       <div className="fixed top-4 right-4 md:top-6 md:right-6 z-40">
         <div className="px-3 py-1.5 md:px-4 md:py-2 bg-neutral-900/80 backdrop-blur-sm border border-neutral-800 rounded-lg">
           <span className="text-xs md:text-sm font-semibold text-neutral-400">
@@ -142,10 +206,8 @@ const OnboardingQuestionnaire = () => {
         </div>
       </div>
 
-      {/* MAIN SCROLLABLE CONTENT */}
       <div className="flex-1 overflow-y-auto overflow-x-hidden">
         <div className="min-h-full flex flex-col items-center justify-center p-6 md:p-12 pt-20 md:pt-24 pb-20 max-w-5xl mx-auto w-full">
-          {/* QUESTION HEADER */}
           <div className="w-full text-center space-y-4 mb-8 md:mb-12 animate-in fade-in slide-in-from-bottom-4 duration-500">
             <h2 className="text-2xl md:text-4xl lg:text-5xl font-bold tracking-tight leading-tight text-white px-4">
               {currentQ.text}
@@ -157,20 +219,39 @@ const OnboardingQuestionnaire = () => {
             )}
           </div>
 
-          {/* DYNAMIC CONTENT BODY */}
           <div className="w-full max-w-3xl px-4">
             {currentQ.type === "text" ? (
-              // TEXT INPUT MODE
               <div className="space-y-8 md:space-y-12">
-                <input
-                  type="text"
-                  value={inputValue}
-                  onChange={(e) => setInputValue(e.target.value)}
-                  className="w-full bg-transparent border-b-2 border-neutral-700 text-2xl md:text-3xl lg:text-4xl font-semibold py-3 md:py-4 text-center text-white placeholder:text-neutral-600 focus:border-blue-500 outline-none transition-all"
-                  placeholder={currentQ.placeholder}
-                  autoFocus
-                  onKeyDown={(e) => e.key === "Enter" && handleNext()}
-                />
+                {currentQ.field === "username" ? (
+                  <div className="relative">
+                    <span className="pointer-events-none absolute left-1/2 -translate-x-[calc(100%+0.4rem)] top-1/2 -translate-y-1/2 text-2xl md:text-3xl lg:text-4xl font-semibold text-neutral-500">
+                      @
+                    </span>
+                    <input
+                      type="text"
+                      value={inputValue}
+                      onChange={(e) => setInputValue(normalizeUsername(e.target.value))}
+                      className="w-full bg-transparent border-b-2 border-neutral-700 text-2xl md:text-3xl lg:text-4xl font-semibold py-3 md:py-4 text-center text-white placeholder:text-neutral-600 focus:border-blue-500 outline-none transition-all"
+                      placeholder={currentQ.placeholder}
+                      autoFocus
+                      onKeyDown={(e) => e.key === "Enter" && handleNext()}
+                    />
+                  </div>
+                ) : (
+                  <input
+                    type="text"
+                    value={inputValue}
+                    onChange={(e) => setInputValue(e.target.value)}
+                    className="w-full bg-transparent border-b-2 border-neutral-700 text-2xl md:text-3xl lg:text-4xl font-semibold py-3 md:py-4 text-center text-white placeholder:text-neutral-600 focus:border-blue-500 outline-none transition-all"
+                    placeholder={currentQ.placeholder}
+                    autoFocus
+                    onKeyDown={(e) => e.key === "Enter" && handleNext()}
+                  />
+                )}
+
+                {error && (
+                  <p className="text-center text-sm font-semibold text-rose-400">{error}</p>
+                )}
 
                 <div className="flex justify-center">
                   <button
@@ -189,7 +270,6 @@ const OnboardingQuestionnaire = () => {
                 </div>
               </div>
             ) : (
-              // SELECTION MODE
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
                 {currentQ.options.map((option, idx) => (
                   <button
@@ -203,7 +283,6 @@ const OnboardingQuestionnaire = () => {
                         {option}
                       </span>
 
-                      {/* Check Circle */}
                       <div className="w-7 h-7 md:w-8 md:h-8 rounded-full border-2 border-neutral-700 group-hover:border-blue-500 group-hover:bg-blue-500 flex items-center justify-center transition-colors flex-shrink-0">
                         <Check
                           size={16}
@@ -217,7 +296,6 @@ const OnboardingQuestionnaire = () => {
             )}
           </div>
 
-          {/* SPACER FOR MOBILE */}
           <div className="h-8 md:h-0" />
         </div>
       </div>

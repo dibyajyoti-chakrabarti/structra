@@ -41,6 +41,7 @@ const resolveCacheTtlMs = (url = '') => {
   const normalized = normalizeUrlPath(url);
 
   if (normalized === 'auth/profile/') return 120000;
+  if (normalized === 'users/search/') return 10000;
   if (normalized === 'workspaces/') return 60000;
   if (normalized === 'workspaces/starred/') return 30000;
   if (normalized === 'workspaces/public/search/') return 15000;
@@ -49,7 +50,9 @@ const resolveCacheTtlMs = (url = '') => {
   if (/^systems\/[^/]+\/comments\/[^/]+\/$/.test(normalized)) return 10000;
   if (/^systems\/[^/]+\/canvas\/$/.test(normalized)) return 8000;
   if (/^workspaces\/[^/]+\/$/.test(normalized)) return 45000;
+  if (/^users\/[^/]+\/profile\/$/.test(normalized)) return 45000;
   if (url === 'auth/profile/') return 120000;
+  if (url === 'users/search/') return 10000;
   if (url === 'workspaces/') return 60000;
   if (url.includes('/members/') || url.includes('/invitations/')) return 30000;
   if (url.includes('/canvases/') || url.includes('/system-permissions/')) return 30000;

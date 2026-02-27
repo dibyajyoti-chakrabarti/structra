@@ -4,6 +4,7 @@ import { useGoogleLogin } from "@react-oauth/google";
 import {
   ArrowLeft,
   User,
+  AtSign,
   Mail,
   Lock,
   Github,
@@ -21,6 +22,7 @@ export default function Signup() {
 
   const [formData, setFormData] = useState({
     full_name: "",
+    username: "",
     email: inviteEmail,
     password: "",
   });
@@ -92,12 +94,29 @@ export default function Signup() {
   };
 
   const handleChange = (e) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
+    const { name, value } = e.target;
+    if (name === "username") {
+      const normalized = value.replace(/^@+/, "").replace(/\s+/g, "");
+      setFormData({ ...formData, username: normalized });
+      return;
+    }
+    setFormData({ ...formData, [name]: value });
   };
+
+  const isValidUsername = (username) => /^[A-Za-z0-9_-]+$/.test(username);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
+
+    if (!formData.username.trim()) {
+      setError("Username is required.");
+      return;
+    }
+    if (!isValidUsername(formData.username.trim())) {
+      setError("Username can only include letters, numbers, '-' and '_'.");
+      return;
+    }
 
     if (formData.password !== confirmPassword) {
       setError("Passwords do not match.");
@@ -116,7 +135,13 @@ export default function Signup() {
       }
     } catch (err) {
       console.error(err);
-      setError(err.response?.data?.detail || "Registration failed. Try again.");
+      const payload = err.response?.data || {};
+      setError(
+        payload.username?.[0] ||
+          payload.email?.[0] ||
+          payload.detail ||
+          "Registration failed. Try again."
+      );
     } finally {
       setLoading(false);
     }
@@ -133,6 +158,14 @@ export default function Signup() {
     }
     if (!formData.email.trim()) {
       setError("Email is required for OTP signup.");
+      return;
+    }
+    if (!formData.username.trim()) {
+      setError("Username is required for OTP signup.");
+      return;
+    }
+    if (!isValidUsername(formData.username.trim())) {
+      setError("Username can only include letters, numbers, '-' and '_'.");
       return;
     }
 
@@ -169,6 +202,7 @@ export default function Signup() {
         otp: otpCode,
         purpose: "signup",
         full_name: formData.full_name,
+        username: formData.username,
       });
 
       localStorage.setItem("access", response.data.access);
@@ -302,6 +336,27 @@ export default function Signup() {
                       placeholder="Full name"
                       required
                       className="w-full rounded-xl border border-slate-200 bg-white py-3 pl-10 pr-4 text-sm text-slate-800 placeholder:text-slate-400 focus:border-blue-400 focus:outline-none"
+                    />
+                  </div>
+
+                  <div className="relative">
+                    <AtSign
+                      className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
+                      size={16}
+                    />
+                    <span className="pointer-events-none absolute left-10 top-1/2 -translate-y-1/2 text-sm font-semibold text-slate-500">
+                      @
+                    </span>
+                    <input
+                      name="username"
+                      value={formData.username}
+                      onChange={handleChange}
+                      type="text"
+                      placeholder="username"
+                      required
+                      pattern="[A-Za-z0-9_-]+"
+                      title="Only letters, numbers, '-' and '_' are allowed."
+                      className="w-full rounded-xl border border-slate-200 bg-white py-3 pl-14 pr-4 text-sm text-slate-800 placeholder:text-slate-400 focus:border-blue-400 focus:outline-none"
                     />
                   </div>
 
