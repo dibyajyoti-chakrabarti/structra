@@ -568,7 +568,7 @@ export default function AuthenticatedNavbar() {
 
           {/* Desktop Right */}
           <div className="nav-right">
-            <button className="nav-link-btn" onClick={() => navigate('/docs')}>Docs</button>
+            <button className="nav-link-btn" onClick={() => window.open('https://docs.structra.cloud', '_blank', 'noopener,noreferrer')}>Docs</button>
             <button className="nav-upgrade-btn" onClick={() => navigate('/pricing')}>
               <Zap size={13} style={{ fill: 'currentColor' }} />
               Upgrade
@@ -644,7 +644,7 @@ export default function AuthenticatedNavbar() {
                 {theme === 'dark' ? <Sun size={16} /> : <Moon size={16} />} Theme
               </button>
               <div className="nav-mobile-sep" />
-              <button className="nav-mobile-item" onClick={() => navigate('/docs')}>
+              <button className="nav-mobile-item" onClick={() => window.open('https://docs.structra.cloud', '_blank', 'noopener,noreferrer')}>
                 <span>📄</span> Docs
               </button>
               <button className="nav-mobile-item" onClick={() => navigate('/pricing')}>
