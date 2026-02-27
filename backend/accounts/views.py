@@ -1,5 +1,9 @@
 from rest_framework import generics, permissions
-from .serializers import UserRegistrationSerializer
+from .serializers import (
+    IdentifierTokenObtainPairSerializer,
+    UserRegistrationSerializer,
+)
+from django.contrib.postgres.search import TrigramSimilarity
 from django.contrib.auth import get_user_model
 from rest_framework.permissions import AllowAny
 from .serializers import UserSerializer
@@ -13,15 +17,146 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 from rest_framework_simplejwt.tokens import RefreshToken
+from rest_framework_simplejwt.views import TokenViewBase
 from django.conf import settings
+from django.core.exceptions import ValidationError as DjangoValidationError
 from django.utils import timezone
+from django.db.models import Count, Value
+from django.db.models.functions import Coalesce
 from .email_utils import send_otp_email
+from .username_utils import (
+    generate_unique_username,
+    normalize_username_input,
+    username_validator,
+)
+from workspaces.models import Workspace
+from core.constants import WorkspaceVisibility
 
 User = get_user_model()
 
 OTP_TTL_MINUTES = 10
 OTP_RESEND_COOLDOWN_SECONDS = 60
 OTP_MAX_ATTEMPTS = 5
+
+
+class IdentifierTokenObtainPairView(TokenViewBase):
+    permission_classes = [AllowAny]
+    serializer_class = IdentifierTokenObtainPairSerializer
+
+
+class UserTrigramSearchView(generics.ListAPIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def list(self, request, *args, **kwargs):
+        query = (request.query_params.get('q') or '').strip()
+        normalized_query = normalize_username_input(query)
+        if not normalized_query:
+            return Response([], status=status.HTTP_200_OK)
+
+        users = (
+            User.objects.filter(is_active=True)
+            .exclude(user_id=request.user.user_id)
+            .annotate(
+                similarity=(
+                    TrigramSimilarity('username', normalized_query)
+                    + TrigramSimilarity(Coalesce('full_name', Value('')), query)
+                )
+            )
+            .filter(similarity__gt=0.1)
+            .order_by('-similarity')[:15]
+        )
+
+        payload = [
+            {
+                'id': str(user.user_id),
+                'username': user.username,
+                'full_name': user.full_name,
+                'avatar': None,
+            }
+            for user in users
+        ]
+        return Response(payload, status=status.HTTP_200_OK)
+
+
+class UsernameAvailabilityView(APIView):
+    permission_classes = [AllowAny]
+
+    def get(self, request):
+        username = normalize_username_input(request.query_params.get('username'))
+        if not username:
+            return Response(
+                {'error': 'Username is required.', 'available': False},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            username_validator(username)
+        except DjangoValidationError as exc:
+            return Response(
+                {'error': exc.messages[0], 'available': False},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        queryset = User.objects.filter(username__iexact=username)
+        if request.user and request.user.is_authenticated:
+            queryset = queryset.exclude(user_id=request.user.user_id)
+
+        return Response(
+            {
+                'username': username,
+                'available': not queryset.exists(),
+            },
+            status=status.HTTP_200_OK,
+        )
+
+
+class PublicUserProfileView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request, username):
+        normalized_username = normalize_username_input(username)
+        profile_user = User.objects.filter(
+            username__iexact=normalized_username,
+            is_active=True,
+        ).first()
+        if not profile_user:
+            return Response({'error': 'User not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+        public_workspaces = (
+            Workspace.objects.filter(owner=profile_user, visibility=WorkspaceVisibility.PUBLIC)
+            .annotate(member_count=Count('members', distinct=True))
+            .order_by('-updated_at')
+        )
+
+        workspace_payload = [
+            {
+                'id': workspace.id,
+                'name': workspace.name,
+                'description': workspace.description,
+                'visibility': workspace.visibility,
+                'member_count': workspace.member_count,
+                'updated_at': workspace.updated_at,
+            }
+            for workspace in public_workspaces
+        ]
+
+        return Response(
+            {
+                'id': str(profile_user.user_id),
+                'username': profile_user.username,
+                'full_name': profile_user.full_name,
+                'avatar': None,
+                'org_name': profile_user.org_name,
+                'org_loc': profile_user.org_loc,
+                'joined_at': profile_user.created_at,
+                'workspace_count': len(workspace_payload),
+                'public_workspaces': workspace_payload,
+                'followers_count': 0,
+                'following_count': 0,
+            },
+            status=status.HTTP_200_OK,
+        )
+
 
 class RegisterView(generics.CreateAPIView):
     queryset = User.objects.all()
@@ -67,6 +202,7 @@ class GoogleLoginView(APIView):
             email=email, 
             defaults={
                 'full_name': name,
+                'username': generate_unique_username(email),
                 'is_new': True # Default for new users
             }
         )
@@ -79,6 +215,7 @@ class GoogleLoginView(APIView):
             'access': str(refresh.access_token),
             'user': {
                 'email': user.email,
+                'username': user.username,
                 'full_name': user.full_name,
                 'is_new': user.is_new
             }
@@ -139,6 +276,7 @@ class GitHubLoginView(APIView):
             email=email,
             defaults={
                 'full_name': name,
+                'username': generate_unique_username(email),
                 'is_new': True
             }
         )
@@ -151,6 +289,7 @@ class GitHubLoginView(APIView):
             'access': str(refresh.access_token),
             'user': {
                 'email': user.email,
+                'username': user.username,
                 'full_name': user.full_name,
                 'is_new': user.is_new
             }
@@ -159,6 +298,24 @@ class GitHubLoginView(APIView):
 
 def _normalize_email(email):
     return (email or '').strip().lower()
+
+
+def _normalize_identifier(identifier):
+    return (identifier or '').strip()
+
+
+def _find_user_by_identifier(identifier):
+    credential = _normalize_identifier(identifier)
+    if not credential:
+        return None
+
+    if '@' in credential:
+        return User.objects.filter(email__iexact=credential.lower()).first()
+
+    normalized_username = normalize_username_input(credential)
+    if not normalized_username:
+        return None
+    return User.objects.filter(username__iexact=normalized_username).first()
 
 
 def _hash_otp(otp):
@@ -177,6 +334,7 @@ def _issue_tokens_for_user(user):
         'access': str(refresh.access_token),
         'user': {
             'email': user.email,
+            'username': user.username,
             'full_name': user.full_name,
             'is_new': user.is_new,
         }
@@ -188,18 +346,22 @@ class EmailOTPRequestView(APIView):
 
     def post(self, request):
         email = _normalize_email(request.data.get('email'))
+        identifier = _normalize_identifier(request.data.get('identifier'))
         purpose = (request.data.get('purpose') or '').strip().lower()
 
-        if not email:
-            return Response({'error': 'Email is required'}, status=status.HTTP_400_BAD_REQUEST)
         if purpose not in {EmailOTP.PURPOSE_LOGIN, EmailOTP.PURPOSE_SIGNUP}:
             return Response({'error': 'Invalid purpose'}, status=status.HTTP_400_BAD_REQUEST)
 
-        user_exists = User.objects.filter(email=email).exists()
-        if purpose == EmailOTP.PURPOSE_LOGIN and not user_exists:
-            return Response({'error': 'No account found with this email'}, status=status.HTTP_404_NOT_FOUND)
-        if purpose == EmailOTP.PURPOSE_SIGNUP and user_exists:
-            return Response({'error': 'Account already exists. Please login instead.'}, status=status.HTTP_400_BAD_REQUEST)
+        if purpose == EmailOTP.PURPOSE_LOGIN:
+            user = _find_user_by_identifier(identifier or email)
+            if not user:
+                return Response({'error': 'No account found with this identifier'}, status=status.HTTP_404_NOT_FOUND)
+            email = user.email
+        else:
+            if not email:
+                return Response({'error': 'Email is required'}, status=status.HTTP_400_BAD_REQUEST)
+            if User.objects.filter(email=email).exists():
+                return Response({'error': 'Account already exists. Please login instead.'}, status=status.HTTP_400_BAD_REQUEST)
 
         now = timezone.now()
         latest_active = EmailOTP.objects.filter(
@@ -255,14 +417,26 @@ class EmailOTPVerifyView(APIView):
 
     def post(self, request):
         email = _normalize_email(request.data.get('email'))
+        identifier = _normalize_identifier(request.data.get('identifier'))
         otp = (request.data.get('otp') or '').strip()
         purpose = (request.data.get('purpose') or '').strip().lower()
         full_name = (request.data.get('full_name') or '').strip()
+        username = normalize_username_input(request.data.get('username'))
 
-        if not email or not otp:
-            return Response({'error': 'Email and OTP are required'}, status=status.HTTP_400_BAD_REQUEST)
         if purpose not in {EmailOTP.PURPOSE_LOGIN, EmailOTP.PURPOSE_SIGNUP}:
             return Response({'error': 'Invalid purpose'}, status=status.HTTP_400_BAD_REQUEST)
+
+        if purpose == EmailOTP.PURPOSE_LOGIN:
+            login_identifier = identifier or email
+            if not login_identifier or not otp:
+                return Response({'error': 'Identifier and OTP are required'}, status=status.HTTP_400_BAD_REQUEST)
+            user = _find_user_by_identifier(login_identifier)
+            if not user:
+                return Response({'error': 'No account found with this identifier'}, status=status.HTTP_404_NOT_FOUND)
+            email = user.email
+        else:
+            if not email or not otp:
+                return Response({'error': 'Email and OTP are required'}, status=status.HTTP_400_BAD_REQUEST)
 
         now = timezone.now()
         otp_record = EmailOTP.objects.filter(
@@ -293,18 +467,29 @@ class EmailOTPVerifyView(APIView):
         otp_record.save(update_fields=['is_used'])
 
         if purpose == EmailOTP.PURPOSE_LOGIN:
-            user = User.objects.filter(email=email).first()
             if not user:
-                return Response({'error': 'No account found with this email'}, status=status.HTTP_404_NOT_FOUND)
+                return Response({'error': 'No account found with this identifier'}, status=status.HTTP_404_NOT_FOUND)
         else:
             if not full_name:
                 return Response({'error': 'Full name is required for signup verification'}, status=status.HTTP_400_BAD_REQUEST)
+            if not username:
+                return Response({'error': 'Username is required for signup verification'}, status=status.HTTP_400_BAD_REQUEST)
+            try:
+                username_validator(username)
+            except DjangoValidationError as exc:
+                return Response({'error': exc.messages[0]}, status=status.HTTP_400_BAD_REQUEST)
             if User.objects.filter(email=email).exists():
                 return Response({'error': 'Account already exists. Please login instead.'}, status=status.HTTP_400_BAD_REQUEST)
-            user = User.objects.create_user(
-                email=email,
-                password=None,
-                full_name=full_name
-            )
+            if User.objects.filter(username__iexact=username).exists():
+                return Response({'error': 'Username is already taken.'}, status=status.HTTP_400_BAD_REQUEST)
+            try:
+                user = User.objects.create_user(
+                    email=email,
+                    username=username,
+                    password=None,
+                    full_name=full_name
+                )
+            except ValueError as exc:
+                return Response({'error': str(exc)}, status=status.HTTP_400_BAD_REQUEST)
 
         return Response(_issue_tokens_for_user(user), status=status.HTTP_200_OK)

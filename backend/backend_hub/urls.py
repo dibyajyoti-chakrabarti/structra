@@ -6,6 +6,7 @@ urlpatterns = [
     path('admin/', admin.site.urls),
     path('api/health/', health_check),
     path('api/auth/', include('accounts.urls')),
+    path('api/users/', include('accounts.user_urls')),
     path('api/workspaces/', include('workspaces.urls')),
     path('api/', include('permissions.urls')),
     path('api/', include('notifications.urls')),
