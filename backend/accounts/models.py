@@ -1,26 +1,43 @@
 from django.db import models
 from django.contrib.auth.models import AbstractBaseUser, BaseUserManager, PermissionsMixin
+from django.contrib.postgres.indexes import GinIndex
 import uuid
 from django.utils import timezone
+from .username_utils import (
+    generate_unique_username,
+    normalize_username_input,
+    username_validator,
+)
 
 class UserManager(BaseUserManager):
-    def create_user(self, email, password=None, **extra_fields):
+    def create_user(self, email, username=None, password=None, **extra_fields):
         if not email:
             raise ValueError('Email is required')
         email = self.normalize_email(email)
-        user = self.model(email=email, **extra_fields)
+
+        username = normalize_username_input(username or extra_fields.pop('username', None))
+        if not username:
+            username = generate_unique_username(email.split('@', 1)[0])
+
+        username_validator(username)
+
+        if self.model.objects.filter(username__iexact=username).exists():
+            raise ValueError('Username is already taken')
+
+        user = self.model(email=email, username=username, **extra_fields)
         user.set_password(password)
         user.save(using=self._db)
         return user
 
-    def create_superuser(self, email, password=None, **extra_fields):
+    def create_superuser(self, email, username=None, password=None, **extra_fields):
         extra_fields.setdefault('is_staff', True)
         extra_fields.setdefault('is_superuser', True)
-        return self.create_user(email, password, **extra_fields)
+        return self.create_user(email, username, password, **extra_fields)
 
 class User(AbstractBaseUser, PermissionsMixin):
     user_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     email = models.EmailField(unique=True)
+    username = models.CharField(max_length=50, unique=True, validators=[username_validator])
     full_name = models.CharField(max_length=255)
     created_at = models.DateTimeField(auto_now_add=True)
     is_active = models.BooleanField(default=True)
@@ -39,6 +56,20 @@ class User(AbstractBaseUser, PermissionsMixin):
 
     def __str__(self):
         return self.email
+
+    class Meta:
+        indexes = [
+            GinIndex(
+                fields=['username'],
+                name='acct_usr_un_trgm_gin_idx',
+                opclasses=['gin_trgm_ops'],
+            ),
+            GinIndex(
+                fields=['full_name'],
+                name='acct_usr_fn_trgm_gin_idx',
+                opclasses=['gin_trgm_ops'],
+            ),
+        ]
 
 
 class EmailOTP(models.Model):
