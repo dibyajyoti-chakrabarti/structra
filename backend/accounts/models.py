@@ -61,12 +61,12 @@ class User(AbstractBaseUser, PermissionsMixin):
         indexes = [
             GinIndex(
                 fields=['username'],
-                name='accounts_user_username_trgm_gin_idx',
+                name='acct_usr_un_trgm_gin_idx',
                 opclasses=['gin_trgm_ops'],
             ),
             GinIndex(
                 fields=['full_name'],
-                name='accounts_user_full_name_trgm_gin_idx',
+                name='acct_usr_fn_trgm_gin_idx',
                 opclasses=['gin_trgm_ops'],
             ),
         ]
