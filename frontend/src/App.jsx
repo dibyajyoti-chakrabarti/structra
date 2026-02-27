@@ -14,6 +14,7 @@ import WorkspaceInstance, {
 } from "./pages/workspace/WorkspaceInstance";
 import CreateSystem from "./pages/workspace/CreateSystem";
 import Profile from "./pages/account/Profile";
+import PublicUserProfile from "./pages/account/PublicUserProfile";
 import Notification from "./pages/account/Notification";
 import CreateWorkspace from "./pages/workspace/CreateWorkspace";
 import WorkspaceSettings from "./pages/workspace/settings/WorkspaceSettings";
@@ -163,6 +164,7 @@ function App() {
           <Route path="/app" element={<WorkspaceHome />} />
           <Route path="/app/discover" element={<DiscoverWorkspaces />} />
           <Route path="/app/profile" element={<Profile />} />
+          <Route path="/app/users/:username" element={<PublicUserProfile />} />
           <Route path="/app/notifications" element={<Notification />} />
           <Route path="/app/create-workspace" element={<CreateWorkspace />} />
           <Route path="/app/home" element={<WorkspaceHome />} />

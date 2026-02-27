@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { Mail, Trash2, Send, X, CheckCircle, AlertCircle } from 'lucide-react';
-import { useOutletContext, useParams } from 'react-router-dom';
+import { Mail, Trash2, Send, X, CheckCircle, AlertCircle, Search, User } from 'lucide-react';
+import { useNavigate, useOutletContext, useParams } from 'react-router-dom';
 import api from '../../../api';
 import LoadingState from '../../../components/LoadingState';
 
@@ -54,6 +54,28 @@ const styles = `
   }
   .ts-invite-btn:hover { background: color-mix(in srgb, var(--text), #000 12%); }
   .ts-invite-btn:disabled { background: var(--border); color: var(--text-subtle); cursor: not-allowed; }
+
+  .ts-user-search-body { padding: 14px 18px 16px; }
+  .ts-user-search-input-wrap { position: relative; }
+  .ts-user-search-icon { position: absolute; left: 11px; top: 50%; transform: translateY(-50%); color: var(--text-subtle); pointer-events: none; }
+  .ts-user-search-input {
+    width: 100%; height: 38px; padding: 0 12px 0 34px;
+    border: 1.5px solid var(--border); border-radius: 8px;
+    font-size: 13px; font-family: inherit; color: var(--text); background: var(--surface-2); outline: none;
+    transition: border-color 0.15s, box-shadow 0.15s, background 0.15s;
+  }
+  .ts-user-search-input:focus { border-color: var(--accent); background: var(--surface); box-shadow: 0 0 0 3px rgba(37,99,235,0.08); }
+  .ts-user-search-input::placeholder { color: var(--text-subtle); }
+  .ts-user-search-status { margin-top: 8px; font-size: 12px; color: var(--text-subtle); }
+  .ts-user-search-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 8px; margin-top: 10px; }
+  .ts-user-search-item {
+    border: 1.5px solid var(--border); background: var(--surface-2); border-radius: 8px;
+    padding: 10px; cursor: pointer; text-align: left; font-family: inherit;
+    transition: border-color 0.12s, background 0.12s;
+  }
+  .ts-user-search-item:hover { border-color: var(--accent-2); background: var(--surface); }
+  .ts-user-search-name { font-size: 13px; font-weight: 650; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .ts-user-search-username { margin-top: 2px; font-size: 11.5px; font-weight: 600; color: var(--accent); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
   /* Sections */
   .ts-section-head {
@@ -113,6 +135,7 @@ const styles = `
 const TeamSettings = () => {
   const { workspaceId } = useParams();
   const { isAdmin } = useOutletContext();
+  const navigate = useNavigate();
 
   const [members, setMembers] = useState([]);
   const [pendingInvitations, setPendingInvitations] = useState([]);
@@ -121,6 +144,11 @@ const TeamSettings = () => {
   const [sendingInvite, setSendingInvite] = useState(false);
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
+  const [userSearchInput, setUserSearchInput] = useState('');
+  const [debouncedUserSearchInput, setDebouncedUserSearchInput] = useState('');
+  const [userSearchLoading, setUserSearchLoading] = useState(false);
+  const [userSearchError, setUserSearchError] = useState('');
+  const [userSearchResults, setUserSearchResults] = useState([]);
 
   const showAdminOnly = () => setError('Action allowed only for admin.');
 
@@ -143,6 +171,46 @@ const TeamSettings = () => {
   }, [fetchMembers, fetchPending]);
 
   useEffect(() => { refresh(); }, [refresh]);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedUserSearchInput(userSearchInput.trim());
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [userSearchInput]);
+
+  useEffect(() => {
+    const query = debouncedUserSearchInput.replace(/^@+/, '');
+    if (!query) {
+      setUserSearchResults([]);
+      setUserSearchError('');
+      setUserSearchLoading(false);
+      return;
+    }
+
+    let cancelled = false;
+    setUserSearchLoading(true);
+    setUserSearchError('');
+    api
+      .get('users/search/', { params: { q: query } })
+      .then((response) => {
+        if (cancelled) return;
+        setUserSearchResults(response.data || []);
+      })
+      .catch((e) => {
+        if (cancelled) return;
+        setUserSearchResults([]);
+        setUserSearchError(e.response?.data?.error || 'Failed to search users.');
+      })
+      .finally(() => {
+        if (cancelled) return;
+        setUserSearchLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [debouncedUserSearchInput]);
 
   const handleInvite = async (e) => {
     e.preventDefault();
@@ -220,6 +288,54 @@ const TeamSettings = () => {
               {sendingInvite ? 'Sending…' : 'Send Invite'}
             </button>
           </form>
+        </div>
+      </div>
+
+      <div className="ts-card">
+        <div className="ts-section-head">
+          <span className="ts-section-label">Find User</span>
+          <span className="ts-count">{userSearchResults.length}</span>
+        </div>
+        <div className="ts-user-search-body">
+          <div className="ts-user-search-input-wrap">
+            <Search size={14} className="ts-user-search-icon" />
+            <input
+              type="text"
+              className="ts-user-search-input"
+              value={userSearchInput}
+              onChange={(e) => setUserSearchInput(e.target.value)}
+              placeholder="Search users by @username or name..."
+            />
+          </div>
+
+          {!debouncedUserSearchInput ? (
+            <div className="ts-user-search-status">Type to search users.</div>
+          ) : userSearchLoading ? (
+            <div className="ts-user-search-status">Searching...</div>
+          ) : userSearchError ? (
+            <div className="ts-user-search-status" style={{ color: 'var(--danger)' }}>{userSearchError}</div>
+          ) : userSearchResults.length === 0 ? (
+            <div className="ts-user-search-status">No users found.</div>
+          ) : (
+            <div className="ts-user-search-grid">
+              {userSearchResults.map((result) => (
+                <button
+                  key={result.id}
+                  type="button"
+                  className="ts-user-search-item"
+                  onClick={() => navigate(`/app/users/${encodeURIComponent(result.username)}`)}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <User size={14} style={{ color: 'var(--text-subtle)', flexShrink: 0 }} />
+                    <div style={{ minWidth: 0 }}>
+                      <div className="ts-user-search-name">{result.full_name || 'Unnamed user'}</div>
+                      <div className="ts-user-search-username">@{result.username}</div>
+                    </div>
+                  </div>
+                </button>
+              ))}
+            </div>
+          )}
         </div>
       </div>
 
