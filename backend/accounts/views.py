@@ -217,6 +217,9 @@ class GoogleLoginView(APIView):
                 'email': user.email,
                 'username': user.username,
                 'full_name': user.full_name,
+                'pricing': user.pricing,
+                'current_plan': user.current_plan,
+                'plan_expires_at': user.plan_expires_at,
                 'is_new': user.is_new
             }
         })
@@ -291,6 +294,9 @@ class GitHubLoginView(APIView):
                 'email': user.email,
                 'username': user.username,
                 'full_name': user.full_name,
+                'pricing': user.pricing,
+                'current_plan': user.current_plan,
+                'plan_expires_at': user.plan_expires_at,
                 'is_new': user.is_new
             }
         })
@@ -336,6 +342,9 @@ def _issue_tokens_for_user(user):
             'email': user.email,
             'username': user.username,
             'full_name': user.full_name,
+            'pricing': user.pricing,
+            'current_plan': user.current_plan,
+            'plan_expires_at': user.plan_expires_at,
             'is_new': user.is_new,
         }
     }

@@ -39,6 +39,7 @@ INSTALLED_APPS = [
     'permissions',
     'notifications',
     'audit',
+    'payments',
     'core',
 ]
 
@@ -140,3 +141,8 @@ DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL', 'sarthshah333@gmail.com')
 
 # Invitation links
 FRONTEND_INVITE_BASE_URL = os.getenv('FRONTEND_INVITE_BASE_URL', 'http://localhost:5173/invite')
+
+# Payments (Razorpay)
+RAZORPAY_KEY_ID = os.getenv('RAZORPAY_KEY_ID', '')
+RAZORPAY_KEY_SECRET = os.getenv('RAZORPAY_KEY_SECRET', '')
+RAZORPAY_WEBHOOK_SECRET = os.getenv('RAZORPAY_WEBHOOK_SECRET', '')

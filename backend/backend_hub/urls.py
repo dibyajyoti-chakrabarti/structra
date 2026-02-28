@@ -11,6 +11,7 @@ urlpatterns = [
     path('api/', include('permissions.urls')),
     path('api/', include('notifications.urls')),
     path('api/', include('audit.urls')),
+    path('api/payments/', include('payments.urls')),
     
     path('api/workspaces/<str:workspace_id>/canvases/', include('canvases.urls')),
     path('api/systems/', include('canvases.system_urls')),

@@ -3,9 +3,9 @@ from .models import User, EmailOTP
 
 @admin.register(User)
 class UserAdmin(admin.ModelAdmin):
-    list_display = ('email', 'username', 'full_name', 'is_active', 'is_staff', 'is_new', 'created_at')
+    list_display = ('email', 'username', 'full_name', 'pricing', 'is_active', 'is_staff', 'is_new', 'created_at')
     search_fields = ('email', 'username', 'full_name')
-    list_filter = ('is_active', 'is_staff', 'is_new')
+    list_filter = ('pricing', 'is_active', 'is_staff', 'is_new')
 
 
 @admin.register(EmailOTP)
