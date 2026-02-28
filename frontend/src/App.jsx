@@ -38,6 +38,7 @@ import Terms from "./pages/public/Terms";
 import OnboardingQuestionnaire from "./pages/onboarding/OnboardingQuestionnaire";
 import GitHubCallback from "./pages/auth/GitHubCallback";
 import LoadingState from "./components/LoadingState";
+import PlanExpirationBanner from "./components/PlanExpirationBanner";
 
 // 2. Create a helper component to handle the redirection
 const PublicRoute = ({ children }) => {
@@ -125,6 +126,7 @@ function App() {
   return (
     <BrowserRouter>
       <ThemeRouteSync />
+      <PlanExpirationBanner />
       <Routes>
         <Route path="/auth/github/callback" element={<GitHubCallback />} />
         

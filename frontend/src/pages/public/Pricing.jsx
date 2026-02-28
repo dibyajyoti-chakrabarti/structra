@@ -1,12 +1,19 @@
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { CheckCircle2, ArrowRight } from "lucide-react";
+import Confetti from "react-confetti";
 import Navbar from "../../components/Navbar";
 import Footer from "../../components/Footer";
+import useRazorpayCheckout from "../../hooks/useRazorpayCheckout";
+import { useAuth } from "../../contexts/AuthContext";
+import { formatDateLabel, getDaysRemaining } from "../../utils/dateUtils";
+
+const RENEWAL_WINDOW_DAYS = 3;
 
 const plans = [
   {
     name: "Core",
-    price: "$0",
+    price: "₹0",
     interval: "/month",
     subtitle: "For individuals and early exploration",
     cta: "Start Free",
@@ -20,8 +27,23 @@ const plans = [
     ],
   },
   {
+    name: "INDIVIDUAL",
+    price: "₹299",
+    interval: "/month",
+    subtitle: "For experienced individuals",
+    cta: "Start Individual Plan",
+    highlighted: false,
+    features: [
+      "Multiple Workspaces",
+      "Higher AI evaluation limits",
+      "Advanced architecture templates",
+      "Version history and recovery",
+      "Priority community support",
+    ],
+  },
+  {
     name: "Team",
-    price: "$49",
+    price: "₹239",
     interval: " /user/month",
     subtitle: "For collaborative architecture teams",
     cta: "Start Team Trial",
@@ -53,6 +75,65 @@ const plans = [
 
 export default function Pricing() {
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const { startCheckout, isLoading: isCheckoutLoading } = useRazorpayCheckout();
+  const [paymentStatus, setPaymentStatus] = useState("idle");
+  const [statusMessage, setStatusMessage] = useState("");
+  const isAuthenticated = Boolean(localStorage.getItem("access"));
+  const currentPlan = isAuthenticated
+    ? (user?.current_plan || "CORE").toUpperCase()
+    : "CORE";
+
+  const closePaymentModal = () => {
+    setPaymentStatus("idle");
+    setStatusMessage("");
+  };
+
+  const handlePlanCta = async (planName, options = {}) => {
+    const { forceRenew = false } = options;
+    const normalizedPlan = (planName || "CORE").toUpperCase();
+
+    if (planName === "Enterprise") {
+      window.location.href = "mailto:support@structra.cloud";
+      return;
+    }
+
+    if (normalizedPlan === currentPlan && !forceRenew) {
+      return;
+    }
+
+    if (forceRenew) {
+      if (!localStorage.getItem("access")) {
+        setPaymentStatus("failed");
+        setStatusMessage("Please log in first to continue with renewal.");
+        return;
+      }
+
+      setPaymentStatus("processing");
+      setStatusMessage("Opening secure checkout...");
+      const result = await startCheckout(normalizedPlan);
+      setPaymentStatus(result?.status || "failed");
+      setStatusMessage(result?.message || "Unable to complete checkout.");
+      return;
+    }
+
+    if (normalizedPlan === "INDIVIDUAL") {
+      if (!localStorage.getItem("access")) {
+        setPaymentStatus("failed");
+        setStatusMessage("Please log in first to continue with payment.");
+        return;
+      }
+
+      setPaymentStatus("processing");
+      setStatusMessage("Opening secure checkout...");
+      const result = await startCheckout("INDIVIDUAL");
+      setPaymentStatus(result?.status || "failed");
+      setStatusMessage(result?.message || "Unable to complete checkout.");
+      return;
+    }
+
+    navigate("/signup");
+  };
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900">
@@ -79,18 +160,56 @@ export default function Pricing() {
       </section>
 
       <section className="py-12 sm:py-16">
-        <div className="mx-auto grid w-full max-w-7xl gap-6 px-4 sm:px-6 lg:grid-cols-3 lg:px-8">
-          {plans.map((plan) => (
-            <article
-              key={plan.name}
-              className={`rounded-2xl border p-6 shadow-sm transition ${
-                plan.highlighted
-                  ? "border-blue-200 bg-white shadow-lg shadow-blue-100/80"
-                  : "border-slate-200 bg-white hover:border-blue-200 hover:shadow-md"
-              }`}
-            >
+        <div className="mx-auto grid w-full max-w-7xl gap-6 px-4 sm:px-6 lg:grid-cols-4 lg:px-8">
+          {plans.map((plan) => {
+            const isCurrentPlan =
+              plan.name.toUpperCase() === currentPlan;
+            const planDaysRemaining = isCurrentPlan
+              ? getDaysRemaining(user?.plan_expires_at)
+              : null;
+            const shouldShowRenewForCurrentPlan =
+              isCurrentPlan &&
+              currentPlan !== "CORE" &&
+              (planDaysRemaining == null || planDaysRemaining <= RENEWAL_WINDOW_DAYS);
+            const activeUntilLabel = formatDateLabel(user?.plan_expires_at);
+            const isIndividualProcessing =
+              plan.name === "INDIVIDUAL" &&
+              (isCheckoutLoading || paymentStatus === "processing");
+            const isPlanButtonDisabled = isCurrentPlan
+              ? currentPlan === "CORE" ||
+                !shouldShowRenewForCurrentPlan ||
+                isIndividualProcessing
+              : isIndividualProcessing;
+            const ctaLabel = isCurrentPlan
+              ? currentPlan === "CORE"
+                ? "Current Plan"
+                : shouldShowRenewForCurrentPlan
+                  ? (isIndividualProcessing ? "Processing..." : "Renew Plan")
+                  : activeUntilLabel
+                    ? `Active until ${activeUntilLabel}`
+                    : "Current Plan"
+              : isIndividualProcessing
+                ? "Processing..."
+                : plan.cta;
+
+            return (
+              <article
+                key={plan.name}
+                className={`relative rounded-2xl border p-6 shadow-sm transition ${
+                  isCurrentPlan
+                    ? "border-emerald-400 bg-white shadow-xl shadow-emerald-100 ring-2 ring-emerald-100"
+                    : plan.highlighted
+                      ? "border-blue-200 bg-white shadow-lg shadow-blue-100/80"
+                      : "border-slate-200 bg-white hover:border-blue-200 hover:shadow-md"
+                }`}
+              >
+              {isCurrentPlan && (
+                <span className="absolute left-1/2 top-0 -translate-x-1/2 -translate-y-1/2 rounded-full bg-emerald-600 px-3 py-1 text-[11px] font-black uppercase tracking-wider text-white shadow-sm">
+                  Current Plan
+                </span>
+              )}
               {plan.highlighted && (
-                <p className="mb-4 inline-flex rounded-full bg-blue-100 px-3 py-1 text-xs font-black uppercase tracking-wider text-blue-700">
+                <p className={`mb-4 inline-flex rounded-full bg-blue-100 px-3 py-1 text-xs font-black uppercase tracking-wider text-blue-700 ${isCurrentPlan ? "mt-8" : ""}`}>
                   Most Popular
                 </p>
               )}
@@ -123,21 +242,30 @@ export default function Pricing() {
 
               <button
                 onClick={() =>
-                  plan.name === "Enterprise"
-                    ? (window.location.href = "mailto:support@structra.cloud")
-                    : navigate("/signup")
+                  handlePlanCta(plan.name, {
+                    forceRenew: shouldShowRenewForCurrentPlan,
+                  })
                 }
+                disabled={isPlanButtonDisabled}
                 className={`mt-8 inline-flex w-full items-center justify-center gap-2 rounded-xl px-5 py-3 text-sm font-bold transition ${
-                  plan.highlighted
+                  isCurrentPlan
+                    ? shouldShowRenewForCurrentPlan
+                      ? "bg-blue-600 text-white hover:bg-blue-700"
+                      : "cursor-not-allowed border border-emerald-300 bg-emerald-50 text-emerald-700"
+                    : plan.highlighted
                     ? "bg-blue-600 text-white hover:bg-blue-700"
                     : "border border-blue-200 bg-white text-blue-700 hover:bg-blue-50"
-                }`}
+                } ${isIndividualProcessing ? "cursor-not-allowed opacity-70" : ""}`}
               >
-                {plan.cta}
-                <ArrowRight size={16} />
+                {ctaLabel}
+                {!isCurrentPlan && <ArrowRight size={16} />}
+                {isCurrentPlan && shouldShowRenewForCurrentPlan && !isIndividualProcessing && (
+                  <ArrowRight size={16} />
+                )}
               </button>
-            </article>
-          ))}
+              </article>
+            );
+          })}
         </div>
       </section>
 
@@ -220,6 +348,56 @@ export default function Pricing() {
           </div>
         </div>
       </section>
+
+      {(paymentStatus === "success" || paymentStatus === "failed") && (
+        <div className="fixed inset-0 z-[120] flex items-center justify-center bg-slate-900/55 px-4 backdrop-blur-sm">
+          {paymentStatus === "success" && (
+            <Confetti
+              className="pointer-events-none !fixed inset-0 z-[121]"
+              recycle={false}
+              numberOfPieces={520}
+            />
+          )}
+
+          <div
+            className={`relative z-[122] w-full max-w-md rounded-2xl border bg-white p-7 text-center shadow-2xl ${
+              paymentStatus === "success" ? "border-emerald-200" : "border-rose-200"
+            }`}
+          >
+            <div className="text-4xl">
+              {paymentStatus === "success" ? "🎉" : "❌"}
+            </div>
+            <h3 className="mt-4 text-2xl font-black text-slate-900">
+              {paymentStatus === "success" ? "Payment Confirmed" : "Payment Failed"}
+            </h3>
+            <p className="mt-3 text-sm leading-relaxed text-slate-600">
+              {statusMessage ||
+                (paymentStatus === "success"
+                  ? "Payment Successful! Welcome to the INDIVIDUAL plan."
+                  : "Something went wrong while processing your payment.")}
+            </p>
+
+            {paymentStatus === "success" ? (
+              <button
+                onClick={() => {
+                  closePaymentModal();
+                  navigate("/app");
+                }}
+                className="mt-6 inline-flex w-full items-center justify-center rounded-xl bg-emerald-600 px-5 py-3 text-sm font-black text-white transition hover:bg-emerald-700"
+              >
+                Continue to Workspace
+              </button>
+            ) : (
+              <button
+                onClick={closePaymentModal}
+                className="mt-6 inline-flex w-full items-center justify-center rounded-xl bg-rose-600 px-5 py-3 text-sm font-black text-white transition hover:bg-rose-700"
+              >
+                Try Again
+              </button>
+            )}
+          </div>
+        </div>
+      )}
 
       <Footer />
     </div>
