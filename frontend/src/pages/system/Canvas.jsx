@@ -224,6 +224,10 @@ const DEFAULT_TEXT_STYLE = {
   italic: false,
   underline: false,
 };
+const DEFAULT_NODE_STYLE = {
+  backgroundColor: '',
+  textColor: '',
+};
 const DEFAULT_TEXT_BOX_WIDTH = 320;
 const DEFAULT_TEXT_BOX_HEIGHT = 76;
 const MIN_TEXT_BOX_WIDTH = 100;
@@ -358,6 +362,20 @@ const normalizeTextStyle = (value) => {
   };
 };
 
+const normalizeNodeStyle = (value) => {
+  if (!value || typeof value !== 'object') return DEFAULT_NODE_STYLE;
+  return {
+    backgroundColor:
+      typeof value.backgroundColor === 'string' && value.backgroundColor.trim()
+        ? value.backgroundColor
+        : '',
+    textColor:
+      typeof value.textColor === 'string' && value.textColor.trim()
+        ? value.textColor
+        : '',
+  };
+};
+
 const normalizeTextSize = (value) => {
   if (!value || typeof value !== 'object') {
     return { width: DEFAULT_TEXT_BOX_WIDTH, height: DEFAULT_TEXT_BOX_HEIGHT };
@@ -424,6 +442,7 @@ const ensureCanvasState = (value) => {
             responsibilities: normalizeStringArray(node?.metadata?.responsibilities),
             notes: typeof node?.metadata?.notes === 'string' ? node.metadata.notes : '',
           },
+          style: normalizeNodeStyle(node?.style),
         }))
       : [],
     edges: Array.isArray(value.edges)
@@ -1312,6 +1331,7 @@ const Canvas = () => {
       label: toComponentLabel(componentType),
       position: { x: world.x - NODE_WIDTH / 2, y: world.y - NODE_HEIGHT / 2 },
       metadata: {},
+      style: { ...DEFAULT_NODE_STYLE },
     };
 
     setCanvasState((prev) => ({ ...prev, nodes: [...prev.nodes, newNode] }));
@@ -1968,6 +1988,24 @@ const Canvas = () => {
       ),
     }));
   };
+
+  const setSelectedNodeStyleField = useCallback((field, value) => {
+    if (!canEditStructure || !selectedNodeId) return;
+    setCanvasState((prev) => ({
+      ...prev,
+      nodes: prev.nodes.map((node) =>
+        node.id === selectedNodeId
+          ? {
+              ...node,
+              style: {
+                ...normalizeNodeStyle(node.style),
+                [field]: value,
+              },
+            }
+          : node
+      ),
+    }));
+  }, [canEditStructure, selectedNodeId]);
 
   const addNodeResponsibility = () => {
     if (!canEditStructure) return;
@@ -3360,6 +3398,9 @@ const Canvas = () => {
               const screen = worldToScreen(node.position.x, node.position.y, canvasState.viewport);
               const component = COMPONENT_BY_TYPE.get(node.type);
               const Icon = component ? component.icon : Box;
+              const style = normalizeNodeStyle(node.style);
+              const nodeBackgroundColor = style.backgroundColor || (isDarkTheme ? '#111827' : '#ffffff');
+              const nodeTextColor = style.textColor || (isDarkTheme ? '#f3f4f6' : '#111827');
               const nodeIsHighlighted = highlightedNodeIds.has(node.id);
               const connectorClasses = {
                 top: 'absolute left-1/2 -translate-x-1/2 -top-3.5',
@@ -3377,13 +3418,14 @@ const Canvas = () => {
                       : nodeIsHighlighted
                       ? 'ring-2 ring-emerald-400 ring-offset-1 shadow-lg shadow-emerald-100/50'
                       : 'ring-1 ring-gray-200 shadow-md hover:shadow-lg hover:ring-gray-300'
-                  } bg-white transition-shadow`}
+                  } transition-shadow`}
                   style={{
                     width: NODE_WIDTH * canvasState.viewport.zoom,
                     height: NODE_HEIGHT * canvasState.viewport.zoom,
                     left: screen.x,
                     top: screen.y,
                     opacity: nodeIsHighlighted || selectedNodeId === node.id || !highlightedInsight ? 1 : 0.58,
+                    backgroundColor: nodeBackgroundColor,
                   }}
                   onMouseDown={(event) => {
                     if (event.button !== 2) {
@@ -3418,21 +3460,21 @@ const Canvas = () => {
 
                   <div style={{ padding: nodePadding }}>
                     <div
-                      className="flex items-center gap-1.5 text-gray-400 uppercase tracking-wider font-medium"
+                      className="flex items-center gap-1.5 uppercase tracking-wider font-medium"
                       style={{ fontSize: nodeTypeFontSize, lineHeight: 1.15 }}
                     >
                       <span className="inline-flex items-center justify-center rounded bg-gray-100" style={{ width: nodeIconSize + 4, height: nodeIconSize + 4 }}>
-                        <Icon size={nodeIconSize} className="text-gray-500" />
+                        <Icon size={nodeIconSize} style={{ color: nodeTextColor }} />
                       </span>
-                      {component?.label || node.type}
+                      <span style={{ color: nodeTextColor }}>{component?.label || node.type}</span>
                     </div>
                     <p
-                      className="mt-1.5 font-bold text-gray-900 truncate leading-tight"
-                      style={{ fontSize: nodeLabelFontSize, lineHeight: 1.2 }}
+                      className="mt-1.5 font-bold truncate leading-tight"
+                      style={{ fontSize: nodeLabelFontSize, lineHeight: 1.2, color: nodeTextColor }}
                     >
                       {node.label || 'Untitled'}
                     </p>
-                  <p className="mt-1 text-gray-400 font-mono" style={{ fontSize: nodeIdFontSize - 1, lineHeight: 1.15 }}>
+                  <p className="mt-1 font-mono" style={{ fontSize: nodeIdFontSize - 1, lineHeight: 1.15, color: nodeTextColor }}>
                       {node.id.slice(0, 8)}
                     </p>
                   </div>
@@ -3932,7 +3974,13 @@ const Canvas = () => {
                 <Lightbulb size={11} />
                 {isRightPanelExpanded ? 'Insights' : null}
                 {insights.length > 0 && (
-                  <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold ${rightPanelMode === 'insights' ? 'bg-white/20 text-white' : 'bg-amber-100 text-amber-700'}`}>{insights.length}</span>
+                  <span
+                    className={`panel-tab-count-badge panel-tab-count-badge--insights text-[10px] px-1.5 py-0.5 rounded-full font-bold ${
+                      rightPanelMode === 'insights' ? 'bg-white/20 text-white' : 'bg-amber-100 text-amber-700'
+                    }`}
+                  >
+                    {insights.length}
+                  </span>
                 )}
               </button>
               <button
@@ -3949,7 +3997,13 @@ const Canvas = () => {
                 <MessageSquare size={11} />
                 {isRightPanelExpanded ? 'Comments' : null}
                 {comments.length > 0 && (
-                  <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold ${rightPanelMode === 'comments' ? 'bg-white/20 text-white' : 'bg-gray-100 text-gray-600'}`}>{comments.length}</span>
+                  <span
+                    className={`panel-tab-count-badge panel-tab-count-badge--comments text-[10px] px-1.5 py-0.5 rounded-full font-bold ${
+                      rightPanelMode === 'comments' ? 'bg-white/20 text-white' : 'bg-gray-100 text-gray-600'
+                    }`}
+                  >
+                    {comments.length}
+                  </span>
                 )}
               </button>
             </div>
@@ -4018,6 +4072,45 @@ const Canvas = () => {
                         readOnly={!canEditStructure}
                         className="w-full border border-gray-200 rounded-lg px-2.5 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-300"
                       />
+                    </div>
+                  </div>
+
+                  <div className="rounded-xl border border-gray-200 p-3 space-y-3 bg-gray-50/50">
+                    <div className="flex items-center justify-between">
+                      <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-widest">Visual</p>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSelectedNodeStyleField('backgroundColor', '');
+                          setSelectedNodeStyleField('textColor', '');
+                        }}
+                        disabled={!canEditStructure}
+                        className="text-[10px] px-2 py-1 rounded-md border border-gray-200 text-gray-600 hover:bg-gray-100 transition-colors disabled:opacity-40"
+                      >
+                        Reset
+                      </button>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <label className="text-[11px] font-semibold text-gray-500 block mb-1.5">Node color</label>
+                        <input
+                          type="color"
+                          value={selectedNode?.style?.backgroundColor || (isDarkTheme ? '#111827' : '#ffffff')}
+                          onChange={(event) => setSelectedNodeStyleField('backgroundColor', event.target.value)}
+                          disabled={!canEditStructure}
+                          className="w-full h-9 border border-gray-200 rounded-lg bg-white"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[11px] font-semibold text-gray-500 block mb-1.5">Text color</label>
+                        <input
+                          type="color"
+                          value={selectedNode?.style?.textColor || (isDarkTheme ? '#f3f4f6' : '#111827')}
+                          onChange={(event) => setSelectedNodeStyleField('textColor', event.target.value)}
+                          disabled={!canEditStructure}
+                          className="w-full h-9 border border-gray-200 rounded-lg bg-white"
+                        />
+                      </div>
                     </div>
                   </div>
 

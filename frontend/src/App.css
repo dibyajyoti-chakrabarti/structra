@@ -192,3 +192,13 @@ body {
 [data-theme="dark"] .canvas-page {
   --canvas-comment-thread-border: #2f4864;
 }
+
+[data-theme="dark"] .canvas-page .panel-tab-count-badge--insights {
+  background-color: #fbbf24 !important;
+  color: #1f2937 !important;
+}
+
+[data-theme="dark"] .canvas-page .panel-tab-count-badge--comments {
+  background-color: #93c5fd !important;
+  color: #111827 !important;
+}
