@@ -224,6 +224,10 @@ const DEFAULT_TEXT_STYLE = {
   italic: false,
   underline: false,
 };
+const DEFAULT_TEXT_BOX_WIDTH = 320;
+const DEFAULT_TEXT_BOX_HEIGHT = 76;
+const MIN_TEXT_BOX_WIDTH = 100;
+const MIN_TEXT_BOX_HEIGHT = 44;
 const TEXT_ALIGN_OPTIONS = ['left', 'center', 'right'];
 const TEXT_FONT_OPTIONS = [
   'Inter, system-ui, sans-serif',
@@ -233,6 +237,7 @@ const TEXT_FONT_OPTIONS = [
   '"Courier New", monospace',
   '"JetBrains Mono", monospace',
 ];
+const TEXT_FONT_SIZE_OPTIONS = [10, 11, 12, 14, 16, 18, 20, 24, 28, 32, 36, 40, 48, 56, 64, 72];
 
 const resolveAnchor = (value, fallback = 'right') => (NODE_ANCHORS.includes(value) ? value : fallback);
 
@@ -346,6 +351,21 @@ const normalizeTextStyle = (value) => {
   };
 };
 
+const normalizeTextSize = (value) => {
+  if (!value || typeof value !== 'object') {
+    return { width: DEFAULT_TEXT_BOX_WIDTH, height: DEFAULT_TEXT_BOX_HEIGHT };
+  }
+  const width =
+    typeof value.width === 'number' && Number.isFinite(value.width)
+      ? Math.max(MIN_TEXT_BOX_WIDTH, value.width)
+      : DEFAULT_TEXT_BOX_WIDTH;
+  const height =
+    typeof value.height === 'number' && Number.isFinite(value.height)
+      ? Math.max(MIN_TEXT_BOX_HEIGHT, value.height)
+      : DEFAULT_TEXT_BOX_HEIGHT;
+  return { width, height };
+};
+
 const normalizeNodeType = (type) => {
   const nextType = LEGACY_NODE_TYPE_ALIASES[type] || type;
   return ALLOWED_COMPONENT_TYPES.has(nextType) ? nextType : 'MICROSERVICE';
@@ -406,6 +426,7 @@ const ensureCanvasState = (value) => {
             x: typeof item?.position?.x === 'number' ? item.position.x : 0,
             y: typeof item?.position?.y === 'number' ? item.position.y : 0,
           },
+          size: normalizeTextSize(item.size),
           style: normalizeTextStyle(item.style),
         }))
       : [],
@@ -969,6 +990,7 @@ const Canvas = () => {
   const draggingNodeRef = useRef(null);
   const draggingBendRef = useRef(null);
   const draggingSegmentRef = useRef(null);
+  const resizingTextRef = useRef(null);
   const panningRef = useRef(null);
   const historyPastRef = useRef([]);
   const historyFutureRef = useRef([]);
@@ -1442,6 +1464,46 @@ const Canvas = () => {
 
   useEffect(() => {
     const onMouseMove = (event) => {
+      if (resizingTextRef.current) {
+        const drag = resizingTextRef.current;
+        const deltaX = (event.clientX - drag.startClientX) / canvasState.viewport.zoom;
+        const deltaY = (event.clientY - drag.startClientY) / canvasState.viewport.zoom;
+        const nextPosition = { ...drag.startPosition };
+        const nextSize = { ...drag.startSize };
+
+        if (drag.handle.includes('right')) {
+          nextSize.width = Math.max(MIN_TEXT_BOX_WIDTH, drag.startSize.width + deltaX);
+        }
+        if (drag.handle.includes('left')) {
+          const width = Math.max(MIN_TEXT_BOX_WIDTH, drag.startSize.width - deltaX);
+          const widthDelta = drag.startSize.width - width;
+          nextSize.width = width;
+          nextPosition.x = drag.startPosition.x + widthDelta;
+        }
+        if (drag.handle.includes('bottom')) {
+          nextSize.height = Math.max(MIN_TEXT_BOX_HEIGHT, drag.startSize.height + deltaY);
+        }
+        if (drag.handle.includes('top')) {
+          const height = Math.max(MIN_TEXT_BOX_HEIGHT, drag.startSize.height - deltaY);
+          const heightDelta = drag.startSize.height - height;
+          nextSize.height = height;
+          nextPosition.y = drag.startPosition.y + heightDelta;
+        }
+
+        setCanvasState((prev) => ({
+          ...prev,
+          textItems: prev.textItems.map((item) =>
+            item.id === drag.textId
+              ? {
+                  ...item,
+                  position: nextPosition,
+                  size: normalizeTextSize(nextSize),
+                }
+              : item
+          ),
+        }));
+      }
+
       if (draggingSegmentRef.current) {
         const drag = draggingSegmentRef.current;
         const deltaX = (event.clientX - drag.startClientX) / canvasState.viewport.zoom;
@@ -1537,6 +1599,7 @@ const Canvas = () => {
       draggingNodeRef.current = null;
       draggingBendRef.current = null;
       draggingSegmentRef.current = null;
+      resizingTextRef.current = null;
       panningRef.current = null;
       setIsPanning(false);
       setShowGlobalConnectors(false);
@@ -1782,7 +1845,7 @@ const Canvas = () => {
     }));
   };
 
-  const setSelectedTextStyleField = (field, value) => {
+  const setSelectedTextStyleField = useCallback((field, value) => {
     if (!canEditStructure || !selectedTextId) return;
     setCanvasState((prev) => ({
       ...prev,
@@ -1798,7 +1861,39 @@ const Canvas = () => {
           : item
       ),
     }));
+  }, [canEditStructure, selectedTextId]);
+
+  const setSelectedTextSize = (nextSize) => {
+    if (!canEditStructure || !selectedTextId) return;
+    setCanvasState((prev) => ({
+      ...prev,
+      textItems: prev.textItems.map((item) =>
+        item.id === selectedTextId
+          ? {
+              ...item,
+              size: normalizeTextSize(nextSize),
+            }
+          : item
+      ),
+    }));
   };
+
+  const setSelectedTextFontSize = (value) => {
+    const numeric = Number(value);
+    if (!Number.isFinite(numeric)) return;
+    setSelectedTextStyleField('fontSize', Math.min(96, Math.max(10, Math.round(numeric))));
+  };
+
+  const activateTextPlacementMode = useCallback(() => {
+    if (!canEditStructure) return;
+    setIsTextPlacementMode(true);
+    setIsLeftPanelCollapsed(true);
+    setSelectedNodeId(null);
+    setSelectedEdgeId(null);
+    setSelectedTextId(null);
+    setRightPanelMode('design');
+    openPropertiesPanel();
+  }, [canEditStructure, openPropertiesPanel]);
 
   const setSystemMetadataField = (field, value) => {
     if (!canEditStructure) return;
@@ -1983,6 +2078,36 @@ const Canvas = () => {
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
   }, [canEditStructure, selectedEdgeId, selectedNodeId, selectedTextId, deleteSelectedEdge, deleteSelectedNode, deleteSelectedText]);
+
+  useEffect(() => {
+    const onShortcut = (event) => {
+      if (!canEditStructure) return;
+      const isMod = event.ctrlKey || event.metaKey;
+      if (!isMod) return;
+      const key = String(event.key || '').toLowerCase();
+
+      if (key === 't') {
+        event.preventDefault();
+        activateTextPlacementMode();
+        return;
+      }
+
+      if (!selectedTextId) return;
+      if (!['b', 'i', 'u'].includes(key)) return;
+
+      event.preventDefault();
+      if (key === 'b') {
+        setSelectedTextStyleField('bold', !selectedTextItem?.style?.bold);
+      } else if (key === 'i') {
+        setSelectedTextStyleField('italic', !selectedTextItem?.style?.italic);
+      } else if (key === 'u') {
+        setSelectedTextStyleField('underline', !selectedTextItem?.style?.underline);
+      }
+    };
+
+    window.addEventListener('keydown', onShortcut);
+    return () => window.removeEventListener('keydown', onShortcut);
+  }, [canEditStructure, selectedTextId, selectedTextItem, setSelectedTextStyleField, activateTextPlacementMode]);
 
   const undoCanvasChange = useCallback(() => {
     if (!canEditStructure) return;
@@ -2648,19 +2773,18 @@ const Canvas = () => {
           <aside className="canvas-left-quickbar absolute top-3 left-3 z-20 inline-flex flex-col gap-1 p-1.5 rounded-xl border border-gray-200 bg-white shadow-sm">
             {LEFT_PANEL_ITEMS.map((item) => {
               const ItemIcon = item.icon;
-              const isActive = item.id === 'text' ? isTextPlacementMode : leftPanelMode === item.id;
+              const isActive = item.id === 'text' ? isTextPlacementMode : !isTextPlacementMode && leftPanelMode === item.id;
               return (
                 <button
                   key={item.id}
                   type="button"
                   onClick={() => {
                     if (item.id === 'text') {
-                      setIsTextPlacementMode((prev) => !prev);
-                      setSelectedNodeId(null);
-                      setSelectedEdgeId(null);
-                      setSelectedTextId(null);
-                      setRightPanelMode('design');
-                      openPropertiesPanel();
+                      if (isTextPlacementMode) {
+                        setIsTextPlacementMode(false);
+                      } else {
+                        activateTextPlacementMode();
+                      }
                       return;
                     }
                     setIsTextPlacementMode(false);
@@ -2700,6 +2824,7 @@ const Canvas = () => {
                   id: makeUuid(),
                   content: 'Type here',
                   position: { x: world.x, y: world.y },
+                  size: { width: DEFAULT_TEXT_BOX_WIDTH, height: DEFAULT_TEXT_BOX_HEIGHT },
                   style: { ...DEFAULT_TEXT_STYLE },
                 };
                 setCanvasState((prev) => ({
@@ -2981,16 +3106,38 @@ const Canvas = () => {
             {canvasState.textItems.map((item) => {
               const screen = worldToScreen(item.position.x, item.position.y, canvasState.viewport);
               const style = normalizeTextStyle(item.style);
+              const size = normalizeTextSize(item.size);
               const isSelected = selectedTextId === item.id;
+              const handleSize = 10;
+              const handleStroke = '#2563eb';
+              const startResize = (event, handle) => {
+                if (!canEditStructure) return;
+                event.stopPropagation();
+                event.preventDefault();
+                setSelectedTextId(item.id);
+                setSelectedNodeId(null);
+                setSelectedEdgeId(null);
+                resizingTextRef.current = {
+                  textId: item.id,
+                  handle,
+                  startClientX: event.clientX,
+                  startClientY: event.clientY,
+                  startPosition: { ...item.position },
+                  startSize: { ...size },
+                };
+                beginDragHistory();
+              };
               return (
                 <div
                   key={item.id}
-                  className={`absolute min-w-[120px] max-w-[440px] px-1 py-0.5 rounded ${
+                  className={`absolute rounded ${
                     isSelected ? 'ring-2 ring-blue-500 ring-offset-1' : ''
                   }`}
                   style={{
                     left: screen.x,
                     top: screen.y,
+                    width: size.width * canvasState.viewport.zoom,
+                    height: size.height * canvasState.viewport.zoom,
                   }}
                   onMouseDown={(event) => {
                     if (event.button !== 2) {
@@ -3004,11 +3151,10 @@ const Canvas = () => {
                   }}
                 >
                   <textarea
-                    rows={Math.max(1, String(item.content || '').split('\n').length)}
                     value={item.content || ''}
                     onChange={(event) => setTextContent(item.id, event.target.value)}
                     readOnly={!canEditStructure}
-                    className="w-full min-w-[120px] bg-transparent resize-none border-none outline-none p-0"
+                    className="w-full h-full bg-transparent resize-none border-none outline-none px-1 py-0.5"
                     style={{
                       fontSize: style.fontSize * canvasState.viewport.zoom,
                       fontFamily: style.fontFamily,
@@ -3030,6 +3176,66 @@ const Canvas = () => {
                       event.stopPropagation();
                     }}
                   />
+                  {isSelected && canEditStructure && (
+                    <>
+                      <button
+                        type="button"
+                        aria-label="Resize text top"
+                        className="absolute left-1/2 -translate-x-1/2 -top-1.5 z-10 rounded-full bg-white"
+                        style={{ width: handleSize, height: handleSize, border: `1px solid ${handleStroke}`, cursor: 'ns-resize' }}
+                        onMouseDown={(event) => startResize(event, 'top')}
+                      />
+                      <button
+                        type="button"
+                        aria-label="Resize text bottom"
+                        className="absolute left-1/2 -translate-x-1/2 -bottom-1.5 z-10 rounded-full bg-white"
+                        style={{ width: handleSize, height: handleSize, border: `1px solid ${handleStroke}`, cursor: 'ns-resize' }}
+                        onMouseDown={(event) => startResize(event, 'bottom')}
+                      />
+                      <button
+                        type="button"
+                        aria-label="Resize text left"
+                        className="absolute top-1/2 -translate-y-1/2 -left-1.5 z-10 rounded-full bg-white"
+                        style={{ width: handleSize, height: handleSize, border: `1px solid ${handleStroke}`, cursor: 'ew-resize' }}
+                        onMouseDown={(event) => startResize(event, 'left')}
+                      />
+                      <button
+                        type="button"
+                        aria-label="Resize text right"
+                        className="absolute top-1/2 -translate-y-1/2 -right-1.5 z-10 rounded-full bg-white"
+                        style={{ width: handleSize, height: handleSize, border: `1px solid ${handleStroke}`, cursor: 'ew-resize' }}
+                        onMouseDown={(event) => startResize(event, 'right')}
+                      />
+                      <button
+                        type="button"
+                        aria-label="Resize text top-left"
+                        className="absolute -left-1.5 -top-1.5 z-10 rounded-full bg-white"
+                        style={{ width: handleSize, height: handleSize, border: `1px solid ${handleStroke}`, cursor: 'nwse-resize' }}
+                        onMouseDown={(event) => startResize(event, 'top-left')}
+                      />
+                      <button
+                        type="button"
+                        aria-label="Resize text top-right"
+                        className="absolute -right-1.5 -top-1.5 z-10 rounded-full bg-white"
+                        style={{ width: handleSize, height: handleSize, border: `1px solid ${handleStroke}`, cursor: 'nesw-resize' }}
+                        onMouseDown={(event) => startResize(event, 'top-right')}
+                      />
+                      <button
+                        type="button"
+                        aria-label="Resize text bottom-left"
+                        className="absolute -left-1.5 -bottom-1.5 z-10 rounded-full bg-white"
+                        style={{ width: handleSize, height: handleSize, border: `1px solid ${handleStroke}`, cursor: 'nesw-resize' }}
+                        onMouseDown={(event) => startResize(event, 'bottom-left')}
+                      />
+                      <button
+                        type="button"
+                        aria-label="Resize text bottom-right"
+                        className="absolute -right-1.5 -bottom-1.5 z-10 rounded-full bg-white"
+                        style={{ width: handleSize, height: handleSize, border: `1px solid ${handleStroke}`, cursor: 'nwse-resize' }}
+                        onMouseDown={(event) => startResize(event, 'bottom-right')}
+                      />
+                    </>
+                  )}
                 </div>
               );
             })}
@@ -3324,15 +3530,64 @@ const Canvas = () => {
                     <label className="text-[11px] font-semibold text-gray-500 block mb-1.5">
                       Font size ({Math.round(selectedTextItem?.style?.fontSize || DEFAULT_TEXT_STYLE.fontSize)}px)
                     </label>
-                    <input
-                      type="range"
-                      min={10}
-                      max={72}
-                      value={selectedTextItem?.style?.fontSize || DEFAULT_TEXT_STYLE.fontSize}
-                      onChange={(event) => setSelectedTextStyleField('fontSize', Number(event.target.value))}
-                      disabled={!canEditStructure}
-                      className="w-full"
-                    />
+                    <div className="grid grid-cols-2 gap-2">
+                      <select
+                        value={String(selectedTextItem?.style?.fontSize || DEFAULT_TEXT_STYLE.fontSize)}
+                        onChange={(event) => setSelectedTextFontSize(event.target.value)}
+                        disabled={!canEditStructure}
+                        className="w-full border border-gray-200 rounded-lg px-2.5 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-300"
+                      >
+                        {TEXT_FONT_SIZE_OPTIONS.map((size) => (
+                          <option key={`font-size-${size}`} value={String(size)}>
+                            {size}
+                          </option>
+                        ))}
+                      </select>
+                      <input
+                        type="number"
+                        min={10}
+                        max={96}
+                        step={1}
+                        value={selectedTextItem?.style?.fontSize || DEFAULT_TEXT_STYLE.fontSize}
+                        onChange={(event) => setSelectedTextFontSize(event.target.value)}
+                        disabled={!canEditStructure}
+                        className="w-full border border-gray-200 rounded-lg px-2.5 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-300"
+                      />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="text-[11px] font-semibold text-gray-500 block mb-1.5">Width</label>
+                      <input
+                        type="number"
+                        min={MIN_TEXT_BOX_WIDTH}
+                        value={Math.round(selectedTextItem?.size?.width || DEFAULT_TEXT_BOX_WIDTH)}
+                        onChange={(event) =>
+                          setSelectedTextSize({
+                            width: Number(event.target.value),
+                            height: selectedTextItem?.size?.height || DEFAULT_TEXT_BOX_HEIGHT,
+                          })
+                        }
+                        disabled={!canEditStructure}
+                        className="w-full border border-gray-200 rounded-lg px-2.5 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-300"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[11px] font-semibold text-gray-500 block mb-1.5">Height</label>
+                      <input
+                        type="number"
+                        min={MIN_TEXT_BOX_HEIGHT}
+                        value={Math.round(selectedTextItem?.size?.height || DEFAULT_TEXT_BOX_HEIGHT)}
+                        onChange={(event) =>
+                          setSelectedTextSize({
+                            width: selectedTextItem?.size?.width || DEFAULT_TEXT_BOX_WIDTH,
+                            height: Number(event.target.value),
+                          })
+                        }
+                        disabled={!canEditStructure}
+                        className="w-full border border-gray-200 rounded-lg px-2.5 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-300"
+                      />
+                    </div>
                   </div>
                   <div>
                     <label className="text-[11px] font-semibold text-gray-500 block mb-1.5">Font family</label>
