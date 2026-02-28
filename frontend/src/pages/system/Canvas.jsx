@@ -926,6 +926,7 @@ const Canvas = () => {
   const [selectedNodeId, setSelectedNodeId] = useState(null);
   const [selectedEdgeId, setSelectedEdgeId] = useState(null);
   const [connectionDraft, setConnectionDraft] = useState(null);
+  const [showGlobalConnectors, setShowGlobalConnectors] = useState(false);
   const [saveStatus, setSaveStatus] = useState('saved');
   const [rightPanelMode, setRightPanelMode] = useState('design');
   const [isRightPanelHidden, setIsRightPanelHidden] = useState(false);
@@ -1212,6 +1213,7 @@ const Canvas = () => {
     setSelectedEdgeId(edgeId);
     setSelectedNodeId(null);
     draggingBendRef.current = { edgeId, bendIndex };
+    setShowGlobalConnectors(true);
     beginDragHistory();
   };
 
@@ -1292,6 +1294,7 @@ const Canvas = () => {
       initialBends: materializedBends,
       bendIndicesToMove,
     };
+    setShowGlobalConnectors(true);
     beginDragHistory();
   };
 
@@ -1326,6 +1329,7 @@ const Canvas = () => {
     setRightPanelMode('design');
 
     draggingBendRef.current = { edgeId: edge.id, bendIndex: insertAt };
+    setShowGlobalConnectors(true);
   };
 
   const removeEdgeBend = (event, edgeId, bendIndex) => {
@@ -1461,6 +1465,7 @@ const Canvas = () => {
       draggingSegmentRef.current = null;
       panningRef.current = null;
       setIsPanning(false);
+      setShowGlobalConnectors(false);
       commitDragHistory();
       if (connectionDraft) {
         setConnectionDraft(null);
@@ -1483,6 +1488,7 @@ const Canvas = () => {
     openPropertiesPanel();
     setSelectedNodeId(nodeId);
     setSelectedEdgeId(null);
+    setShowGlobalConnectors(true);
     setConnectionDraft({
       sourceId: nodeId,
       sourceAnchor: resolveAnchor(event.currentTarget?.dataset?.anchor, 'right'),
@@ -1501,6 +1507,7 @@ const Canvas = () => {
     const nextTargetAnchor = resolveAnchor(targetAnchor, 'left');
     if (source === target) {
       setConnectionDraft(null);
+      setShowGlobalConnectors(false);
       return;
     }
 
@@ -1526,6 +1533,7 @@ const Canvas = () => {
     }
 
     setConnectionDraft(null);
+    setShowGlobalConnectors(false);
   };
 
   const selectedNode = useMemo(
@@ -2663,15 +2671,16 @@ const Canvas = () => {
               const Icon = component ? component.icon : Box;
               const nodeIsHighlighted = highlightedNodeIds.has(node.id);
               const connectorClasses = {
-                top: 'absolute left-1/2 -translate-x-1/2 -top-2',
-                right: 'absolute top-1/2 -translate-y-1/2 -right-2',
-                bottom: 'absolute left-1/2 -translate-x-1/2 -bottom-2',
-                left: 'absolute top-1/2 -translate-y-1/2 -left-2',
+                top: 'absolute left-1/2 -translate-x-1/2 -top-3.5',
+                right: 'absolute top-1/2 -translate-y-1/2 -right-3.5',
+                bottom: 'absolute left-1/2 -translate-x-1/2 -bottom-3.5',
+                left: 'absolute top-1/2 -translate-y-1/2 -left-3.5',
               };
+              const showNodeConnectors = showGlobalConnectors || selectedNodeId === node.id;
               return (
                 <div
                   key={node.id}
-                  className={`absolute rounded-xl overflow-hidden ${
+                  className={`group absolute rounded-xl overflow-visible ${
                     selectedNodeId === node.id
                       ? 'ring-2 ring-blue-500 ring-offset-1 shadow-lg shadow-blue-100/50'
                       : nodeIsHighlighted
@@ -2699,7 +2708,11 @@ const Canvas = () => {
                         type="button"
                         data-anchor={anchor}
                         aria-label={`Connector ${anchor}`}
-                        className={`${connectorClasses[anchor]} w-3.5 h-3.5 rounded-full bg-blue-500 border-2 border-white shadow-sm hover:bg-blue-600 hover:scale-125 transition-all`}
+                        className={`${connectorClasses[anchor]} z-20 w-3.5 h-3.5 rounded-full bg-blue-500 border-2 border-white shadow-sm transition-all duration-150 hover:bg-blue-600 ${
+                          showNodeConnectors
+                            ? 'opacity-100 scale-100'
+                            : 'opacity-0 scale-75 pointer-events-none group-hover:opacity-100 group-hover:scale-100 group-hover:pointer-events-auto'
+                        }`}
                         onMouseDown={(event) => startConnection(event, node.id)}
                         onMouseUp={(event) => completeConnection(event, node.id, anchor)}
                       />
