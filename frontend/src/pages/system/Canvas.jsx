@@ -31,14 +31,24 @@ import {
   Search,
   Sparkles,
   ArrowRight,
+  Moon,
+  Sun,
+  Type,
+  Square,
 } from 'lucide-react';
 import api from '../../api';
 import LoadingState from '../../components/LoadingState';
+import { useTheme } from '../../contexts/ThemeContext';
 
 const NODE_WIDTH = 180;
 const NODE_HEIGHT = 96;
 const AUTOSAVE_DEBOUNCE_MS = 650;
 const MOBILE_MAX_WIDTH = 767;
+const LEFT_PANEL_ITEMS = [
+  { id: 'components', label: 'Components', icon: Box },
+  { id: 'text', label: 'Text', icon: Type },
+  { id: 'bounds', label: 'Bounds', icon: Square },
+];
 
 const COMPONENT_CATEGORIES = [
   {
@@ -895,6 +905,7 @@ const computeInsights = (canvasState) => {
 const Canvas = () => {
   const navigate = useNavigate();
   const { workspaceId, systemId } = useParams();
+  const { theme, toggleTheme } = useTheme();
 
   const canvasRef = useRef(null);
   const autosaveDebounceRef = useRef(null);
@@ -932,6 +943,7 @@ const Canvas = () => {
   const [isRightPanelHidden, setIsRightPanelHidden] = useState(false);
   const [isRightPanelExpanded, setIsRightPanelExpanded] = useState(false);
   const [isLeftPanelCollapsed, setIsLeftPanelCollapsed] = useState(false);
+  const [leftPanelMode, setLeftPanelMode] = useState('components');
   const [expandedComponentCategories, setExpandedComponentCategories] = useState(() => new Set());
   const [historyVersion, setHistoryVersion] = useState(0);
   const [hoveredInsightId, setHoveredInsightId] = useState(null);
@@ -2020,6 +2032,12 @@ const Canvas = () => {
       : saveStatus === 'retrying'
       ? 'Saving...'
       : 'Saved';
+  const isDarkTheme = theme === 'dark';
+  const canvasGridDotColor = isDarkTheme ? '#334766' : '#c8ccd4';
+  const canvasGridBackground = isDarkTheme ? '#0b1220' : '#f8f9fb';
+  const edgeDefaultColor = isDarkTheme ? '#93a8c7' : '#94a3b8';
+  const edgeSelectedColor = isDarkTheme ? '#60a5fa' : '#3b82f6';
+  const edgeHighlightColor = isDarkTheme ? '#34d399' : '#10b981';
   const nodeZoom = canvasState.viewport.zoom;
   const nodePadding = Math.max(6, Math.round(12 * nodeZoom));
   const nodeTypeFontSize = Math.max(8, Math.round(12 * nodeZoom));
@@ -2196,7 +2214,7 @@ const Canvas = () => {
   };
 
   return (
-    <div className="h-screen flex flex-col bg-white overflow-hidden">
+    <div className="canvas-page h-screen flex flex-col bg-white overflow-hidden">
       {permissionNotice && (
         <div className="fixed top-20 left-1/2 -translate-x-1/2 z-[80] w-[min(92vw,620px)] rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5 shadow">
           <div className="flex items-start gap-2 text-amber-800">
@@ -2205,7 +2223,7 @@ const Canvas = () => {
           </div>
         </div>
       )}
-      <header className="border-b border-gray-200 bg-white px-4 py-0 flex items-stretch justify-between gap-3 h-12 shrink-0">
+      <header className="canvas-topbar border-b border-gray-200 bg-white px-4 py-0 flex items-stretch justify-between gap-3 h-12 shrink-0">
         {/* Left: breadcrumb */}
         <div className="flex items-center min-w-0 gap-1">
           <button
@@ -2298,6 +2316,15 @@ const Canvas = () => {
         <div className="flex items-center gap-2">
           <button
             type="button"
+            onClick={toggleTheme}
+            className="inline-flex items-center justify-center w-8 h-8 rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 transition-colors"
+            title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+            aria-label="Toggle theme"
+          >
+            {theme === 'dark' ? <Sun size={14} /> : <Moon size={14} />}
+          </button>
+          <button
+            type="button"
             className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold bg-gradient-to-r from-violet-600 to-indigo-600 text-white hover:from-violet-700 hover:to-indigo-700 transition-all shadow-sm"
             title="AI Evaluation — coming soon"
           >
@@ -2318,23 +2345,27 @@ const Canvas = () => {
       <div className="flex-1 flex overflow-hidden relative">
         {canEditStructure && (
           <aside
-            className={`border-r border-gray-200 bg-white flex flex-col transition-all duration-300 ${
+            className={`canvas-components-panel border-r border-gray-200 bg-white flex flex-col transition-all duration-300 ${
               isLeftPanelCollapsed ? 'w-0 overflow-hidden border-r-0' : 'w-64'
             }`}
           >
           {/* Panel header */}
           <div className="flex items-center justify-between px-3 py-2.5 border-b border-gray-100 shrink-0">
-            <span className="text-[11px] font-semibold text-gray-500 uppercase tracking-widest">Components</span>
+            <span className="text-[11px] font-semibold text-gray-500 uppercase tracking-widest">
+              {leftPanelMode === 'components' ? 'Components' : leftPanelMode === 'text' ? 'Text' : 'Bounds'}
+            </span>
             <button
               type="button"
               onClick={() => setIsLeftPanelCollapsed(true)}
               className="w-6 h-6 flex items-center justify-center rounded hover:bg-gray-100 text-gray-400 hover:text-gray-600 transition-colors"
-              title="Hide components panel"
+              title="Hide left panel"
             >
               <ChevronLeft size={14} />
             </button>
           </div>
 
+          {leftPanelMode === 'components' ? (
+            <>
           {/* Search bar */}
           <div className="px-3 py-2 border-b border-gray-100 shrink-0">
             <div className="relative">
@@ -2470,19 +2501,46 @@ const Canvas = () => {
               Delete Selected Edge
             </button>
           </div>
+            </>
+          ) : (
+            <div className="flex-1 p-3">
+              <div className="h-full rounded-xl border border-dashed border-gray-300 bg-gray-50/70 px-3 py-4">
+                <p className="text-xs font-semibold text-gray-700 mb-1">
+                  {leftPanelMode === 'text' ? 'Text tools' : 'Bounds tools'}
+                </p>
+                <p className="text-xs text-gray-500">
+                  This panel is ready. Editing tools for {leftPanelMode} will be added next.
+                </p>
+              </div>
+            </div>
+          )}
           </aside>
         )}
 
         {canEditStructure && isLeftPanelCollapsed && (
-          <button
-            type="button"
-            onClick={() => setIsLeftPanelCollapsed(false)}
-            className="absolute top-3 left-3 z-20 inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-gray-200 bg-white text-xs font-medium text-gray-600 shadow-sm hover:border-gray-300 hover:shadow transition-all"
-            title="Show components panel"
-          >
-            <ChevronRight size={13} />
-            Components
-          </button>
+          <aside className="canvas-left-quickbar absolute top-3 left-3 z-20 inline-flex flex-col gap-1 p-1.5 rounded-xl border border-gray-200 bg-white shadow-sm">
+            {LEFT_PANEL_ITEMS.map((item) => {
+              const ItemIcon = item.icon;
+              const isActive = leftPanelMode === item.id;
+              return (
+                <button
+                  key={item.id}
+                  type="button"
+                  onClick={() => {
+                    setLeftPanelMode(item.id);
+                    setIsLeftPanelCollapsed(false);
+                  }}
+                  className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                    isActive ? 'bg-gray-900 text-white' : 'text-gray-600 hover:bg-gray-100'
+                  }`}
+                  title={`Open ${item.label} panel`}
+                >
+                  <ItemIcon size={13} />
+                  {item.label}
+                </button>
+              );
+            })}
+          </aside>
         )}
 
         <main className="flex-1 flex">
@@ -2499,24 +2557,25 @@ const Canvas = () => {
               setRightPanelMode('design');
               openPropertiesPanel();
             }}
-            className={`relative flex-1 overflow-hidden bg-[#f8f9fb] ${
+            className={`relative flex-1 overflow-hidden ${
               isPanning ? 'cursor-grabbing' : activeTool === 'pan' ? 'cursor-grab' : 'cursor-default'
             }`}
             style={{
-              backgroundImage: 'radial-gradient(circle, #c8ccd4 1px, transparent 1px)',
+              backgroundColor: canvasGridBackground,
+              backgroundImage: `radial-gradient(circle, ${canvasGridDotColor} 1px, transparent 1px)`,
               backgroundSize: '24px 24px',
             }}
           >
             <svg className="absolute inset-0 pointer-events-none" width="100%" height="100%">
               <defs>
                 <marker id="arrowhead" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
-                  <polygon points="0 0, 8 3, 0 6" fill="#94a3b8" />
+                  <polygon points="0 0, 8 3, 0 6" fill={edgeDefaultColor} />
                 </marker>
                 <marker id="arrowhead-selected" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
-                  <polygon points="0 0, 8 3, 0 6" fill="#3b82f6" />
+                  <polygon points="0 0, 8 3, 0 6" fill={edgeSelectedColor} />
                 </marker>
                 <marker id="arrowhead-highlighted" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
-                  <polygon points="0 0, 8 3, 0 6" fill="#10b981" />
+                  <polygon points="0 0, 8 3, 0 6" fill={edgeHighlightColor} />
                 </marker>
               </defs>
               {canvasState.edges.map((edge) => {
@@ -2532,7 +2591,7 @@ const Canvas = () => {
                   edgeIsHighlighted || selectedEdgeId === edge.id || !highlightedInsight ? 1 : 0.3;
                 const isSelected = selectedEdgeId === edge.id;
                 const edgeStrokeWidth = isSelected ? 2.5 : edgeIsHighlighted ? 2 : 1.5;
-                const edgeColor = isSelected ? '#3b82f6' : edgeIsHighlighted ? '#10b981' : '#94a3b8';
+                const edgeColor = isSelected ? edgeSelectedColor : edgeIsHighlighted ? edgeHighlightColor : edgeDefaultColor;
                 const arrowMarkerId = isSelected ? 'arrowhead-selected' : edgeIsHighlighted ? 'arrowhead-highlighted' : 'arrowhead';
 
                 return (
@@ -2541,7 +2600,7 @@ const Canvas = () => {
                     {isSelected && (
                       <path
                         d={pathDefinition}
-                        stroke="#3b82f6"
+                        stroke={edgeSelectedColor}
                         strokeWidth={6}
                         opacity={0.15}
                         fill="none"
@@ -2654,7 +2713,7 @@ const Canvas = () => {
                     y1={sourcePoint.y}
                     x2={targetX}
                     y2={targetY}
-                    stroke="#3b82f6"
+                    stroke={edgeSelectedColor}
                     strokeWidth="2"
                     strokeDasharray="6 4"
                     strokeLinecap="round"
@@ -2721,7 +2780,7 @@ const Canvas = () => {
                   {/* Top accent bar */}
                   <div
                     className={`absolute top-0 left-0 right-0 h-0.5 ${
-                      selectedNodeId === node.id ? 'bg-blue-500' : nodeIsHighlighted ? 'bg-emerald-400' : 'bg-transparent'
+                      nodeIsHighlighted ? 'bg-emerald-400' : 'bg-transparent'
                     }`}
                   />
 
@@ -2805,7 +2864,7 @@ const Canvas = () => {
 
           {!isRightPanelHidden && (
             <aside
-              className={`border-l border-gray-200 bg-white flex flex-col transition-all duration-300 shrink-0 ${
+              className={`canvas-properties-panel border-l border-gray-200 bg-white flex flex-col transition-all duration-300 shrink-0 ${
                 isRightPanelExpanded ? 'w-[50vw]' : 'w-[280px]'
               }`}
             >

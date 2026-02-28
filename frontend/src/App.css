@@ -83,3 +83,55 @@ body {
 [data-theme="dark"] .shadow-blue-200 { box-shadow: 0 8px 20px rgba(0,0,0,0.35) !important; }
 [data-theme="dark"] .hover\:bg-blue-50:hover { background-color: rgba(37, 99, 235, 0.14) !important; }
 [data-theme="dark"] .hover\:text-blue-700:hover { color: var(--accent-2) !important; }
+
+/* Canvas-specific dark mode readability */
+[data-theme="dark"] .canvas-page .canvas-topbar {
+  background-color: #0f172a !important;
+  border-color: #243246 !important;
+}
+[data-theme="dark"] .canvas-page .canvas-components-panel,
+[data-theme="dark"] .canvas-page .canvas-properties-panel,
+[data-theme="dark"] .canvas-page .canvas-left-quickbar {
+  background-color: #111b2d !important;
+  border-color: #2a3a52 !important;
+}
+[data-theme="dark"] .canvas-page .canvas-topbar .text-gray-500,
+[data-theme="dark"] .canvas-page .canvas-topbar .text-gray-600,
+[data-theme="dark"] .canvas-page .canvas-components-panel .text-gray-500,
+[data-theme="dark"] .canvas-page .canvas-components-panel .text-gray-600,
+[data-theme="dark"] .canvas-page .canvas-components-panel .text-gray-400,
+[data-theme="dark"] .canvas-page .canvas-properties-panel .text-gray-500,
+[data-theme="dark"] .canvas-page .canvas-properties-panel .text-gray-600,
+[data-theme="dark"] .canvas-page .canvas-properties-panel .text-gray-400 {
+  color: #b9c8df !important;
+}
+[data-theme="dark"] .canvas-page .canvas-components-panel .text-gray-700,
+[data-theme="dark"] .canvas-page .canvas-properties-panel .text-gray-700,
+[data-theme="dark"] .canvas-page .canvas-components-panel .text-gray-800,
+[data-theme="dark"] .canvas-page .canvas-properties-panel .text-gray-800,
+[data-theme="dark"] .canvas-page .canvas-components-panel .text-gray-900,
+[data-theme="dark"] .canvas-page .canvas-properties-panel .text-gray-900 {
+  color: #e6edf8 !important;
+}
+[data-theme="dark"] .canvas-page .canvas-components-panel input,
+[data-theme="dark"] .canvas-page .canvas-components-panel textarea,
+[data-theme="dark"] .canvas-page .canvas-components-panel select,
+[data-theme="dark"] .canvas-page .canvas-properties-panel input,
+[data-theme="dark"] .canvas-page .canvas-properties-panel textarea,
+[data-theme="dark"] .canvas-page .canvas-properties-panel select {
+  background-color: #0f172a !important;
+  border-color: #30435f !important;
+  color: #e6edf8 !important;
+}
+[data-theme="dark"] .canvas-page .canvas-components-panel input::placeholder,
+[data-theme="dark"] .canvas-page .canvas-properties-panel input::placeholder,
+[data-theme="dark"] .canvas-page .canvas-properties-panel textarea::placeholder {
+  color: #95a7c4 !important;
+}
+[data-theme="dark"] .canvas-page .canvas-properties-panel .bg-gray-900 {
+  background-color: #1d4ed8 !important;
+}
+[data-theme="dark"] .canvas-page .canvas-properties-panel .bg-gray-100,
+[data-theme="dark"] .canvas-page .canvas-components-panel .bg-gray-100 {
+  background-color: #18243a !important;
+}
