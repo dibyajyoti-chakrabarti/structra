@@ -228,6 +228,7 @@ const DEFAULT_TEXT_BOX_WIDTH = 320;
 const DEFAULT_TEXT_BOX_HEIGHT = 76;
 const MIN_TEXT_BOX_WIDTH = 100;
 const MIN_TEXT_BOX_HEIGHT = 44;
+const MIN_BOUND_SIZE = 48;
 const TEXT_ALIGN_OPTIONS = ['left', 'center', 'right'];
 const TEXT_FONT_OPTIONS = [
   'Inter, system-ui, sans-serif',
@@ -238,6 +239,11 @@ const TEXT_FONT_OPTIONS = [
   '"JetBrains Mono", monospace',
 ];
 const TEXT_FONT_SIZE_OPTIONS = [10, 11, 12, 14, 16, 18, 20, 24, 28, 32, 36, 40, 48, 56, 64, 72];
+const DEFAULT_BOUND = {
+  label: 'Boundary label',
+  borderColor: '#2563eb',
+  borderWidth: 2,
+};
 
 const resolveAnchor = (value, fallback = 'right') => (NODE_ANCHORS.includes(value) ? value : fallback);
 
@@ -301,6 +307,7 @@ const DEFAULT_CANVAS_STATE = {
   nodes: [],
   edges: [],
   textItems: [],
+  boundsItems: [],
   viewport: {
     zoom: 1,
     pan: { x: 0, y: 0 },
@@ -366,6 +373,21 @@ const normalizeTextSize = (value) => {
   return { width, height };
 };
 
+const normalizeBoundStyle = (value) => {
+  if (!value || typeof value !== 'object') return DEFAULT_BOUND;
+  return {
+    label: typeof value.label === 'string' && value.label.trim() ? value.label : DEFAULT_BOUND.label,
+    borderColor:
+      typeof value.borderColor === 'string' && value.borderColor.trim()
+        ? value.borderColor
+        : DEFAULT_BOUND.borderColor,
+    borderWidth:
+      typeof value.borderWidth === 'number' && Number.isFinite(value.borderWidth)
+        ? Math.max(1, Math.min(6, value.borderWidth))
+        : DEFAULT_BOUND.borderWidth,
+  };
+};
+
 const normalizeNodeType = (type) => {
   const nextType = LEGACY_NODE_TYPE_ALIASES[type] || type;
   return ALLOWED_COMPONENT_TYPES.has(nextType) ? nextType : 'MICROSERVICE';
@@ -428,6 +450,26 @@ const ensureCanvasState = (value) => {
           },
           size: normalizeTextSize(item.size),
           style: normalizeTextStyle(item.style),
+        }))
+      : [],
+    boundsItems: Array.isArray(value.boundsItems)
+      ? value.boundsItems.map((item) => ({
+          id: item.id,
+          position: {
+            x: typeof item?.position?.x === 'number' ? item.position.x : 0,
+            y: typeof item?.position?.y === 'number' ? item.position.y : 0,
+          },
+          size: {
+            width:
+              typeof item?.size?.width === 'number' && Number.isFinite(item.size.width)
+                ? Math.max(MIN_BOUND_SIZE, item.size.width)
+                : 220,
+            height:
+              typeof item?.size?.height === 'number' && Number.isFinite(item.size.height)
+                ? Math.max(MIN_BOUND_SIZE, item.size.height)
+                : 160,
+          },
+          style: normalizeBoundStyle(item.style),
         }))
       : [],
     viewport: {
@@ -990,7 +1032,9 @@ const Canvas = () => {
   const draggingNodeRef = useRef(null);
   const draggingBendRef = useRef(null);
   const draggingSegmentRef = useRef(null);
+  const draggingTextRef = useRef(null);
   const resizingTextRef = useRef(null);
+  const drawingBoundRef = useRef(null);
   const panningRef = useRef(null);
   const historyPastRef = useRef([]);
   const historyFutureRef = useRef([]);
@@ -1014,6 +1058,7 @@ const Canvas = () => {
   const [selectedNodeId, setSelectedNodeId] = useState(null);
   const [selectedEdgeId, setSelectedEdgeId] = useState(null);
   const [selectedTextId, setSelectedTextId] = useState(null);
+  const [selectedBoundId, setSelectedBoundId] = useState(null);
   const [editingTextId, setEditingTextId] = useState(null);
   const [connectionDraft, setConnectionDraft] = useState(null);
   const [showGlobalConnectors, setShowGlobalConnectors] = useState(false);
@@ -1037,6 +1082,7 @@ const Canvas = () => {
   const [editingCommentBody, setEditingCommentBody] = useState('');
   const [componentSearch, setComponentSearch] = useState('');
   const [isTextPlacementMode, setIsTextPlacementMode] = useState(false);
+  const [isBoundsDrawingMode, setIsBoundsDrawingMode] = useState(false);
 
   const lastSavedSignatureRef = useRef('');
   const retryAttemptRef = useRef(0);
@@ -1270,6 +1316,7 @@ const Canvas = () => {
     setSelectedNodeId(newNode.id);
     setSelectedEdgeId(null);
     setSelectedTextId(null);
+    setSelectedBoundId(null);
     setEditingTextId(null);
   };
 
@@ -1296,6 +1343,7 @@ const Canvas = () => {
     setSelectedNodeId(node.id);
     setSelectedEdgeId(null);
     setSelectedTextId(null);
+    setSelectedBoundId(null);
     setEditingTextId(null);
     beginDragHistory();
   };
@@ -1309,6 +1357,7 @@ const Canvas = () => {
     setSelectedEdgeId(edgeId);
     setSelectedNodeId(null);
     setSelectedTextId(null);
+    setSelectedBoundId(null);
     setEditingTextId(null);
     draggingBendRef.current = { edgeId, bendIndex };
     setShowGlobalConnectors(true);
@@ -1383,6 +1432,7 @@ const Canvas = () => {
     setSelectedEdgeId(edge.id);
     setSelectedNodeId(null);
     setSelectedTextId(null);
+    setSelectedBoundId(null);
     setEditingTextId(null);
 
     draggingSegmentRef.current = {
@@ -1426,6 +1476,7 @@ const Canvas = () => {
     setSelectedEdgeId(edge.id);
     setSelectedNodeId(null);
     setSelectedTextId(null);
+    setSelectedBoundId(null);
     setEditingTextId(null);
     openPropertiesPanel();
     setRightPanelMode('design');
@@ -1451,6 +1502,43 @@ const Canvas = () => {
   };
 
   const onCanvasMouseDown = (event) => {
+    if (canEditStructure && isBoundsDrawingMode && activeTool === 'select' && event.button === 0 && canvasRef.current) {
+      if (event.target !== event.currentTarget) return;
+      event.preventDefault();
+      window.getSelection?.()?.removeAllRanges?.();
+      const rect = canvasRef.current.getBoundingClientRect();
+      const world = canvasToWorld(
+        event.clientX - rect.left,
+        event.clientY - rect.top,
+        canvasState.viewport
+      );
+      const boundId = makeUuid();
+      const nextBound = {
+        id: boundId,
+        position: { x: world.x, y: world.y },
+        size: { width: MIN_BOUND_SIZE, height: MIN_BOUND_SIZE },
+        style: { ...DEFAULT_BOUND },
+      };
+      drawingBoundRef.current = {
+        boundId,
+        startClientX: event.clientX,
+        startClientY: event.clientY,
+        startX: world.x,
+        startY: world.y,
+      };
+      setCanvasState((prev) => ({
+        ...prev,
+        boundsItems: [...prev.boundsItems, nextBound],
+      }));
+      setSelectedBoundId(boundId);
+      setSelectedNodeId(null);
+      setSelectedEdgeId(null);
+      setSelectedTextId(null);
+      setEditingTextId(null);
+      beginDragHistory();
+      return;
+    }
+
     const isRightMouseButton = event.button === 2;
     const isPanToolLeftClick = activeTool === 'pan' && event.button === 0;
     if (!isRightMouseButton && !isPanToolLeftClick) return;
@@ -1470,6 +1558,49 @@ const Canvas = () => {
 
   useEffect(() => {
     const onMouseMove = (event) => {
+      if (drawingBoundRef.current) {
+        const drag = drawingBoundRef.current;
+        const deltaX = (event.clientX - drag.startClientX) / canvasState.viewport.zoom;
+        const deltaY = (event.clientY - drag.startClientY) / canvasState.viewport.zoom;
+        const nextWidth = Math.max(MIN_BOUND_SIZE, Math.abs(deltaX));
+        const nextHeight = Math.max(MIN_BOUND_SIZE, Math.abs(deltaY));
+        const nextX = deltaX >= 0 ? drag.startX : drag.startX - nextWidth;
+        const nextY = deltaY >= 0 ? drag.startY : drag.startY - nextHeight;
+
+        setCanvasState((prev) => ({
+          ...prev,
+          boundsItems: prev.boundsItems.map((item) =>
+            item.id === drag.boundId
+              ? {
+                  ...item,
+                  position: { x: nextX, y: nextY },
+                  size: { width: nextWidth, height: nextHeight },
+                }
+              : item
+          ),
+        }));
+      }
+
+      if (draggingTextRef.current) {
+        const drag = draggingTextRef.current;
+        const deltaX = (event.clientX - drag.startClientX) / canvasState.viewport.zoom;
+        const deltaY = (event.clientY - drag.startClientY) / canvasState.viewport.zoom;
+        setCanvasState((prev) => ({
+          ...prev,
+          textItems: prev.textItems.map((item) =>
+            item.id === drag.textId
+              ? {
+                  ...item,
+                  position: {
+                    x: drag.startX + deltaX,
+                    y: drag.startY + deltaY,
+                  },
+                }
+              : item
+          ),
+        }));
+      }
+
       if (resizingTextRef.current) {
         const drag = resizingTextRef.current;
         const deltaX = (event.clientX - drag.startClientX) / canvasState.viewport.zoom;
@@ -1602,16 +1733,22 @@ const Canvas = () => {
     };
 
     const onMouseUp = () => {
+      const wasDrawingBound = Boolean(drawingBoundRef.current);
       draggingNodeRef.current = null;
       draggingBendRef.current = null;
       draggingSegmentRef.current = null;
+      draggingTextRef.current = null;
       resizingTextRef.current = null;
+      drawingBoundRef.current = null;
       panningRef.current = null;
       setIsPanning(false);
       setShowGlobalConnectors(false);
       commitDragHistory();
       if (connectionDraft) {
         setConnectionDraft(null);
+      }
+      if (wasDrawingBound) {
+        setIsBoundsDrawingMode(false);
       }
     };
 
@@ -1632,6 +1769,7 @@ const Canvas = () => {
     setSelectedNodeId(nodeId);
     setSelectedEdgeId(null);
     setSelectedTextId(null);
+    setSelectedBoundId(null);
     setEditingTextId(null);
     setShowGlobalConnectors(true);
     setConnectionDraft({
@@ -1674,6 +1812,7 @@ const Canvas = () => {
       setSelectedEdgeId(nextEdge.id);
       setSelectedNodeId(null);
       setSelectedTextId(null);
+      setSelectedBoundId(null);
       setEditingTextId(null);
       setRightPanelMode('design');
       openPropertiesPanel();
@@ -1694,6 +1833,10 @@ const Canvas = () => {
   const selectedTextItem = useMemo(
     () => canvasState.textItems.find((item) => item.id === selectedTextId) || null,
     [canvasState.textItems, selectedTextId]
+  );
+  const selectedBoundItem = useMemo(
+    () => canvasState.boundsItems.find((item) => item.id === selectedBoundId) || null,
+    [canvasState.boundsItems, selectedBoundId]
   );
   const insights = useMemo(() => computeInsights(canvasState), [canvasState]);
   const insightsById = useMemo(
@@ -1892,13 +2035,65 @@ const Canvas = () => {
     setSelectedTextStyleField('fontSize', Math.min(96, Math.max(10, Math.round(numeric))));
   };
 
+  const setBoundLabel = (boundId, label) => {
+    if (!canEditStructure || !boundId) return;
+    setCanvasState((prev) => ({
+      ...prev,
+      boundsItems: prev.boundsItems.map((item) =>
+        item.id === boundId
+          ? {
+              ...item,
+              style: {
+                ...normalizeBoundStyle(item.style),
+                label,
+              },
+            }
+          : item
+      ),
+    }));
+  };
+
+  const setSelectedBoundStyleField = (field, value) => {
+    if (!canEditStructure || !selectedBoundId) return;
+    setCanvasState((prev) => ({
+      ...prev,
+      boundsItems: prev.boundsItems.map((item) =>
+        item.id === selectedBoundId
+          ? {
+              ...item,
+              style: {
+                ...normalizeBoundStyle(item.style),
+                [field]: value,
+              },
+            }
+          : item
+      ),
+    }));
+  };
+
   const activateTextPlacementMode = useCallback(() => {
     if (!canEditStructure) return;
     setIsTextPlacementMode(true);
+    setIsBoundsDrawingMode(false);
     setIsLeftPanelCollapsed(true);
     setSelectedNodeId(null);
     setSelectedEdgeId(null);
     setSelectedTextId(null);
+    setSelectedBoundId(null);
+    setEditingTextId(null);
+    setRightPanelMode('design');
+    openPropertiesPanel();
+  }, [canEditStructure, openPropertiesPanel]);
+
+  const activateBoundsDrawingMode = useCallback(() => {
+    if (!canEditStructure) return;
+    setIsBoundsDrawingMode(true);
+    setIsTextPlacementMode(false);
+    setIsLeftPanelCollapsed(true);
+    setSelectedNodeId(null);
+    setSelectedEdgeId(null);
+    setSelectedTextId(null);
+    setSelectedBoundId(null);
     setEditingTextId(null);
     setRightPanelMode('design');
     openPropertiesPanel();
@@ -1976,11 +2171,13 @@ const Canvas = () => {
       setSelectedNodeId(relatedNodeIds[0]);
       setSelectedEdgeId(null);
       setSelectedTextId(null);
+      setSelectedBoundId(null);
       setEditingTextId(null);
     } else if (relatedEdgeIds.length > 0) {
       setSelectedEdgeId(relatedEdgeIds[0]);
       setSelectedNodeId(null);
       setSelectedTextId(null);
+      setSelectedBoundId(null);
       setEditingTextId(null);
     }
 
@@ -2069,15 +2266,29 @@ const Canvas = () => {
     setEditingTextId(null);
   }, [canEditStructure, selectedTextId]);
 
+  const deleteSelectedBound = useCallback(() => {
+    if (!canEditStructure) return;
+    if (!selectedBoundId) return;
+    setCanvasState((prev) => ({
+      ...prev,
+      boundsItems: prev.boundsItems.filter((item) => item.id !== selectedBoundId),
+    }));
+    setSelectedBoundId(null);
+  }, [canEditStructure, selectedBoundId]);
+
   useEffect(() => {
     const onKeyDown = (event) => {
       if (!canEditStructure) return;
       if (event.key !== 'Backspace' && event.key !== 'Delete') return;
       if (isEditableElement(event.target)) return;
-      if (!selectedEdgeId && !selectedNodeId && !selectedTextId) return;
+      if (!selectedEdgeId && !selectedNodeId && !selectedTextId && !selectedBoundId) return;
       event.preventDefault();
       if (selectedEdgeId) {
         deleteSelectedEdge();
+        return;
+      }
+      if (selectedBoundId) {
+        deleteSelectedBound();
         return;
       }
       if (selectedTextId) {
@@ -2089,7 +2300,7 @@ const Canvas = () => {
 
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [canEditStructure, selectedEdgeId, selectedNodeId, selectedTextId, deleteSelectedEdge, deleteSelectedNode, deleteSelectedText]);
+  }, [canEditStructure, selectedEdgeId, selectedNodeId, selectedTextId, selectedBoundId, deleteSelectedEdge, deleteSelectedNode, deleteSelectedText, deleteSelectedBound]);
 
   useEffect(() => {
     const onShortcut = (event) => {
@@ -2132,6 +2343,7 @@ const Canvas = () => {
     setSelectedNodeId(null);
     setSelectedEdgeId(null);
     setSelectedTextId(null);
+    setSelectedBoundId(null);
     setEditingTextId(null);
     setHistoryVersion((value) => value + 1);
   }, [canEditStructure, canvasState]);
@@ -2147,6 +2359,7 @@ const Canvas = () => {
     setSelectedNodeId(null);
     setSelectedEdgeId(null);
     setSelectedTextId(null);
+    setSelectedBoundId(null);
     setEditingTextId(null);
     setHistoryVersion((value) => value + 1);
   }, [canEditStructure, canvasState]);
@@ -2766,6 +2979,15 @@ const Canvas = () => {
               <Trash2 size={12} />
               Delete Selected Text
             </button>
+            <button
+              type="button"
+              disabled={!selectedBoundId}
+              onClick={deleteSelectedBound}
+              className="w-full flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg border border-gray-200 text-xs font-medium text-gray-600 hover:border-red-200 hover:text-red-600 hover:bg-red-50 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:border-gray-200 disabled:hover:bg-transparent disabled:hover:text-gray-600 transition-all"
+            >
+              <Trash2 size={12} />
+              Delete Selected Bound
+            </button>
           </div>
             </>
           ) : (
@@ -2787,7 +3009,12 @@ const Canvas = () => {
           <aside className="canvas-left-quickbar absolute top-3 left-3 z-20 inline-flex flex-col gap-1 p-1.5 rounded-xl border border-gray-200 bg-white shadow-sm">
             {LEFT_PANEL_ITEMS.map((item) => {
               const ItemIcon = item.icon;
-              const isActive = item.id === 'text' ? isTextPlacementMode : !isTextPlacementMode && leftPanelMode === item.id;
+              const isActive =
+                item.id === 'text'
+                  ? isTextPlacementMode
+                  : item.id === 'bounds'
+                  ? isBoundsDrawingMode
+                  : !isTextPlacementMode && !isBoundsDrawingMode && leftPanelMode === item.id;
               return (
                 <button
                   key={item.id}
@@ -2802,7 +3029,16 @@ const Canvas = () => {
                       }
                       return;
                     }
+                    if (item.id === 'bounds') {
+                      if (isBoundsDrawingMode) {
+                        setIsBoundsDrawingMode(false);
+                      } else {
+                        activateBoundsDrawingMode();
+                      }
+                      return;
+                    }
                     setIsTextPlacementMode(false);
+                    setIsBoundsDrawingMode(false);
                     setEditingTextId(null);
                     setLeftPanelMode(item.id);
                     setIsLeftPanelCollapsed(false);
@@ -2810,7 +3046,13 @@ const Canvas = () => {
                   className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all ${
                     isActive ? 'bg-gray-900 text-white' : 'text-gray-600 hover:bg-gray-100'
                   }`}
-                  title={item.id === 'text' ? 'Place text on canvas' : `Open ${item.label} panel`}
+                  title={
+                    item.id === 'text'
+                      ? 'Place text on canvas'
+                      : item.id === 'bounds'
+                      ? 'Draw boundary on canvas'
+                      : `Open ${item.label} panel`
+                  }
                 >
                   <ItemIcon size={13} />
                   {item.label}
@@ -2829,6 +3071,7 @@ const Canvas = () => {
             onDrop={handleDropComponent}
             onClick={(event) => {
               if (event.target !== event.currentTarget) return;
+              if (isBoundsDrawingMode) return;
               if (canEditStructure && isTextPlacementMode && canvasRef.current) {
                 const rect = canvasRef.current.getBoundingClientRect();
                 const world = canvasToWorld(
@@ -2850,7 +3093,9 @@ const Canvas = () => {
                 setSelectedTextId(textItem.id);
                 setSelectedNodeId(null);
                 setSelectedEdgeId(null);
+                setSelectedBoundId(null);
                 setEditingTextId(null);
+                setIsTextPlacementMode(false);
                 setRightPanelMode('design');
                 openPropertiesPanel();
                 return;
@@ -2858,18 +3103,22 @@ const Canvas = () => {
               setSelectedNodeId(null);
               setSelectedEdgeId(null);
               setSelectedTextId(null);
+              setSelectedBoundId(null);
               setEditingTextId(null);
               setIsTextPlacementMode(false);
+              setIsBoundsDrawingMode(false);
               setRightPanelMode('design');
               openPropertiesPanel();
             }}
-            className={`relative flex-1 overflow-hidden ${
+            className={`relative flex-1 overflow-hidden ${isBoundsDrawingMode ? 'select-none' : ''} ${
               isPanning
                 ? 'cursor-grabbing'
                 : activeTool === 'pan'
                 ? 'cursor-grab'
                 : isTextPlacementMode
                 ? 'cursor-text'
+                : isBoundsDrawingMode
+                ? 'cursor-crosshair'
                 : 'cursor-default'
             }`}
             style={{
@@ -2961,6 +3210,7 @@ const Canvas = () => {
                         setSelectedEdgeId(edge.id);
                         setSelectedNodeId(null);
                         setSelectedTextId(null);
+                        setSelectedBoundId(null);
                         setEditingTextId(null);
                       }}
                     />
@@ -3166,9 +3416,22 @@ const Canvas = () => {
                     setSelectedTextId(item.id);
                     setSelectedNodeId(null);
                     setSelectedEdgeId(null);
+                    setSelectedBoundId(null);
                     setEditingTextId(null);
                     setRightPanelMode('design');
                     openPropertiesPanel();
+
+                    if (!canEditStructure) return;
+                    if (event.button !== 0) return;
+                    if (activeTool !== 'select') return;
+                    draggingTextRef.current = {
+                      textId: item.id,
+                      startClientX: event.clientX,
+                      startClientY: event.clientY,
+                      startX: item.position.x,
+                      startY: item.position.y,
+                    };
+                    beginDragHistory();
                   }}
                   onDoubleClick={(event) => {
                     if (!canEditStructure) return;
@@ -3176,6 +3439,7 @@ const Canvas = () => {
                     setSelectedTextId(item.id);
                     setSelectedNodeId(null);
                     setSelectedEdgeId(null);
+                    setSelectedBoundId(null);
                     setIsTextPlacementMode(false);
                     setEditingTextId(item.id);
                     setRightPanelMode('design');
@@ -3309,6 +3573,90 @@ const Canvas = () => {
                       />
                     </>
                   )}
+                </div>
+              );
+            })}
+
+            {canvasState.boundsItems.map((bound) => {
+              const screen = worldToScreen(bound.position.x, bound.position.y, canvasState.viewport);
+              const style = normalizeBoundStyle(bound.style);
+              const width = bound.size.width * canvasState.viewport.zoom;
+              const height = bound.size.height * canvasState.viewport.zoom;
+              const borderWidth = Math.max(1, style.borderWidth * canvasState.viewport.zoom);
+              const hitSize = 10;
+              const isSelected = selectedBoundId === bound.id;
+
+              const selectBound = (event) => {
+                event.stopPropagation();
+                setSelectedBoundId(bound.id);
+                setSelectedNodeId(null);
+                setSelectedEdgeId(null);
+                setSelectedTextId(null);
+                setEditingTextId(null);
+                setRightPanelMode('design');
+                openPropertiesPanel();
+              };
+
+              return (
+                <div
+                  key={bound.id}
+                  className="absolute pointer-events-none"
+                  style={{
+                    left: screen.x,
+                    top: screen.y,
+                    width,
+                    height,
+                  }}
+                >
+                  <div
+                    className="absolute inset-0"
+                    style={{
+                      border: `${borderWidth}px solid ${style.borderColor}`,
+                      borderRadius: 8,
+                      background: 'transparent',
+                      boxShadow: isSelected ? '0 0 0 2px rgba(37, 99, 235, 0.2)' : 'none',
+                    }}
+                  />
+
+                  {isSelected ? (
+                    <input
+                      type="text"
+                      value={style.label}
+                      onChange={(event) => setBoundLabel(bound.id, event.target.value)}
+                      className="absolute -top-5 left-0 pointer-events-auto max-w-[220px] rounded-md border border-blue-300 bg-white px-2 py-0.5 text-[11px] font-semibold text-gray-800 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-100"
+                      onMouseDown={(event) => event.stopPropagation()}
+                    />
+                  ) : (
+                    <button
+                      type="button"
+                      className="absolute -top-5 left-0 pointer-events-auto max-w-[180px] rounded-md border border-gray-200 bg-white/95 px-2 py-0.5 text-[11px] font-semibold text-gray-700 shadow-sm"
+                      onMouseDown={selectBound}
+                      title="Boundary label"
+                    >
+                      {style.label}
+                    </button>
+                  )}
+
+                  <div
+                    className="absolute left-0 right-0 top-0 pointer-events-auto"
+                    style={{ height: hitSize, cursor: 'pointer' }}
+                    onMouseDown={selectBound}
+                  />
+                  <div
+                    className="absolute left-0 right-0 bottom-0 pointer-events-auto"
+                    style={{ height: hitSize, cursor: 'pointer' }}
+                    onMouseDown={selectBound}
+                  />
+                  <div
+                    className="absolute top-0 bottom-0 left-0 pointer-events-auto"
+                    style={{ width: hitSize, cursor: 'pointer' }}
+                    onMouseDown={selectBound}
+                  />
+                  <div
+                    className="absolute top-0 bottom-0 right-0 pointer-events-auto"
+                    style={{ width: hitSize, cursor: 'pointer' }}
+                    onMouseDown={selectBound}
+                  />
                 </div>
               );
             })}
@@ -3449,7 +3797,7 @@ const Canvas = () => {
               <div className="flex-1 overflow-y-auto">
               <div className="p-4 space-y-3">
                 <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-widest">
-                  {selectedEdge ? 'Connection' : selectedNode ? 'Component' : selectedTextItem ? 'Text' : 'System'}
+                  {selectedEdge ? 'Connection' : selectedNode ? 'Component' : selectedTextItem ? 'Text' : selectedBoundItem ? 'Bound' : 'System'}
                 </p>
               {selectedEdge ? (
                 <div className="rounded-xl border border-gray-200 p-3 space-y-3 bg-gray-50/50">
@@ -3743,6 +4091,45 @@ const Canvas = () => {
                     ))}
                   </div>
                 </div>
+              ) : selectedBoundItem ? (
+                <div className="rounded-xl border border-gray-200 p-3 space-y-3 bg-gray-50/50">
+                  <div>
+                    <label className="text-[11px] font-semibold text-gray-500 block mb-1.5">Label</label>
+                    <input
+                      type="text"
+                      value={selectedBoundItem?.style?.label || DEFAULT_BOUND.label}
+                      onChange={(event) => setBoundLabel(selectedBoundItem.id, event.target.value)}
+                      disabled={!canEditStructure}
+                      className="w-full border border-gray-200 rounded-lg px-2.5 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-300"
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="text-[11px] font-semibold text-gray-500 block mb-1.5">Border</label>
+                      <input
+                        type="color"
+                        value={selectedBoundItem?.style?.borderColor || DEFAULT_BOUND.borderColor}
+                        onChange={(event) => setSelectedBoundStyleField('borderColor', event.target.value)}
+                        disabled={!canEditStructure}
+                        className="w-full h-9 border border-gray-200 rounded-lg bg-white"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[11px] font-semibold text-gray-500 block mb-1.5">Width</label>
+                      <input
+                        type="number"
+                        min={1}
+                        max={6}
+                        value={selectedBoundItem?.style?.borderWidth || DEFAULT_BOUND.borderWidth}
+                        onChange={(event) =>
+                          setSelectedBoundStyleField('borderWidth', Math.max(1, Math.min(6, Number(event.target.value) || 1)))
+                        }
+                        disabled={!canEditStructure}
+                        className="w-full border border-gray-200 rounded-lg px-2.5 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-300"
+                      />
+                    </div>
+                  </div>
+                </div>
               ) : (
                 <div className="rounded-xl border border-gray-200 p-3 space-y-3 bg-gray-50/50">
                   <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-widest">System</p>
@@ -3821,6 +4208,10 @@ const Canvas = () => {
                   <div className="flex items-center justify-between text-xs">
                     <span className="text-gray-500">Texts</span>
                     <span className="font-semibold text-gray-900 tabular-nums">{canvasState.textItems.length}</span>
+                  </div>
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-gray-500">Bounds</span>
+                    <span className="font-semibold text-gray-900 tabular-nums">{canvasState.boundsItems.length}</span>
                   </div>
                   <div className="flex items-center justify-between text-xs">
                     <span className="text-gray-500">User</span>
