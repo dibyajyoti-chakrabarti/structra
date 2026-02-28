@@ -1034,6 +1034,8 @@ const Canvas = () => {
   const draggingSegmentRef = useRef(null);
   const draggingTextRef = useRef(null);
   const resizingTextRef = useRef(null);
+  const draggingBoundRef = useRef(null);
+  const resizingBoundRef = useRef(null);
   const drawingBoundRef = useRef(null);
   const panningRef = useRef(null);
   const historyPastRef = useRef([]);
@@ -1601,6 +1603,66 @@ const Canvas = () => {
         }));
       }
 
+      if (draggingBoundRef.current) {
+        const drag = draggingBoundRef.current;
+        const deltaX = (event.clientX - drag.startClientX) / canvasState.viewport.zoom;
+        const deltaY = (event.clientY - drag.startClientY) / canvasState.viewport.zoom;
+        setCanvasState((prev) => ({
+          ...prev,
+          boundsItems: prev.boundsItems.map((item) =>
+            item.id === drag.boundId
+              ? {
+                  ...item,
+                  position: {
+                    x: drag.startX + deltaX,
+                    y: drag.startY + deltaY,
+                  },
+                }
+              : item
+          ),
+        }));
+      }
+
+      if (resizingBoundRef.current) {
+        const drag = resizingBoundRef.current;
+        const deltaX = (event.clientX - drag.startClientX) / canvasState.viewport.zoom;
+        const deltaY = (event.clientY - drag.startClientY) / canvasState.viewport.zoom;
+        const nextPosition = { ...drag.startPosition };
+        const nextSize = { ...drag.startSize };
+
+        if (drag.handle.includes('right')) {
+          nextSize.width = Math.max(MIN_BOUND_SIZE, drag.startSize.width + deltaX);
+        }
+        if (drag.handle.includes('left')) {
+          const width = Math.max(MIN_BOUND_SIZE, drag.startSize.width - deltaX);
+          const widthDelta = drag.startSize.width - width;
+          nextSize.width = width;
+          nextPosition.x = drag.startPosition.x + widthDelta;
+        }
+        if (drag.handle.includes('bottom')) {
+          nextSize.height = Math.max(MIN_BOUND_SIZE, drag.startSize.height + deltaY);
+        }
+        if (drag.handle.includes('top')) {
+          const height = Math.max(MIN_BOUND_SIZE, drag.startSize.height - deltaY);
+          const heightDelta = drag.startSize.height - height;
+          nextSize.height = height;
+          nextPosition.y = drag.startPosition.y + heightDelta;
+        }
+
+        setCanvasState((prev) => ({
+          ...prev,
+          boundsItems: prev.boundsItems.map((item) =>
+            item.id === drag.boundId
+              ? {
+                  ...item,
+                  position: nextPosition,
+                  size: nextSize,
+                }
+              : item
+          ),
+        }));
+      }
+
       if (resizingTextRef.current) {
         const drag = resizingTextRef.current;
         const deltaX = (event.clientX - drag.startClientX) / canvasState.viewport.zoom;
@@ -1738,6 +1800,8 @@ const Canvas = () => {
       draggingBendRef.current = null;
       draggingSegmentRef.current = null;
       draggingTextRef.current = null;
+      draggingBoundRef.current = null;
+      resizingBoundRef.current = null;
       resizingTextRef.current = null;
       drawingBoundRef.current = null;
       panningRef.current = null;
@@ -3589,6 +3653,8 @@ const Canvas = () => {
               const borderWidth = Math.max(1, style.borderWidth * canvasState.viewport.zoom);
               const hitSize = 10;
               const isSelected = selectedBoundId === bound.id;
+              const handleSize = 10;
+              const handleStroke = '#2563eb';
 
               const selectBound = (event) => {
                 event.stopPropagation();
@@ -3599,6 +3665,34 @@ const Canvas = () => {
                 setEditingTextId(null);
                 setRightPanelMode('design');
                 openPropertiesPanel();
+              };
+
+              const startBoundDrag = (event) => {
+                if (!canEditStructure || event.button !== 0 || activeTool !== 'select') return;
+                selectBound(event);
+                draggingBoundRef.current = {
+                  boundId: bound.id,
+                  startClientX: event.clientX,
+                  startClientY: event.clientY,
+                  startX: bound.position.x,
+                  startY: bound.position.y,
+                };
+                beginDragHistory();
+              };
+
+              const startBoundResize = (event, handle) => {
+                if (!canEditStructure || event.button !== 0 || activeTool !== 'select') return;
+                event.stopPropagation();
+                selectBound(event);
+                resizingBoundRef.current = {
+                  boundId: bound.id,
+                  handle,
+                  startClientX: event.clientX,
+                  startClientY: event.clientY,
+                  startPosition: { ...bound.position },
+                  startSize: { ...bound.size },
+                };
+                beginDragHistory();
               };
 
               return (
@@ -3627,13 +3721,13 @@ const Canvas = () => {
                       type="text"
                       value={style.label}
                       onChange={(event) => setBoundLabel(bound.id, event.target.value)}
-                      className="absolute -top-5 left-0 pointer-events-auto max-w-[220px] rounded-md border border-blue-300 bg-white px-2 py-0.5 text-[11px] font-semibold text-gray-800 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-100"
+                      className="absolute z-10 -top-6 left-0 pointer-events-auto max-w-[240px] rounded-md border-2 border-blue-500 bg-white px-2 py-0.5 text-[11px] font-semibold text-gray-900 shadow-md focus:outline-none focus:ring-2 focus:ring-blue-200"
                       onMouseDown={(event) => event.stopPropagation()}
                     />
                   ) : (
                     <button
                       type="button"
-                      className="absolute -top-5 left-0 pointer-events-auto max-w-[180px] rounded-md border border-gray-200 bg-white/95 px-2 py-0.5 text-[11px] font-semibold text-gray-700 shadow-sm"
+                      className="absolute z-10 -top-6 left-0 pointer-events-auto max-w-[220px] rounded-md border-2 border-blue-300 bg-white px-2 py-0.5 text-[11px] font-semibold text-gray-900 shadow-md"
                       onMouseDown={selectBound}
                       title="Boundary label"
                     >
@@ -3642,25 +3736,70 @@ const Canvas = () => {
                   )}
 
                   <div
+                    className="absolute inset-0 pointer-events-auto"
+                    style={{ cursor: canEditStructure && activeTool === 'select' ? 'move' : 'pointer' }}
+                    onMouseDown={(event) => {
+                      if (canEditStructure && activeTool === 'select') {
+                        startBoundDrag(event);
+                      } else {
+                        selectBound(event);
+                      }
+                    }}
+                  />
+
+                  <div
                     className="absolute left-0 right-0 top-0 pointer-events-auto"
-                    style={{ height: hitSize, cursor: 'pointer' }}
-                    onMouseDown={selectBound}
+                    style={{ height: hitSize, cursor: isSelected && canEditStructure ? 'ns-resize' : 'pointer' }}
+                    onMouseDown={(event) => (isSelected && canEditStructure ? startBoundResize(event, 'top') : selectBound(event))}
                   />
                   <div
                     className="absolute left-0 right-0 bottom-0 pointer-events-auto"
-                    style={{ height: hitSize, cursor: 'pointer' }}
-                    onMouseDown={selectBound}
+                    style={{ height: hitSize, cursor: isSelected && canEditStructure ? 'ns-resize' : 'pointer' }}
+                    onMouseDown={(event) => (isSelected && canEditStructure ? startBoundResize(event, 'bottom') : selectBound(event))}
                   />
                   <div
                     className="absolute top-0 bottom-0 left-0 pointer-events-auto"
-                    style={{ width: hitSize, cursor: 'pointer' }}
-                    onMouseDown={selectBound}
+                    style={{ width: hitSize, cursor: isSelected && canEditStructure ? 'ew-resize' : 'pointer' }}
+                    onMouseDown={(event) => (isSelected && canEditStructure ? startBoundResize(event, 'left') : selectBound(event))}
                   />
                   <div
                     className="absolute top-0 bottom-0 right-0 pointer-events-auto"
-                    style={{ width: hitSize, cursor: 'pointer' }}
-                    onMouseDown={selectBound}
+                    style={{ width: hitSize, cursor: isSelected && canEditStructure ? 'ew-resize' : 'pointer' }}
+                    onMouseDown={(event) => (isSelected && canEditStructure ? startBoundResize(event, 'right') : selectBound(event))}
                   />
+
+                  {isSelected && canEditStructure && (
+                    <>
+                      <button
+                        type="button"
+                        aria-label="Resize bound top-left"
+                        className="absolute -left-1.5 -top-1.5 z-10 rounded-full bg-white pointer-events-auto"
+                        style={{ width: handleSize, height: handleSize, border: `1px solid ${handleStroke}`, cursor: 'nwse-resize' }}
+                        onMouseDown={(event) => startBoundResize(event, 'top-left')}
+                      />
+                      <button
+                        type="button"
+                        aria-label="Resize bound top-right"
+                        className="absolute -right-1.5 -top-1.5 z-10 rounded-full bg-white pointer-events-auto"
+                        style={{ width: handleSize, height: handleSize, border: `1px solid ${handleStroke}`, cursor: 'nesw-resize' }}
+                        onMouseDown={(event) => startBoundResize(event, 'top-right')}
+                      />
+                      <button
+                        type="button"
+                        aria-label="Resize bound bottom-left"
+                        className="absolute -left-1.5 -bottom-1.5 z-10 rounded-full bg-white pointer-events-auto"
+                        style={{ width: handleSize, height: handleSize, border: `1px solid ${handleStroke}`, cursor: 'nesw-resize' }}
+                        onMouseDown={(event) => startBoundResize(event, 'bottom-left')}
+                      />
+                      <button
+                        type="button"
+                        aria-label="Resize bound bottom-right"
+                        className="absolute -right-1.5 -bottom-1.5 z-10 rounded-full bg-white pointer-events-auto"
+                        style={{ width: handleSize, height: handleSize, border: `1px solid ${handleStroke}`, cursor: 'nwse-resize' }}
+                        onMouseDown={(event) => startBoundResize(event, 'bottom-right')}
+                      />
+                    </>
+                  )}
                 </div>
               );
             })}
