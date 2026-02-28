@@ -214,6 +214,25 @@ const ANCHOR_DIRECTIONS = {
   left: { x: -1, y: 0 },
 };
 const DEFAULT_EDGE_BREAKOUT = 42;
+const DEFAULT_TEXT_STYLE = {
+  fontSize: 18,
+  fontFamily: 'Inter, system-ui, sans-serif',
+  color: '#111827',
+  highlightColor: '#ffffff',
+  align: 'left',
+  bold: false,
+  italic: false,
+  underline: false,
+};
+const TEXT_ALIGN_OPTIONS = ['left', 'center', 'right'];
+const TEXT_FONT_OPTIONS = [
+  'Inter, system-ui, sans-serif',
+  'ui-sans-serif, system-ui, -apple-system, sans-serif',
+  '"Georgia", serif',
+  '"Times New Roman", serif',
+  '"Courier New", monospace',
+  '"JetBrains Mono", monospace',
+];
 
 const resolveAnchor = (value, fallback = 'right') => (NODE_ANCHORS.includes(value) ? value : fallback);
 
@@ -276,6 +295,7 @@ const cloneCanvasState = (value) => JSON.parse(JSON.stringify(value));
 const DEFAULT_CANVAS_STATE = {
   nodes: [],
   edges: [],
+  textItems: [],
   viewport: {
     zoom: 1,
     pan: { x: 0, y: 0 },
@@ -300,6 +320,30 @@ const normalizePointArray = (value) => {
       x: typeof item.x === 'number' ? item.x : 0,
       y: typeof item.y === 'number' ? item.y : 0,
     }));
+};
+
+const normalizeTextStyle = (value) => {
+  if (!value || typeof value !== 'object') return DEFAULT_TEXT_STYLE;
+  const nextAlign = TEXT_ALIGN_OPTIONS.includes(value.align) ? value.align : DEFAULT_TEXT_STYLE.align;
+  return {
+    fontSize:
+      typeof value.fontSize === 'number' && Number.isFinite(value.fontSize)
+        ? Math.min(96, Math.max(10, value.fontSize))
+        : DEFAULT_TEXT_STYLE.fontSize,
+    fontFamily:
+      typeof value.fontFamily === 'string' && value.fontFamily.trim()
+        ? value.fontFamily
+        : DEFAULT_TEXT_STYLE.fontFamily,
+    color: typeof value.color === 'string' && value.color.trim() ? value.color : DEFAULT_TEXT_STYLE.color,
+    highlightColor:
+      typeof value.highlightColor === 'string' && value.highlightColor.trim()
+        ? value.highlightColor
+        : DEFAULT_TEXT_STYLE.highlightColor,
+    align: nextAlign,
+    bold: Boolean(value.bold),
+    italic: Boolean(value.italic),
+    underline: Boolean(value.underline),
+  };
 };
 
 const normalizeNodeType = (type) => {
@@ -352,6 +396,17 @@ const ensureCanvasState = (value) => {
             protocol: typeof edge?.metadata?.protocol === 'string' ? edge.metadata.protocol : '',
             notes: typeof edge?.metadata?.notes === 'string' ? edge.metadata.notes : '',
           },
+        }))
+      : [],
+    textItems: Array.isArray(value.textItems)
+      ? value.textItems.map((item) => ({
+          id: item.id,
+          content: typeof item.content === 'string' ? item.content : 'Type here',
+          position: {
+            x: typeof item?.position?.x === 'number' ? item.position.x : 0,
+            y: typeof item?.position?.y === 'number' ? item.position.y : 0,
+          },
+          style: normalizeTextStyle(item.style),
         }))
       : [],
     viewport: {
@@ -936,6 +991,7 @@ const Canvas = () => {
   const [canvasState, setCanvasState] = useState(DEFAULT_CANVAS_STATE);
   const [selectedNodeId, setSelectedNodeId] = useState(null);
   const [selectedEdgeId, setSelectedEdgeId] = useState(null);
+  const [selectedTextId, setSelectedTextId] = useState(null);
   const [connectionDraft, setConnectionDraft] = useState(null);
   const [showGlobalConnectors, setShowGlobalConnectors] = useState(false);
   const [saveStatus, setSaveStatus] = useState('saved');
@@ -957,6 +1013,7 @@ const Canvas = () => {
   const [editingCommentId, setEditingCommentId] = useState(null);
   const [editingCommentBody, setEditingCommentBody] = useState('');
   const [componentSearch, setComponentSearch] = useState('');
+  const [isTextPlacementMode, setIsTextPlacementMode] = useState(false);
 
   const lastSavedSignatureRef = useRef('');
   const retryAttemptRef = useRef(0);
@@ -1189,6 +1246,7 @@ const Canvas = () => {
     setCanvasState((prev) => ({ ...prev, nodes: [...prev.nodes, newNode] }));
     setSelectedNodeId(newNode.id);
     setSelectedEdgeId(null);
+    setSelectedTextId(null);
   };
 
   const onNodeMouseDown = (event, node) => {
@@ -1213,6 +1271,7 @@ const Canvas = () => {
 
     setSelectedNodeId(node.id);
     setSelectedEdgeId(null);
+    setSelectedTextId(null);
     beginDragHistory();
   };
 
@@ -1224,6 +1283,7 @@ const Canvas = () => {
     openPropertiesPanel();
     setSelectedEdgeId(edgeId);
     setSelectedNodeId(null);
+    setSelectedTextId(null);
     draggingBendRef.current = { edgeId, bendIndex };
     setShowGlobalConnectors(true);
     beginDragHistory();
@@ -1296,6 +1356,7 @@ const Canvas = () => {
     openPropertiesPanel();
     setSelectedEdgeId(edge.id);
     setSelectedNodeId(null);
+    setSelectedTextId(null);
 
     draggingSegmentRef.current = {
       edgeId: edge.id,
@@ -1337,6 +1398,7 @@ const Canvas = () => {
 
     setSelectedEdgeId(edge.id);
     setSelectedNodeId(null);
+    setSelectedTextId(null);
     openPropertiesPanel();
     setRightPanelMode('design');
 
@@ -1500,6 +1562,7 @@ const Canvas = () => {
     openPropertiesPanel();
     setSelectedNodeId(nodeId);
     setSelectedEdgeId(null);
+    setSelectedTextId(null);
     setShowGlobalConnectors(true);
     setConnectionDraft({
       sourceId: nodeId,
@@ -1540,6 +1603,7 @@ const Canvas = () => {
       setCanvasState((prev) => ({ ...prev, edges: [...prev.edges, nextEdge] }));
       setSelectedEdgeId(nextEdge.id);
       setSelectedNodeId(null);
+      setSelectedTextId(null);
       setRightPanelMode('design');
       openPropertiesPanel();
     }
@@ -1555,6 +1619,10 @@ const Canvas = () => {
   const selectedEdge = useMemo(
     () => canvasState.edges.find((edge) => edge.id === selectedEdgeId) || null,
     [canvasState.edges, selectedEdgeId]
+  );
+  const selectedTextItem = useMemo(
+    () => canvasState.textItems.find((item) => item.id === selectedTextId) || null,
+    [canvasState.textItems, selectedTextId]
   );
   const insights = useMemo(() => computeInsights(canvasState), [canvasState]);
   const insightsById = useMemo(
@@ -1699,6 +1767,39 @@ const Canvas = () => {
     }));
   };
 
+  const setTextContent = (textId, value) => {
+    if (!canEditStructure || !textId) return;
+    setCanvasState((prev) => ({
+      ...prev,
+      textItems: prev.textItems.map((item) =>
+        item.id === textId
+          ? {
+              ...item,
+              content: value,
+            }
+          : item
+      ),
+    }));
+  };
+
+  const setSelectedTextStyleField = (field, value) => {
+    if (!canEditStructure || !selectedTextId) return;
+    setCanvasState((prev) => ({
+      ...prev,
+      textItems: prev.textItems.map((item) =>
+        item.id === selectedTextId
+          ? {
+              ...item,
+              style: {
+                ...normalizeTextStyle(item.style),
+                [field]: value,
+              },
+            }
+          : item
+      ),
+    }));
+  };
+
   const setSystemMetadataField = (field, value) => {
     if (!canEditStructure) return;
     setCanvasState((prev) => ({
@@ -1770,9 +1871,11 @@ const Canvas = () => {
     if (relatedNodeIds.length > 0) {
       setSelectedNodeId(relatedNodeIds[0]);
       setSelectedEdgeId(null);
+      setSelectedTextId(null);
     } else if (relatedEdgeIds.length > 0) {
       setSelectedEdgeId(relatedEdgeIds[0]);
       setSelectedNodeId(null);
+      setSelectedTextId(null);
     }
 
     const relatedNodes = new Map();
@@ -1849,15 +1952,29 @@ const Canvas = () => {
     setSelectedEdgeId(null);
   }, [canEditStructure, selectedNodeId]);
 
+  const deleteSelectedText = useCallback(() => {
+    if (!canEditStructure) return;
+    if (!selectedTextId) return;
+    setCanvasState((prev) => ({
+      ...prev,
+      textItems: prev.textItems.filter((item) => item.id !== selectedTextId),
+    }));
+    setSelectedTextId(null);
+  }, [canEditStructure, selectedTextId]);
+
   useEffect(() => {
     const onKeyDown = (event) => {
       if (!canEditStructure) return;
       if (event.key !== 'Backspace' && event.key !== 'Delete') return;
       if (isEditableElement(event.target)) return;
-      if (!selectedEdgeId && !selectedNodeId) return;
+      if (!selectedEdgeId && !selectedNodeId && !selectedTextId) return;
       event.preventDefault();
       if (selectedEdgeId) {
         deleteSelectedEdge();
+        return;
+      }
+      if (selectedTextId) {
+        deleteSelectedText();
         return;
       }
       deleteSelectedNode();
@@ -1865,7 +1982,7 @@ const Canvas = () => {
 
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [canEditStructure, selectedEdgeId, selectedNodeId, deleteSelectedEdge, deleteSelectedNode]);
+  }, [canEditStructure, selectedEdgeId, selectedNodeId, selectedTextId, deleteSelectedEdge, deleteSelectedNode, deleteSelectedText]);
 
   const undoCanvasChange = useCallback(() => {
     if (!canEditStructure) return;
@@ -1877,6 +1994,7 @@ const Canvas = () => {
     setCanvasState(cloneCanvasState(previous));
     setSelectedNodeId(null);
     setSelectedEdgeId(null);
+    setSelectedTextId(null);
     setHistoryVersion((value) => value + 1);
   }, [canEditStructure, canvasState]);
 
@@ -1890,6 +2008,7 @@ const Canvas = () => {
     setCanvasState(cloneCanvasState(next));
     setSelectedNodeId(null);
     setSelectedEdgeId(null);
+    setSelectedTextId(null);
     setHistoryVersion((value) => value + 1);
   }, [canEditStructure, canvasState]);
 
@@ -2063,7 +2182,6 @@ const Canvas = () => {
     return <div className="h-screen flex items-center justify-center text-red-600">Failed to load canvas.</div>;
   }
 
-  const creatorName = user.full_name || user.email;
   const formatCommentTimestamp = (timestamp) =>
     new Date(timestamp).toLocaleString([], {
       dateStyle: 'medium',
@@ -2500,6 +2618,15 @@ const Canvas = () => {
               <Trash2 size={12} />
               Delete Selected Edge
             </button>
+            <button
+              type="button"
+              disabled={!selectedTextId}
+              onClick={deleteSelectedText}
+              className="w-full flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg border border-gray-200 text-xs font-medium text-gray-600 hover:border-red-200 hover:text-red-600 hover:bg-red-50 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:border-gray-200 disabled:hover:bg-transparent disabled:hover:text-gray-600 transition-all"
+            >
+              <Trash2 size={12} />
+              Delete Selected Text
+            </button>
           </div>
             </>
           ) : (
@@ -2521,19 +2648,29 @@ const Canvas = () => {
           <aside className="canvas-left-quickbar absolute top-3 left-3 z-20 inline-flex flex-col gap-1 p-1.5 rounded-xl border border-gray-200 bg-white shadow-sm">
             {LEFT_PANEL_ITEMS.map((item) => {
               const ItemIcon = item.icon;
-              const isActive = leftPanelMode === item.id;
+              const isActive = item.id === 'text' ? isTextPlacementMode : leftPanelMode === item.id;
               return (
                 <button
                   key={item.id}
                   type="button"
                   onClick={() => {
+                    if (item.id === 'text') {
+                      setIsTextPlacementMode((prev) => !prev);
+                      setSelectedNodeId(null);
+                      setSelectedEdgeId(null);
+                      setSelectedTextId(null);
+                      setRightPanelMode('design');
+                      openPropertiesPanel();
+                      return;
+                    }
+                    setIsTextPlacementMode(false);
                     setLeftPanelMode(item.id);
                     setIsLeftPanelCollapsed(false);
                   }}
                   className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all ${
                     isActive ? 'bg-gray-900 text-white' : 'text-gray-600 hover:bg-gray-100'
                   }`}
-                  title={`Open ${item.label} panel`}
+                  title={item.id === 'text' ? 'Place text on canvas' : `Open ${item.label} panel`}
                 >
                   <ItemIcon size={13} />
                   {item.label}
@@ -2552,13 +2689,45 @@ const Canvas = () => {
             onDrop={handleDropComponent}
             onClick={(event) => {
               if (event.target !== event.currentTarget) return;
+              if (canEditStructure && isTextPlacementMode && canvasRef.current) {
+                const rect = canvasRef.current.getBoundingClientRect();
+                const world = canvasToWorld(
+                  event.clientX - rect.left,
+                  event.clientY - rect.top,
+                  canvasState.viewport
+                );
+                const textItem = {
+                  id: makeUuid(),
+                  content: 'Type here',
+                  position: { x: world.x, y: world.y },
+                  style: { ...DEFAULT_TEXT_STYLE },
+                };
+                setCanvasState((prev) => ({
+                  ...prev,
+                  textItems: [...prev.textItems, textItem],
+                }));
+                setSelectedTextId(textItem.id);
+                setSelectedNodeId(null);
+                setSelectedEdgeId(null);
+                setRightPanelMode('design');
+                openPropertiesPanel();
+                return;
+              }
               setSelectedNodeId(null);
               setSelectedEdgeId(null);
+              setSelectedTextId(null);
+              setIsTextPlacementMode(false);
               setRightPanelMode('design');
               openPropertiesPanel();
             }}
             className={`relative flex-1 overflow-hidden ${
-              isPanning ? 'cursor-grabbing' : activeTool === 'pan' ? 'cursor-grab' : 'cursor-default'
+              isPanning
+                ? 'cursor-grabbing'
+                : activeTool === 'pan'
+                ? 'cursor-grab'
+                : isTextPlacementMode
+                ? 'cursor-text'
+                : 'cursor-default'
             }`}
             style={{
               backgroundColor: canvasGridBackground,
@@ -2648,6 +2817,7 @@ const Canvas = () => {
                         openPropertiesPanel();
                         setSelectedEdgeId(edge.id);
                         setSelectedNodeId(null);
+                        setSelectedTextId(null);
                       }}
                     />
                     {canEditStructure &&
@@ -2808,6 +2978,62 @@ const Canvas = () => {
               );
             })}
 
+            {canvasState.textItems.map((item) => {
+              const screen = worldToScreen(item.position.x, item.position.y, canvasState.viewport);
+              const style = normalizeTextStyle(item.style);
+              const isSelected = selectedTextId === item.id;
+              return (
+                <div
+                  key={item.id}
+                  className={`absolute min-w-[120px] max-w-[440px] px-1 py-0.5 rounded ${
+                    isSelected ? 'ring-2 ring-blue-500 ring-offset-1' : ''
+                  }`}
+                  style={{
+                    left: screen.x,
+                    top: screen.y,
+                  }}
+                  onMouseDown={(event) => {
+                    if (event.button !== 2) {
+                      event.stopPropagation();
+                    }
+                    setSelectedTextId(item.id);
+                    setSelectedNodeId(null);
+                    setSelectedEdgeId(null);
+                    setRightPanelMode('design');
+                    openPropertiesPanel();
+                  }}
+                >
+                  <textarea
+                    rows={Math.max(1, String(item.content || '').split('\n').length)}
+                    value={item.content || ''}
+                    onChange={(event) => setTextContent(item.id, event.target.value)}
+                    readOnly={!canEditStructure}
+                    className="w-full min-w-[120px] bg-transparent resize-none border-none outline-none p-0"
+                    style={{
+                      fontSize: style.fontSize * canvasState.viewport.zoom,
+                      fontFamily: style.fontFamily,
+                      color: style.color,
+                      backgroundColor: style.highlightColor,
+                      textAlign: style.align,
+                      fontWeight: style.bold ? 700 : 400,
+                      fontStyle: style.italic ? 'italic' : 'normal',
+                      textDecoration: style.underline ? 'underline' : 'none',
+                      lineHeight: 1.3,
+                    }}
+                    onFocus={() => {
+                      setSelectedTextId(item.id);
+                      setSelectedNodeId(null);
+                      setSelectedEdgeId(null);
+                      setIsTextPlacementMode(false);
+                    }}
+                    onMouseDown={(event) => {
+                      event.stopPropagation();
+                    }}
+                  />
+                </div>
+              );
+            })}
+
             {canEditStructure && canvasState.nodes.length === 0 && (
               <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
                 <div className="bg-white border border-dashed border-gray-300 rounded-2xl px-8 py-6 text-center shadow-sm">
@@ -2944,7 +3170,7 @@ const Canvas = () => {
               <div className="flex-1 overflow-y-auto">
               <div className="p-4 space-y-3">
                 <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-widest">
-                  {selectedEdge ? 'Connection' : selectedNode ? 'Component' : 'System'}
+                  {selectedEdge ? 'Connection' : selectedNode ? 'Component' : selectedTextItem ? 'Text' : 'System'}
                 </p>
               {selectedEdge ? (
                 <div className="rounded-xl border border-gray-200 p-3 space-y-3 bg-gray-50/50">
@@ -3081,6 +3307,114 @@ const Canvas = () => {
                     </div>
                   </div>
                 </>
+              ) : selectedTextItem ? (
+                <div className="rounded-xl border border-gray-200 p-3 space-y-3 bg-gray-50/50">
+                  <div>
+                    <label className="text-[11px] font-semibold text-gray-500 block mb-1.5">Content</label>
+                    <textarea
+                      rows={3}
+                      value={selectedTextItem.content || ''}
+                      onChange={(event) => setTextContent(selectedTextItem.id, event.target.value)}
+                      readOnly={!canEditStructure}
+                      className="w-full border border-gray-200 rounded-lg px-2.5 py-2 text-sm resize-none bg-white focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-300"
+                      placeholder="Text content"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[11px] font-semibold text-gray-500 block mb-1.5">
+                      Font size ({Math.round(selectedTextItem?.style?.fontSize || DEFAULT_TEXT_STYLE.fontSize)}px)
+                    </label>
+                    <input
+                      type="range"
+                      min={10}
+                      max={72}
+                      value={selectedTextItem?.style?.fontSize || DEFAULT_TEXT_STYLE.fontSize}
+                      onChange={(event) => setSelectedTextStyleField('fontSize', Number(event.target.value))}
+                      disabled={!canEditStructure}
+                      className="w-full"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[11px] font-semibold text-gray-500 block mb-1.5">Font family</label>
+                    <select
+                      value={selectedTextItem?.style?.fontFamily || DEFAULT_TEXT_STYLE.fontFamily}
+                      onChange={(event) => setSelectedTextStyleField('fontFamily', event.target.value)}
+                      disabled={!canEditStructure}
+                      className="w-full border border-gray-200 rounded-lg px-2.5 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-300"
+                    >
+                      {TEXT_FONT_OPTIONS.map((option) => (
+                        <option key={`font-${option}`} value={option}>
+                          {option}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="text-[11px] font-semibold text-gray-500 block mb-1.5">Font color</label>
+                      <input
+                        type="color"
+                        value={selectedTextItem?.style?.color || DEFAULT_TEXT_STYLE.color}
+                        onChange={(event) => setSelectedTextStyleField('color', event.target.value)}
+                        disabled={!canEditStructure}
+                        className="w-full h-9 border border-gray-200 rounded-lg bg-white"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[11px] font-semibold text-gray-500 block mb-1.5">Highlight</label>
+                      <input
+                        type="color"
+                        value={selectedTextItem?.style?.highlightColor || DEFAULT_TEXT_STYLE.highlightColor}
+                        onChange={(event) => setSelectedTextStyleField('highlightColor', event.target.value)}
+                        disabled={!canEditStructure}
+                        className="w-full h-9 border border-gray-200 rounded-lg bg-white"
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="text-[11px] font-semibold text-gray-500 block mb-1.5">Alignment</label>
+                    <div className="flex items-center gap-1 rounded-lg border border-gray-200 p-1 bg-white">
+                      {TEXT_ALIGN_OPTIONS.map((align) => (
+                        <button
+                          key={`align-${align}`}
+                          type="button"
+                          onClick={() => setSelectedTextStyleField('align', align)}
+                          disabled={!canEditStructure}
+                          className={`flex-1 py-1.5 text-xs rounded-md transition-all ${
+                            (selectedTextItem?.style?.align || DEFAULT_TEXT_STYLE.align) === align
+                              ? 'bg-gray-900 text-white'
+                              : 'text-gray-600 hover:bg-gray-100'
+                          }`}
+                        >
+                          {align}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-1 rounded-lg border border-gray-200 p-1 bg-white">
+                    {[
+                      { key: 'bold', label: 'B' },
+                      { key: 'italic', label: 'I' },
+                      { key: 'underline', label: 'U' },
+                    ].map((option) => (
+                      <button
+                        key={`txt-${option.key}`}
+                        type="button"
+                        onClick={() =>
+                          setSelectedTextStyleField(option.key, !selectedTextItem?.style?.[option.key])
+                        }
+                        disabled={!canEditStructure}
+                        className={`flex-1 py-1.5 text-xs rounded-md transition-all ${
+                          selectedTextItem?.style?.[option.key]
+                            ? 'bg-gray-900 text-white'
+                            : 'text-gray-600 hover:bg-gray-100'
+                        }`}
+                      >
+                        {option.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
               ) : (
                 <div className="rounded-xl border border-gray-200 p-3 space-y-3 bg-gray-50/50">
                   <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-widest">System</p>
@@ -3155,6 +3489,10 @@ const Canvas = () => {
                   <div className="flex items-center justify-between text-xs">
                     <span className="text-gray-500">Edges</span>
                     <span className="font-semibold text-gray-900 tabular-nums">{canvasState.edges.length}</span>
+                  </div>
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-gray-500">Texts</span>
+                    <span className="font-semibold text-gray-900 tabular-nums">{canvasState.textItems.length}</span>
                   </div>
                   <div className="flex items-center justify-between text-xs">
                     <span className="text-gray-500">User</span>
