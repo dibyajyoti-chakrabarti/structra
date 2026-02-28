@@ -3728,7 +3728,13 @@ const Canvas = () => {
                     <button
                       type="button"
                       className="absolute z-10 -top-6 left-0 pointer-events-auto max-w-[220px] rounded-md border-2 border-blue-300 bg-white px-2 py-0.5 text-[11px] font-semibold text-gray-900 shadow-md"
-                      onMouseDown={selectBound}
+                      onMouseDown={(event) => {
+                        if (canEditStructure && activeTool === 'select') {
+                          startBoundDrag(event);
+                        } else {
+                          selectBound(event);
+                        }
+                      }}
                       title="Boundary label"
                     >
                       {style.label}
@@ -3736,36 +3742,48 @@ const Canvas = () => {
                   )}
 
                   <div
-                    className="absolute inset-0 pointer-events-auto"
-                    style={{ cursor: canEditStructure && activeTool === 'select' ? 'move' : 'pointer' }}
+                    className="absolute left-0 right-0 top-0 pointer-events-auto"
+                    style={{ height: hitSize, cursor: canEditStructure && activeTool === 'select' ? 'move' : 'pointer' }}
                     onMouseDown={(event) => {
-                      if (canEditStructure && activeTool === 'select') {
+                      if (isSelected && canEditStructure && activeTool === 'select') {
                         startBoundDrag(event);
                       } else {
                         selectBound(event);
                       }
                     }}
                   />
-
-                  <div
-                    className="absolute left-0 right-0 top-0 pointer-events-auto"
-                    style={{ height: hitSize, cursor: isSelected && canEditStructure ? 'ns-resize' : 'pointer' }}
-                    onMouseDown={(event) => (isSelected && canEditStructure ? startBoundResize(event, 'top') : selectBound(event))}
-                  />
                   <div
                     className="absolute left-0 right-0 bottom-0 pointer-events-auto"
-                    style={{ height: hitSize, cursor: isSelected && canEditStructure ? 'ns-resize' : 'pointer' }}
-                    onMouseDown={(event) => (isSelected && canEditStructure ? startBoundResize(event, 'bottom') : selectBound(event))}
+                    style={{ height: hitSize, cursor: canEditStructure && activeTool === 'select' ? 'move' : 'pointer' }}
+                    onMouseDown={(event) => {
+                      if (isSelected && canEditStructure && activeTool === 'select') {
+                        startBoundDrag(event);
+                      } else {
+                        selectBound(event);
+                      }
+                    }}
                   />
                   <div
                     className="absolute top-0 bottom-0 left-0 pointer-events-auto"
-                    style={{ width: hitSize, cursor: isSelected && canEditStructure ? 'ew-resize' : 'pointer' }}
-                    onMouseDown={(event) => (isSelected && canEditStructure ? startBoundResize(event, 'left') : selectBound(event))}
+                    style={{ width: hitSize, cursor: canEditStructure && activeTool === 'select' ? 'move' : 'pointer' }}
+                    onMouseDown={(event) => {
+                      if (isSelected && canEditStructure && activeTool === 'select') {
+                        startBoundDrag(event);
+                      } else {
+                        selectBound(event);
+                      }
+                    }}
                   />
                   <div
                     className="absolute top-0 bottom-0 right-0 pointer-events-auto"
-                    style={{ width: hitSize, cursor: isSelected && canEditStructure ? 'ew-resize' : 'pointer' }}
-                    onMouseDown={(event) => (isSelected && canEditStructure ? startBoundResize(event, 'right') : selectBound(event))}
+                    style={{ width: hitSize, cursor: canEditStructure && activeTool === 'select' ? 'move' : 'pointer' }}
+                    onMouseDown={(event) => {
+                      if (isSelected && canEditStructure && activeTool === 'select') {
+                        startBoundDrag(event);
+                      } else {
+                        selectBound(event);
+                      }
+                    }}
                   />
 
                   {isSelected && canEditStructure && (
@@ -3912,7 +3930,7 @@ const Canvas = () => {
                 }`}
               >
                 <Lightbulb size={11} />
-                Insights
+                {isRightPanelExpanded ? 'Insights' : null}
                 {insights.length > 0 && (
                   <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold ${rightPanelMode === 'insights' ? 'bg-white/20 text-white' : 'bg-amber-100 text-amber-700'}`}>{insights.length}</span>
                 )}
@@ -3929,7 +3947,7 @@ const Canvas = () => {
                 }`}
               >
                 <MessageSquare size={11} />
-                Comments
+                {isRightPanelExpanded ? 'Comments' : null}
                 {comments.length > 0 && (
                   <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold ${rightPanelMode === 'comments' ? 'bg-white/20 text-white' : 'bg-gray-100 text-gray-600'}`}>{comments.length}</span>
                 )}
