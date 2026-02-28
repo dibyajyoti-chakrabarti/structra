@@ -3975,8 +3975,8 @@ const Canvas = () => {
                 {isRightPanelExpanded ? 'Insights' : null}
                 {insights.length > 0 && (
                   <span
-                    className={`panel-tab-count-badge panel-tab-count-badge--insights text-[10px] px-1.5 py-0.5 rounded-full font-bold ${
-                      rightPanelMode === 'insights' ? 'bg-white/20 text-white' : 'bg-amber-100 text-amber-700'
+                    className={`panel-tab-count-badge panel-tab-count-badge--insights text-[10px] px-1.5 py-0.5 rounded-full font-bold border ${
+                      rightPanelMode === 'insights' ? 'panel-tab-count-badge--active' : ''
                     }`}
                   >
                     {insights.length}
@@ -3998,8 +3998,8 @@ const Canvas = () => {
                 {isRightPanelExpanded ? 'Comments' : null}
                 {comments.length > 0 && (
                   <span
-                    className={`panel-tab-count-badge panel-tab-count-badge--comments text-[10px] px-1.5 py-0.5 rounded-full font-bold ${
-                      rightPanelMode === 'comments' ? 'bg-white/20 text-white' : 'bg-gray-100 text-gray-600'
+                    className={`panel-tab-count-badge panel-tab-count-badge--comments text-[10px] px-1.5 py-0.5 rounded-full font-bold border ${
+                      rightPanelMode === 'comments' ? 'panel-tab-count-badge--active' : ''
                     }`}
                   >
                     {comments.length}

@@ -193,12 +193,41 @@ body {
   --canvas-comment-thread-border: #2f4864;
 }
 
+[data-theme="light"] .canvas-page .panel-tab-count-badge--insights,
+.canvas-page .panel-tab-count-badge--insights {
+  background-color: #facc15 !important;
+  color: #111827 !important;
+  border-color: #eab308 !important;
+}
+
+[data-theme="light"] .canvas-page .panel-tab-count-badge--comments,
+.canvas-page .panel-tab-count-badge--comments {
+  background-color: #cfe3ff !important;
+  color: #111827 !important;
+  border-color: #93c5fd !important;
+}
+
+[data-theme="light"] .canvas-page .panel-tab-count-badge--active,
+.canvas-page .panel-tab-count-badge--active {
+  background-color: #f8fafc !important;
+  color: #111827 !important;
+  border-color: #cbd5e1 !important;
+}
+
 [data-theme="dark"] .canvas-page .panel-tab-count-badge--insights {
-  background-color: #fbbf24 !important;
-  color: #1f2937 !important;
+  background-color: #facc15 !important;
+  color: #000000 !important;
+  border-color: #eab308 !important;
 }
 
 [data-theme="dark"] .canvas-page .panel-tab-count-badge--comments {
-  background-color: #93c5fd !important;
+  background-color: #cfe3ff !important;
   color: #111827 !important;
+  border-color: #93c5fd !important;
+}
+
+[data-theme="dark"] .canvas-page .panel-tab-count-badge--active {
+  background-color: #f8fafc !important;
+  color: #111827 !important;
+  border-color: #cbd5e1 !important;
 }
