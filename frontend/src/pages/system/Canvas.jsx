@@ -1014,6 +1014,7 @@ const Canvas = () => {
   const [selectedNodeId, setSelectedNodeId] = useState(null);
   const [selectedEdgeId, setSelectedEdgeId] = useState(null);
   const [selectedTextId, setSelectedTextId] = useState(null);
+  const [editingTextId, setEditingTextId] = useState(null);
   const [connectionDraft, setConnectionDraft] = useState(null);
   const [showGlobalConnectors, setShowGlobalConnectors] = useState(false);
   const [saveStatus, setSaveStatus] = useState('saved');
@@ -1269,6 +1270,7 @@ const Canvas = () => {
     setSelectedNodeId(newNode.id);
     setSelectedEdgeId(null);
     setSelectedTextId(null);
+    setEditingTextId(null);
   };
 
   const onNodeMouseDown = (event, node) => {
@@ -1294,6 +1296,7 @@ const Canvas = () => {
     setSelectedNodeId(node.id);
     setSelectedEdgeId(null);
     setSelectedTextId(null);
+    setEditingTextId(null);
     beginDragHistory();
   };
 
@@ -1306,6 +1309,7 @@ const Canvas = () => {
     setSelectedEdgeId(edgeId);
     setSelectedNodeId(null);
     setSelectedTextId(null);
+    setEditingTextId(null);
     draggingBendRef.current = { edgeId, bendIndex };
     setShowGlobalConnectors(true);
     beginDragHistory();
@@ -1379,6 +1383,7 @@ const Canvas = () => {
     setSelectedEdgeId(edge.id);
     setSelectedNodeId(null);
     setSelectedTextId(null);
+    setEditingTextId(null);
 
     draggingSegmentRef.current = {
       edgeId: edge.id,
@@ -1421,6 +1426,7 @@ const Canvas = () => {
     setSelectedEdgeId(edge.id);
     setSelectedNodeId(null);
     setSelectedTextId(null);
+    setEditingTextId(null);
     openPropertiesPanel();
     setRightPanelMode('design');
 
@@ -1626,6 +1632,7 @@ const Canvas = () => {
     setSelectedNodeId(nodeId);
     setSelectedEdgeId(null);
     setSelectedTextId(null);
+    setEditingTextId(null);
     setShowGlobalConnectors(true);
     setConnectionDraft({
       sourceId: nodeId,
@@ -1667,6 +1674,7 @@ const Canvas = () => {
       setSelectedEdgeId(nextEdge.id);
       setSelectedNodeId(null);
       setSelectedTextId(null);
+      setEditingTextId(null);
       setRightPanelMode('design');
       openPropertiesPanel();
     }
@@ -1891,6 +1899,7 @@ const Canvas = () => {
     setSelectedNodeId(null);
     setSelectedEdgeId(null);
     setSelectedTextId(null);
+    setEditingTextId(null);
     setRightPanelMode('design');
     openPropertiesPanel();
   }, [canEditStructure, openPropertiesPanel]);
@@ -1967,10 +1976,12 @@ const Canvas = () => {
       setSelectedNodeId(relatedNodeIds[0]);
       setSelectedEdgeId(null);
       setSelectedTextId(null);
+      setEditingTextId(null);
     } else if (relatedEdgeIds.length > 0) {
       setSelectedEdgeId(relatedEdgeIds[0]);
       setSelectedNodeId(null);
       setSelectedTextId(null);
+      setEditingTextId(null);
     }
 
     const relatedNodes = new Map();
@@ -2055,6 +2066,7 @@ const Canvas = () => {
       textItems: prev.textItems.filter((item) => item.id !== selectedTextId),
     }));
     setSelectedTextId(null);
+    setEditingTextId(null);
   }, [canEditStructure, selectedTextId]);
 
   useEffect(() => {
@@ -2120,6 +2132,7 @@ const Canvas = () => {
     setSelectedNodeId(null);
     setSelectedEdgeId(null);
     setSelectedTextId(null);
+    setEditingTextId(null);
     setHistoryVersion((value) => value + 1);
   }, [canEditStructure, canvasState]);
 
@@ -2134,6 +2147,7 @@ const Canvas = () => {
     setSelectedNodeId(null);
     setSelectedEdgeId(null);
     setSelectedTextId(null);
+    setEditingTextId(null);
     setHistoryVersion((value) => value + 1);
   }, [canEditStructure, canvasState]);
 
@@ -2782,12 +2796,14 @@ const Canvas = () => {
                     if (item.id === 'text') {
                       if (isTextPlacementMode) {
                         setIsTextPlacementMode(false);
+                        setEditingTextId(null);
                       } else {
                         activateTextPlacementMode();
                       }
                       return;
                     }
                     setIsTextPlacementMode(false);
+                    setEditingTextId(null);
                     setLeftPanelMode(item.id);
                     setIsLeftPanelCollapsed(false);
                   }}
@@ -2834,6 +2850,7 @@ const Canvas = () => {
                 setSelectedTextId(textItem.id);
                 setSelectedNodeId(null);
                 setSelectedEdgeId(null);
+                setEditingTextId(null);
                 setRightPanelMode('design');
                 openPropertiesPanel();
                 return;
@@ -2841,6 +2858,7 @@ const Canvas = () => {
               setSelectedNodeId(null);
               setSelectedEdgeId(null);
               setSelectedTextId(null);
+              setEditingTextId(null);
               setIsTextPlacementMode(false);
               setRightPanelMode('design');
               openPropertiesPanel();
@@ -2943,6 +2961,7 @@ const Canvas = () => {
                         setSelectedEdgeId(edge.id);
                         setSelectedNodeId(null);
                         setSelectedTextId(null);
+                        setEditingTextId(null);
                       }}
                     />
                     {canEditStructure &&
@@ -3108,6 +3127,7 @@ const Canvas = () => {
               const style = normalizeTextStyle(item.style);
               const size = normalizeTextSize(item.size);
               const isSelected = selectedTextId === item.id;
+              const isEditing = editingTextId === item.id;
               const handleSize = 10;
               const handleStroke = '#2563eb';
               const startResize = (event, handle) => {
@@ -3146,36 +3166,65 @@ const Canvas = () => {
                     setSelectedTextId(item.id);
                     setSelectedNodeId(null);
                     setSelectedEdgeId(null);
+                    setEditingTextId(null);
+                    setRightPanelMode('design');
+                    openPropertiesPanel();
+                  }}
+                  onDoubleClick={(event) => {
+                    if (!canEditStructure) return;
+                    event.stopPropagation();
+                    setSelectedTextId(item.id);
+                    setSelectedNodeId(null);
+                    setSelectedEdgeId(null);
+                    setIsTextPlacementMode(false);
+                    setEditingTextId(item.id);
                     setRightPanelMode('design');
                     openPropertiesPanel();
                   }}
                 >
-                  <textarea
-                    value={item.content || ''}
-                    onChange={(event) => setTextContent(item.id, event.target.value)}
-                    readOnly={!canEditStructure}
-                    className="w-full h-full bg-transparent resize-none border-none outline-none px-1 py-0.5"
-                    style={{
-                      fontSize: style.fontSize * canvasState.viewport.zoom,
-                      fontFamily: style.fontFamily,
-                      color: style.color,
-                      backgroundColor: style.highlightColor,
-                      textAlign: style.align,
-                      fontWeight: style.bold ? 700 : 400,
-                      fontStyle: style.italic ? 'italic' : 'normal',
-                      textDecoration: style.underline ? 'underline' : 'none',
-                      lineHeight: 1.3,
-                    }}
-                    onFocus={() => {
-                      setSelectedTextId(item.id);
-                      setSelectedNodeId(null);
-                      setSelectedEdgeId(null);
-                      setIsTextPlacementMode(false);
-                    }}
-                    onMouseDown={(event) => {
-                      event.stopPropagation();
-                    }}
-                  />
+                  {isEditing ? (
+                    <textarea
+                      value={item.content || ''}
+                      onChange={(event) => setTextContent(item.id, event.target.value)}
+                      readOnly={!canEditStructure}
+                      autoFocus
+                      className="w-full h-full bg-transparent resize-none border-none outline-none px-1 py-0.5"
+                      style={{
+                        fontSize: style.fontSize * canvasState.viewport.zoom,
+                        fontFamily: style.fontFamily,
+                        color: style.color,
+                        backgroundColor: style.highlightColor,
+                        textAlign: style.align,
+                        fontWeight: style.bold ? 700 : 400,
+                        fontStyle: style.italic ? 'italic' : 'normal',
+                        textDecoration: style.underline ? 'underline' : 'none',
+                        lineHeight: 1.3,
+                      }}
+                      onBlur={() => {
+                        setEditingTextId(null);
+                      }}
+                      onMouseDown={(event) => {
+                        event.stopPropagation();
+                      }}
+                    />
+                  ) : (
+                    <div
+                      className="w-full h-full px-1 py-0.5 whitespace-pre-wrap overflow-hidden select-none"
+                      style={{
+                        fontSize: style.fontSize * canvasState.viewport.zoom,
+                        fontFamily: style.fontFamily,
+                        color: style.color,
+                        backgroundColor: style.highlightColor,
+                        textAlign: style.align,
+                        fontWeight: style.bold ? 700 : 400,
+                        fontStyle: style.italic ? 'italic' : 'normal',
+                        textDecoration: style.underline ? 'underline' : 'none',
+                        lineHeight: 1.3,
+                      }}
+                    >
+                      {item.content || 'Type here'}
+                    </div>
+                  )}
                   {isSelected && canEditStructure && (
                     <>
                       <button
@@ -3183,56 +3232,80 @@ const Canvas = () => {
                         aria-label="Resize text top"
                         className="absolute left-1/2 -translate-x-1/2 -top-1.5 z-10 rounded-full bg-white"
                         style={{ width: handleSize, height: handleSize, border: `1px solid ${handleStroke}`, cursor: 'ns-resize' }}
-                        onMouseDown={(event) => startResize(event, 'top')}
+                        onMouseDown={(event) => {
+                          setEditingTextId(null);
+                          startResize(event, 'top');
+                        }}
                       />
                       <button
                         type="button"
                         aria-label="Resize text bottom"
                         className="absolute left-1/2 -translate-x-1/2 -bottom-1.5 z-10 rounded-full bg-white"
                         style={{ width: handleSize, height: handleSize, border: `1px solid ${handleStroke}`, cursor: 'ns-resize' }}
-                        onMouseDown={(event) => startResize(event, 'bottom')}
+                        onMouseDown={(event) => {
+                          setEditingTextId(null);
+                          startResize(event, 'bottom');
+                        }}
                       />
                       <button
                         type="button"
                         aria-label="Resize text left"
                         className="absolute top-1/2 -translate-y-1/2 -left-1.5 z-10 rounded-full bg-white"
                         style={{ width: handleSize, height: handleSize, border: `1px solid ${handleStroke}`, cursor: 'ew-resize' }}
-                        onMouseDown={(event) => startResize(event, 'left')}
+                        onMouseDown={(event) => {
+                          setEditingTextId(null);
+                          startResize(event, 'left');
+                        }}
                       />
                       <button
                         type="button"
                         aria-label="Resize text right"
                         className="absolute top-1/2 -translate-y-1/2 -right-1.5 z-10 rounded-full bg-white"
                         style={{ width: handleSize, height: handleSize, border: `1px solid ${handleStroke}`, cursor: 'ew-resize' }}
-                        onMouseDown={(event) => startResize(event, 'right')}
+                        onMouseDown={(event) => {
+                          setEditingTextId(null);
+                          startResize(event, 'right');
+                        }}
                       />
                       <button
                         type="button"
                         aria-label="Resize text top-left"
                         className="absolute -left-1.5 -top-1.5 z-10 rounded-full bg-white"
                         style={{ width: handleSize, height: handleSize, border: `1px solid ${handleStroke}`, cursor: 'nwse-resize' }}
-                        onMouseDown={(event) => startResize(event, 'top-left')}
+                        onMouseDown={(event) => {
+                          setEditingTextId(null);
+                          startResize(event, 'top-left');
+                        }}
                       />
                       <button
                         type="button"
                         aria-label="Resize text top-right"
                         className="absolute -right-1.5 -top-1.5 z-10 rounded-full bg-white"
                         style={{ width: handleSize, height: handleSize, border: `1px solid ${handleStroke}`, cursor: 'nesw-resize' }}
-                        onMouseDown={(event) => startResize(event, 'top-right')}
+                        onMouseDown={(event) => {
+                          setEditingTextId(null);
+                          startResize(event, 'top-right');
+                        }}
                       />
                       <button
                         type="button"
                         aria-label="Resize text bottom-left"
                         className="absolute -left-1.5 -bottom-1.5 z-10 rounded-full bg-white"
                         style={{ width: handleSize, height: handleSize, border: `1px solid ${handleStroke}`, cursor: 'nesw-resize' }}
-                        onMouseDown={(event) => startResize(event, 'bottom-left')}
+                        onMouseDown={(event) => {
+                          setEditingTextId(null);
+                          startResize(event, 'bottom-left');
+                        }}
                       />
                       <button
                         type="button"
                         aria-label="Resize text bottom-right"
                         className="absolute -right-1.5 -bottom-1.5 z-10 rounded-full bg-white"
                         style={{ width: handleSize, height: handleSize, border: `1px solid ${handleStroke}`, cursor: 'nwse-resize' }}
-                        onMouseDown={(event) => startResize(event, 'bottom-right')}
+                        onMouseDown={(event) => {
+                          setEditingTextId(null);
+                          startResize(event, 'bottom-right');
+                        }}
                       />
                     </>
                   )}
