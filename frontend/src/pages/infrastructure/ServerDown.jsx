@@ -6,8 +6,7 @@ const SLEEP_START_HOUR_IST = 17;
 const WAKE_HOUR_IST = 9;
 
 const getIstDate = (date) => {
-  const utcMillis = date.getTime() + date.getTimezoneOffset() * 60 * 1000;
-  return new Date(utcMillis + IST_OFFSET_MINUTES * 60 * 1000);
+  return new Date(date.getTime() + IST_OFFSET_MINUTES * 60 * 1000);
 };
 
 const getSleepSchedule = (now = new Date()) => {
@@ -78,7 +77,7 @@ export default function ServerDown() {
 
   const startupMessage = sleepSchedule.isSleeping
     ? `${formatCountdown(sleepSchedule.countdownMs)} to 9:00 AM IST`
-    : "Servers will start any moment now";
+    : "Starting any second now";
 
   return (
     <>

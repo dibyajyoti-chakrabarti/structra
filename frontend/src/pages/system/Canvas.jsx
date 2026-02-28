@@ -28,6 +28,9 @@ import {
   Redo2,
   MessageSquare,
   AlertCircle,
+  Search,
+  Sparkles,
+  ArrowRight,
 } from 'lucide-react';
 import api from '../../api';
 import LoadingState from '../../components/LoadingState';
@@ -940,6 +943,7 @@ const Canvas = () => {
   const [activeReplyParentId, setActiveReplyParentId] = useState(null);
   const [editingCommentId, setEditingCommentId] = useState(null);
   const [editingCommentBody, setEditingCommentBody] = useState('');
+  const [componentSearch, setComponentSearch] = useState('');
 
   const lastSavedSignatureRef = useRef('');
   const retryAttemptRef = useRef(0);
@@ -2193,96 +2197,112 @@ const Canvas = () => {
           </div>
         </div>
       )}
-      <header className="border-b border-gray-200 bg-white px-5 py-3 flex items-center justify-between gap-3">
-        <div className="min-w-0">
-          <p className="text-sm text-gray-700 border border-gray-200 rounded-md px-2.5 py-1.5 max-w-[520px] truncate">
-            <button
-              type="button"
-              onClick={() => navigate('/app/profile')}
-              className="text-blue-600 hover:text-blue-700 hover:underline"
-              title={creatorName}
-            >
-              {creatorName}
-            </button>
-            <span className="text-gray-400 px-1">/</span>
-            <button
-              type="button"
-              onClick={() => navigate(`/app/ws/${workspaceId}`)}
-              className="text-blue-600 hover:text-blue-700 hover:underline"
-              title={workspace.name}
-            >
-              {workspace.name}
-            </button>
-            <span className="text-gray-400 px-1">/</span>
-            <span className="text-gray-700" title={system.name}>
-              {system.name}
-            </span>
-          </p>
-        </div>
-
-        <div className="flex items-center gap-2">
-          <button
-            className={`px-3 py-1.5 rounded-md text-sm border ${
-              activeTool === 'select' ? 'bg-blue-50 text-blue-700 border-blue-200' : 'text-gray-700 border-gray-300'
-            }`}
-            onClick={() => setActiveTool('select')}
-            type="button"
-          >
-            <MousePointer2 size={14} className="inline mr-1" />
-            Select
-          </button>
-          <button
-            className={`px-3 py-1.5 rounded-md text-sm border ${
-              activeTool === 'pan' ? 'bg-blue-50 text-blue-700 border-blue-200' : 'text-gray-700 border-gray-300'
-            }`}
-            onClick={() => setActiveTool('pan')}
-            type="button"
-          >
-            <Hand size={14} className="inline mr-1" />
-            Pan
-          </button>
-          <div className="w-px h-6 bg-gray-200 mx-1" />
+      <header className="border-b border-gray-200 bg-white px-4 py-0 flex items-stretch justify-between gap-3 h-12 shrink-0">
+        {/* Left: breadcrumb */}
+        <div className="flex items-center min-w-0 gap-1">
           <button
             type="button"
-            onClick={() =>
-              updateViewport((prev) => ({
-                ...prev,
-                zoom: Math.max(0.4, +(prev.zoom - 0.1).toFixed(2)),
-              }))
-            }
-            className="p-2 rounded border border-gray-300 text-gray-700"
-            title="Zoom out"
+            onClick={() => navigate(`/app/ws/${workspaceId}`)}
+            className="flex items-center gap-1.5 text-gray-500 hover:text-gray-800 text-xs font-medium py-1 px-1.5 rounded hover:bg-gray-100 transition-colors"
+            title="Back to workspace"
           >
-            <ZoomOut size={14} />
+            <ChevronLeft size={13} />
+            <span className="hidden sm:inline">{workspace.name}</span>
           </button>
-          <span className="text-sm text-gray-700 min-w-[54px] text-center">{zoomPercent}%</span>
-          <button
-            type="button"
-            onClick={() =>
-              updateViewport((prev) => ({
-                ...prev,
-                zoom: Math.min(2.5, +(prev.zoom + 0.1).toFixed(2)),
-              }))
-            }
-            className="p-2 rounded border border-gray-300 text-gray-700"
-            title="Zoom in"
-          >
-            <ZoomIn size={14} />
-          </button>
-        </div>
-
-        <div className="flex items-center gap-3 min-w-0">
+          <span className="text-gray-300">/</span>
+          <span className="text-sm font-semibold text-gray-900 truncate max-w-[220px]" title={system.name}>
+            {system.name}
+          </span>
           {isReadOnlyStructure && (
-            <span className="px-2.5 py-1 text-xs font-semibold rounded-md border border-amber-200 bg-amber-50 text-amber-800">
-              {currentUserCanvasRole === 'commenter' ? 'Commenter Mode' : 'View Only'}
+            <span className="ml-2 px-2 py-0.5 text-[10px] font-semibold rounded border border-amber-200 bg-amber-50 text-amber-700 uppercase tracking-wide">
+              {currentUserCanvasRole === 'commenter' ? 'Commenter' : 'View Only'}
             </span>
           )}
+        </div>
+
+        {/* Center: tools */}
+        <div className="flex items-center gap-1">
+          {/* Tool toggle group */}
+          <div className="flex items-center bg-gray-100 rounded-lg p-0.5 gap-0.5">
+            <button
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all ${
+                activeTool === 'select'
+                  ? 'bg-white text-gray-900 shadow-sm border border-gray-200'
+                  : 'text-gray-500 hover:text-gray-700'
+              }`}
+              onClick={() => setActiveTool('select')}
+              type="button"
+              title="Select (V)"
+            >
+              <MousePointer2 size={13} />
+              <span>Select</span>
+            </button>
+            <button
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all ${
+                activeTool === 'pan'
+                  ? 'bg-white text-gray-900 shadow-sm border border-gray-200'
+                  : 'text-gray-500 hover:text-gray-700'
+              }`}
+              onClick={() => setActiveTool('pan')}
+              type="button"
+              title="Pan (H)"
+            >
+              <Hand size={13} />
+              <span>Pan</span>
+            </button>
+          </div>
+
+          <div className="w-px h-5 bg-gray-200 mx-1.5" />
+
+          {/* Zoom controls */}
+          <div className="flex items-center bg-gray-100 rounded-lg p-0.5 gap-0.5">
+            <button
+              type="button"
+              onClick={() =>
+                updateViewport((prev) => ({
+                  ...prev,
+                  zoom: Math.max(0.4, +(prev.zoom - 0.1).toFixed(2)),
+                }))
+              }
+              className="p-1.5 rounded-md text-gray-500 hover:text-gray-700 hover:bg-white transition-all"
+              title="Zoom out"
+            >
+              <ZoomOut size={13} />
+            </button>
+            <span className="text-xs font-medium text-gray-700 min-w-[42px] text-center tabular-nums">{zoomPercent}%</span>
+            <button
+              type="button"
+              onClick={() =>
+                updateViewport((prev) => ({
+                  ...prev,
+                  zoom: Math.min(2.5, +(prev.zoom + 0.1).toFixed(2)),
+                }))
+              }
+              className="p-1.5 rounded-md text-gray-500 hover:text-gray-700 hover:bg-white transition-all"
+              title="Zoom in"
+            >
+              <ZoomIn size={13} />
+            </button>
+          </div>
+        </div>
+
+        {/* Right: AI Evaluation + save indicator */}
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold bg-gradient-to-r from-violet-600 to-indigo-600 text-white hover:from-violet-700 hover:to-indigo-700 transition-all shadow-sm"
+            title="AI Evaluation — coming soon"
+          >
+            <Sparkles size={13} />
+            AI Evaluation
+          </button>
+          <div className="w-px h-5 bg-gray-200" />
           <button
             onClick={() => navigate(`/app/ws/${workspaceId}`)}
             type="button"
-            className="px-3 py-2 text-sm border border-gray-300 rounded-md text-gray-700"
+            className="px-3 py-1.5 text-xs font-medium border border-gray-200 rounded-lg text-gray-600 hover:bg-gray-50 transition-colors"
           >
-            Back
+            Close
           </button>
         </div>
       </header>
@@ -2290,80 +2310,155 @@ const Canvas = () => {
       <div className="flex-1 flex overflow-hidden relative">
         {canEditStructure && (
           <aside
-            className={`border-r border-gray-200 bg-gray-50 overflow-y-auto transition-all duration-300 ${
-              isLeftPanelCollapsed ? 'w-0 -translate-x-full p-0 border-r-0' : 'w-64 p-3 translate-x-0'
+            className={`border-r border-gray-200 bg-white flex flex-col transition-all duration-300 ${
+              isLeftPanelCollapsed ? 'w-0 overflow-hidden border-r-0' : 'w-64'
             }`}
           >
-          <div className="mb-2 flex items-center justify-between">
-            <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Components</h2>
+          {/* Panel header */}
+          <div className="flex items-center justify-between px-3 py-2.5 border-b border-gray-100 shrink-0">
+            <span className="text-[11px] font-semibold text-gray-500 uppercase tracking-widest">Components</span>
             <button
               type="button"
               onClick={() => setIsLeftPanelCollapsed(true)}
-              className="inline-flex items-center justify-center w-7 h-7 rounded border border-gray-200 bg-white text-gray-600 hover:text-gray-800"
+              className="w-6 h-6 flex items-center justify-center rounded hover:bg-gray-100 text-gray-400 hover:text-gray-600 transition-colors"
               title="Hide components panel"
             >
               <ChevronLeft size={14} />
             </button>
           </div>
-          <div className="space-y-3">
-            {COMPONENT_CATEGORIES.map((category) => {
-              const CategoryIcon = category.icon;
-              const isExpanded = expandedComponentCategories.has(category.key);
-              return (
-                <div key={category.key} className="rounded-md border border-gray-200 bg-white p-2">
-                  <button
-                    type="button"
-                    onClick={() => toggleComponentCategory(category.key)}
-                    className="w-full mb-1.5 flex items-center justify-between text-[10px] font-semibold text-gray-500 uppercase tracking-wide"
-                  >
-                    <span className="flex items-center gap-1.5">
-                      <CategoryIcon size={12} />
-                      {category.label}
-                    </span>
-                    <ChevronRight
-                      size={12}
-                      className={`transition-transform ${isExpanded ? 'rotate-90' : ''}`}
-                    />
-                  </button>
-                  {isExpanded && (
-                    <div className="space-y-1.5">
-                      {category.components.map((component) => (
-                        <div
-                          key={component.type}
-                          draggable
-                          onDragStart={(event) =>
-                            event.dataTransfer.setData('application/structra-component-type', component.type)
-                          }
-                          className="w-full px-2.5 py-2 rounded-md border border-gray-200 bg-gray-50 text-gray-700 cursor-grab"
-                          title={component.description}
-                        >
-                          <p className="text-xs font-medium text-gray-800 leading-4">{component.label}</p>
-                          <p className="text-[10px] text-gray-500 mt-0.5 leading-4">{component.description}</p>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              );
-            })}
+
+          {/* Search bar */}
+          <div className="px-3 py-2 border-b border-gray-100 shrink-0">
+            <div className="relative">
+              <Search size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+              <input
+                type="text"
+                value={componentSearch}
+                onChange={(e) => setComponentSearch(e.target.value)}
+                placeholder="Search components…"
+                className="w-full pl-7 pr-3 py-1.5 text-xs bg-gray-50 border border-gray-200 rounded-lg placeholder-gray-400 text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-300 transition-all"
+              />
+              {componentSearch && (
+                <button
+                  type="button"
+                  onClick={() => setComponentSearch('')}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                >
+                  <X size={11} />
+                </button>
+              )}
+            </div>
           </div>
 
-          <div className="mt-5 pt-4 border-t border-gray-200 space-y-2">
+          {/* Component list */}
+          <div className="flex-1 overflow-y-auto px-2 py-2 space-y-1">
+            {componentSearch.trim() ? (
+              /* Flat search results */
+              (() => {
+                const q = componentSearch.toLowerCase();
+                const results = COMPONENT_CATEGORIES.flatMap((cat) =>
+                  cat.components
+                    .filter((c) => c.label.toLowerCase().includes(q) || c.description.toLowerCase().includes(q) || cat.label.toLowerCase().includes(q))
+                    .map((c) => ({ ...c, catIcon: cat.icon, catLabel: cat.label }))
+                );
+                if (results.length === 0) {
+                  return (
+                    <div className="py-8 text-center text-xs text-gray-400">
+                      No components match "<span className="font-medium text-gray-600">{componentSearch}</span>"
+                    </div>
+                  );
+                }
+                return results.map((component) => {
+                  const Icon = component.catIcon;
+                  return (
+                    <div
+                      key={component.type}
+                      draggable
+                      onDragStart={(event) =>
+                        event.dataTransfer.setData('application/structra-component-type', component.type)
+                      }
+                      className="flex items-start gap-2.5 w-full px-2.5 py-2 rounded-lg border border-gray-200 bg-white hover:border-blue-300 hover:bg-blue-50/50 cursor-grab active:cursor-grabbing transition-all group"
+                      title={component.description}
+                    >
+                      <div className="w-6 h-6 rounded-md bg-gray-100 group-hover:bg-blue-100 flex items-center justify-center shrink-0 mt-0.5 transition-colors">
+                        <Icon size={12} className="text-gray-500 group-hover:text-blue-600 transition-colors" />
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-xs font-semibold text-gray-800 leading-4">{component.label}</p>
+                        <p className="text-[10px] text-gray-500 mt-0.5 leading-3.5 truncate">{component.catLabel}</p>
+                      </div>
+                    </div>
+                  );
+                });
+              })()
+            ) : (
+              /* Categorized view */
+              COMPONENT_CATEGORIES.map((category) => {
+                const CategoryIcon = category.icon;
+                const isExpanded = expandedComponentCategories.has(category.key);
+                return (
+                  <div key={category.key}>
+                    <button
+                      type="button"
+                      onClick={() => toggleComponentCategory(category.key)}
+                      className="w-full flex items-center justify-between px-2 py-1.5 rounded-lg hover:bg-gray-100 transition-colors group"
+                    >
+                      <span className="flex items-center gap-2 text-[11px] font-semibold text-gray-600 group-hover:text-gray-900">
+                        <span className="w-5 h-5 rounded bg-gray-100 group-hover:bg-gray-200 flex items-center justify-center transition-colors">
+                          <CategoryIcon size={11} className="text-gray-500" />
+                        </span>
+                        {category.label}
+                      </span>
+                      <ChevronRight
+                        size={12}
+                        className={`text-gray-400 transition-transform ${isExpanded ? 'rotate-90' : ''}`}
+                      />
+                    </button>
+                    {isExpanded && (
+                      <div className="mt-1 ml-2 pl-2 border-l-2 border-gray-100 space-y-1 pb-1">
+                        {category.components.map((component) => (
+                          <div
+                            key={component.type}
+                            draggable
+                            onDragStart={(event) =>
+                              event.dataTransfer.setData('application/structra-component-type', component.type)
+                            }
+                            className="flex items-start gap-2 w-full px-2.5 py-2 rounded-lg border border-transparent hover:border-blue-200 hover:bg-blue-50/60 cursor-grab active:cursor-grabbing transition-all group"
+                            title={component.description}
+                          >
+                            <div className="min-w-0">
+                              <p className="text-xs font-medium text-gray-800 leading-4">{component.label}</p>
+                              <p className="text-[10px] text-gray-400 mt-0.5 leading-3.5">{component.description}</p>
+                            </div>
+                            <ArrowRight size={10} className="text-gray-300 group-hover:text-blue-400 mt-1 shrink-0 transition-colors" />
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                );
+              })
+            )}
+          </div>
+
+          {/* Footer actions */}
+          <div className="border-t border-gray-100 px-3 py-2 space-y-1.5 shrink-0">
             <button
               type="button"
               disabled={!selectedNodeId}
               onClick={deleteSelectedNode}
-              className="w-full px-3 py-2 rounded-md border border-gray-300 text-sm text-gray-700 disabled:opacity-40"
+              className="w-full flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg border border-gray-200 text-xs font-medium text-gray-600 hover:border-red-200 hover:text-red-600 hover:bg-red-50 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:border-gray-200 disabled:hover:bg-transparent disabled:hover:text-gray-600 transition-all"
             >
+              <Trash2 size={12} />
               Delete Selected Node
             </button>
             <button
               type="button"
               disabled={!selectedEdgeId}
               onClick={deleteSelectedEdge}
-              className="w-full px-3 py-2 rounded-md border border-gray-300 text-sm text-gray-700 disabled:opacity-40"
+              className="w-full flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg border border-gray-200 text-xs font-medium text-gray-600 hover:border-red-200 hover:text-red-600 hover:bg-red-50 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:border-gray-200 disabled:hover:bg-transparent disabled:hover:text-gray-600 transition-all"
             >
-              <Trash2 size={14} className="inline mr-1" />
+              <Trash2 size={12} />
               Delete Selected Edge
             </button>
           </div>
@@ -2374,10 +2469,10 @@ const Canvas = () => {
           <button
             type="button"
             onClick={() => setIsLeftPanelCollapsed(false)}
-            className="absolute top-3 left-3 z-20 inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md border border-gray-200 bg-white text-xs text-gray-700 shadow-sm"
+            className="absolute top-3 left-3 z-20 inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-gray-200 bg-white text-xs font-medium text-gray-600 shadow-sm hover:border-gray-300 hover:shadow transition-all"
             title="Show components panel"
           >
-            <ChevronRight size={14} />
+            <ChevronRight size={13} />
             Components
           </button>
         )}
@@ -2396,16 +2491,26 @@ const Canvas = () => {
               setRightPanelMode('design');
               openPropertiesPanel();
             }}
-            className={`relative flex-1 overflow-hidden bg-slate-50 ${
+            className={`relative flex-1 overflow-hidden bg-[#f8f9fb] ${
               isPanning ? 'cursor-grabbing' : activeTool === 'pan' ? 'cursor-grab' : 'cursor-default'
             }`}
             style={{
-              backgroundImage:
-                'linear-gradient(to right, rgba(148,163,184,0.18) 1px, transparent 1px), linear-gradient(to bottom, rgba(148,163,184,0.18) 1px, transparent 1px)',
+              backgroundImage: 'radial-gradient(circle, #c8ccd4 1px, transparent 1px)',
               backgroundSize: '24px 24px',
             }}
           >
             <svg className="absolute inset-0 pointer-events-none" width="100%" height="100%">
+              <defs>
+                <marker id="arrowhead" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+                  <polygon points="0 0, 8 3, 0 6" fill="#94a3b8" />
+                </marker>
+                <marker id="arrowhead-selected" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+                  <polygon points="0 0, 8 3, 0 6" fill="#3b82f6" />
+                </marker>
+                <marker id="arrowhead-highlighted" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+                  <polygon points="0 0, 8 3, 0 6" fill="#10b981" />
+                </marker>
+              </defs>
               {canvasState.edges.map((edge) => {
                 const { sourceNode, targetNode, pathPoints } = getEdgeScreenPath(edge);
                 if (!sourceNode || !targetNode || pathPoints.length < 2) return null;
@@ -2416,32 +2521,54 @@ const Canvas = () => {
                   ''
                 );
                 const edgeOpacity =
-                  edgeIsHighlighted || selectedEdgeId === edge.id || !highlightedInsight ? 1 : 0.45;
-                const edgeStrokeWidth = selectedEdgeId === edge.id ? 2.7 : edgeIsHighlighted ? 2.4 : 2;
+                  edgeIsHighlighted || selectedEdgeId === edge.id || !highlightedInsight ? 1 : 0.3;
+                const isSelected = selectedEdgeId === edge.id;
+                const edgeStrokeWidth = isSelected ? 2.5 : edgeIsHighlighted ? 2 : 1.5;
+                const edgeColor = isSelected ? '#3b82f6' : edgeIsHighlighted ? '#10b981' : '#94a3b8';
+                const arrowMarkerId = isSelected ? 'arrowhead-selected' : edgeIsHighlighted ? 'arrowhead-highlighted' : 'arrowhead';
 
                 return (
                   <g key={edge.id}>
+                    {/* Shadow/glow for selected */}
+                    {isSelected && (
+                      <path
+                        d={pathDefinition}
+                        stroke="#3b82f6"
+                        strokeWidth={6}
+                        opacity={0.15}
+                        fill="none"
+                      />
+                    )}
                     <path
                       d={pathDefinition}
-                      stroke={selectedEdgeId === edge.id ? 'var(--edge-stroke-strong)' : 'var(--edge-stroke)'}
+                      stroke={edgeColor}
                       strokeWidth={edgeStrokeWidth}
                       opacity={edgeOpacity}
                       fill="none"
-                      pathLength={100}
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      markerEnd={`url(#${arrowMarkerId})`}
                     />
-                    <path
-                      d={pathDefinition}
-                      stroke="var(--edge-accent)"
-                      strokeWidth={edgeStrokeWidth}
-                      opacity={edgeOpacity}
-                      fill="none"
-                      pathLength={100}
-                      strokeDasharray="20 80"
-                    />
+                    {/* Protocol label on selected edges */}
+                    {isSelected && edge.metadata?.protocol && (() => {
+                      const midIdx = Math.floor(pathPoints.length / 2);
+                      const p1 = pathPoints[midIdx - 1] || pathPoints[0];
+                      const p2 = pathPoints[midIdx] || pathPoints[pathPoints.length - 1];
+                      const mx = (p1.x + p2.x) / 2;
+                      const my = (p1.y + p2.y) / 2;
+                      return (
+                        <g>
+                          <rect x={mx - 20} y={my - 9} width={40} height={18} rx={4} fill="#3b82f6" />
+                          <text x={mx} y={my + 4.5} textAnchor="middle" fill="white" fontSize={9} fontWeight="600" fontFamily="ui-monospace, monospace">
+                            {edge.metadata.protocol}
+                          </text>
+                        </g>
+                      );
+                    })()}
                     <path
                       d={pathDefinition}
                       stroke="transparent"
-                      strokeWidth="12"
+                      strokeWidth="14"
                       fill="none"
                       className="pointer-events-auto cursor-pointer"
                       onClick={(event) => {
@@ -2469,9 +2596,9 @@ const Canvas = () => {
                           key={`${edge.id}-bend-${bendIndex}`}
                           cx={screenPoint.x}
                           cy={screenPoint.y}
-                          r={6}
+                          r={5}
                           fill="#ffffff"
-                          stroke="#2563eb"
+                          stroke="#3b82f6"
                           strokeWidth={2}
                           className="pointer-events-auto cursor-move"
                           onMouseDown={(event) => onEdgeBendMouseDown(event, edge.id, bendIndex)}
@@ -2493,8 +2620,8 @@ const Canvas = () => {
                             cx={midX}
                             cy={midY}
                             r={4}
-                            fill="#bfdbfe"
-                            stroke="#2563eb"
+                            fill="#dbeafe"
+                            stroke="#3b82f6"
                             strokeWidth={1.5}
                             className={`pointer-events-auto ${cursorClass}`}
                             onMouseDown={(event) => onEdgeSegmentMouseDown(event, edge, index)}
@@ -2519,9 +2646,12 @@ const Canvas = () => {
                     y1={sourcePoint.y}
                     x2={targetX}
                     y2={targetY}
-                    stroke="#2563eb"
+                    stroke="#3b82f6"
                     strokeWidth="2"
-                    strokeDasharray="4 4"
+                    strokeDasharray="6 4"
+                    strokeLinecap="round"
+                    opacity={0.8}
+                    markerEnd="url(#arrowhead-selected)"
                   />
                 );
               })()}
@@ -2541,13 +2671,13 @@ const Canvas = () => {
               return (
                 <div
                   key={node.id}
-                  className={`absolute bg-white border rounded-lg shadow-sm ${
+                  className={`absolute rounded-xl overflow-hidden ${
                     selectedNodeId === node.id
-                      ? 'border-blue-500 ring-2 ring-blue-100'
+                      ? 'ring-2 ring-blue-500 ring-offset-1 shadow-lg shadow-blue-100/50'
                       : nodeIsHighlighted
-                      ? 'border-teal-500 ring-2 ring-teal-100'
-                      : 'border-gray-300'
-                  }`}
+                      ? 'ring-2 ring-emerald-400 ring-offset-1 shadow-lg shadow-emerald-100/50'
+                      : 'ring-1 ring-gray-200 shadow-md hover:shadow-lg hover:ring-gray-300'
+                  } bg-white transition-shadow`}
                   style={{
                     width: NODE_WIDTH * canvasState.viewport.zoom,
                     height: NODE_HEIGHT * canvasState.viewport.zoom,
@@ -2569,27 +2699,36 @@ const Canvas = () => {
                         type="button"
                         data-anchor={anchor}
                         aria-label={`Connector ${anchor}`}
-                        className={`${connectorClasses[anchor]} w-4 h-4 rounded-full bg-blue-600 border-2 border-white`}
+                        className={`${connectorClasses[anchor]} w-3.5 h-3.5 rounded-full bg-blue-500 border-2 border-white shadow-sm hover:bg-blue-600 hover:scale-125 transition-all`}
                         onMouseDown={(event) => startConnection(event, node.id)}
                         onMouseUp={(event) => completeConnection(event, node.id, anchor)}
                       />
                     ))}
 
+                  {/* Top accent bar */}
+                  <div
+                    className={`absolute top-0 left-0 right-0 h-0.5 ${
+                      selectedNodeId === node.id ? 'bg-blue-500' : nodeIsHighlighted ? 'bg-emerald-400' : 'bg-transparent'
+                    }`}
+                  />
+
                   <div style={{ padding: nodePadding }}>
                     <div
-                      className="flex items-center gap-2 text-gray-500 uppercase tracking-wide"
+                      className="flex items-center gap-1.5 text-gray-400 uppercase tracking-wider font-medium"
                       style={{ fontSize: nodeTypeFontSize, lineHeight: 1.15 }}
                     >
-                      <Icon size={nodeIconSize} />
+                      <span className="inline-flex items-center justify-center rounded bg-gray-100" style={{ width: nodeIconSize + 4, height: nodeIconSize + 4 }}>
+                        <Icon size={nodeIconSize} className="text-gray-500" />
+                      </span>
                       {component?.label || node.type}
                     </div>
                     <p
-                      className="mt-2 font-semibold text-gray-900 truncate"
-                      style={{ fontSize: nodeLabelFontSize, lineHeight: 1.15 }}
+                      className="mt-1.5 font-bold text-gray-900 truncate leading-tight"
+                      style={{ fontSize: nodeLabelFontSize, lineHeight: 1.2 }}
                     >
                       {node.label || 'Untitled'}
                     </p>
-                  <p className="mt-1 text-gray-500" style={{ fontSize: nodeIdFontSize, lineHeight: 1.15 }}>
+                  <p className="mt-1 text-gray-400 font-mono" style={{ fontSize: nodeIdFontSize - 1, lineHeight: 1.15 }}>
                       {node.id.slice(0, 8)}
                     </p>
                   </div>
@@ -2599,37 +2738,41 @@ const Canvas = () => {
 
             {canEditStructure && canvasState.nodes.length === 0 && (
               <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                <div className="bg-white/90 border border-dashed border-gray-300 rounded-xl px-5 py-4 text-center">
-                  <p className="text-sm font-medium text-gray-700">Drag components from the left panel to start.</p>
+                <div className="bg-white border border-dashed border-gray-300 rounded-2xl px-8 py-6 text-center shadow-sm">
+                  <div className="w-12 h-12 mx-auto mb-3 rounded-xl bg-gray-100 flex items-center justify-center">
+                    <Box size={22} className="text-gray-400" />
+                  </div>
+                  <p className="text-sm font-semibold text-gray-700 mb-1">Start building your system</p>
+                  <p className="text-xs text-gray-400">Drag components from the left panel onto the canvas</p>
                 </div>
               </div>
             )}
 
-            <div className="absolute bottom-3 right-3 px-3 py-1.5 rounded-md border border-gray-200 bg-white/90 text-xs text-gray-600">
+            <div className="absolute bottom-3 right-3 px-2.5 py-1 rounded-lg border border-gray-200 bg-white/95 backdrop-blur text-xs font-medium text-gray-500 shadow-sm">
               {saveLabel}
             </div>
             <div
-              className="absolute bottom-3 left-3 inline-flex items-center gap-2"
+              className="absolute bottom-3 left-3 inline-flex items-center gap-1.5"
               data-history-version={historyVersion}
             >
               <button
                 type="button"
                 onClick={undoCanvasChange}
                 disabled={!canEditStructure || !canUndo}
-                className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md border border-gray-200 bg-white/95 text-xs text-gray-700 disabled:opacity-40"
-                title="Undo"
+                className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-gray-200 bg-white/95 backdrop-blur text-xs font-medium text-gray-600 hover:border-gray-300 hover:bg-white shadow-sm disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+                title="Undo (⌘Z)"
               >
-                <Undo2 size={13} />
+                <Undo2 size={12} />
                 Undo
               </button>
               <button
                 type="button"
                 onClick={redoCanvasChange}
                 disabled={!canEditStructure || !canRedo}
-                className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md border border-gray-200 bg-white/95 text-xs text-gray-700 disabled:opacity-40"
-                title="Redo"
+                className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-gray-200 bg-white/95 backdrop-blur text-xs font-medium text-gray-600 hover:border-gray-300 hover:bg-white shadow-sm disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+                title="Redo (⌘⇧Z)"
               >
-                <Redo2 size={13} />
+                <Redo2 size={12} />
                 Redo
               </button>
             </div>
@@ -2639,27 +2782,28 @@ const Canvas = () => {
             <button
               type="button"
               onClick={() => setIsRightPanelHidden(false)}
-              className="absolute right-3 top-3 z-20 inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md border border-gray-200 bg-white text-xs text-gray-700 shadow-sm"
+              className="absolute right-3 top-3 z-20 inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-gray-200 bg-white text-xs font-medium text-gray-600 shadow-sm hover:border-gray-300 hover:shadow transition-all"
               title="Show properties panel"
             >
-              <ChevronLeft size={14} />
+              <ChevronLeft size={13} />
               Properties
             </button>
           )}
 
           {!isRightPanelHidden && (
             <aside
-              className={`border-l border-gray-200 bg-white p-4 space-y-4 transition-all duration-300 ${
-                isRightPanelExpanded ? 'w-[50vw]' : 'w-72'
+              className={`border-l border-gray-200 bg-white flex flex-col transition-all duration-300 shrink-0 ${
+                isRightPanelExpanded ? 'w-[50vw]' : 'w-[280px]'
               }`}
             >
-              <div className="flex items-center justify-between">
-                <h2 className="text-sm font-semibold text-gray-900">Properties</h2>
-                <div className="flex items-center gap-2">
+              {/* Panel header */}
+              <div className="flex items-center justify-between px-4 py-2.5 border-b border-gray-100 shrink-0">
+                <span className="text-[11px] font-semibold text-gray-500 uppercase tracking-widest">Properties</span>
+                <div className="flex items-center gap-1">
                   <button
                     type="button"
                     onClick={() => setIsRightPanelExpanded((prev) => !prev)}
-                    className="inline-flex items-center justify-center w-7 h-7 rounded border border-gray-200 bg-white text-gray-600 hover:text-gray-800"
+                    className="w-6 h-6 flex items-center justify-center rounded hover:bg-gray-100 text-gray-400 hover:text-gray-600 transition-colors"
                     title={isRightPanelExpanded ? 'Restore panel width' : 'Expand panel'}
                   >
                     {isRightPanelExpanded ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
@@ -2667,21 +2811,23 @@ const Canvas = () => {
                   <button
                     type="button"
                     onClick={() => setIsRightPanelHidden(true)}
-                    className="inline-flex items-center justify-center w-7 h-7 rounded border border-gray-200 bg-white text-gray-600 hover:text-gray-800"
+                    className="w-6 h-6 flex items-center justify-center rounded hover:bg-gray-100 text-gray-400 hover:text-gray-600 transition-colors"
                     title="Close properties panel"
                   >
                     <X size={14} />
                   </button>
                 </div>
               </div>
-            <div className="flex items-center gap-2">
+
+              {/* Tab bar */}
+              <div className="flex items-center gap-1 px-3 py-2 border-b border-gray-100 shrink-0">
               <button
                 type="button"
                 onClick={() => setRightPanelMode('design')}
-                className={`px-2.5 py-1.5 text-xs rounded-md border ${
+                className={`flex-1 py-1.5 text-xs font-semibold rounded-lg transition-all ${
                   rightPanelMode === 'design'
-                    ? 'bg-blue-50 text-blue-700 border-blue-200'
-                    : 'bg-white text-gray-600 border-gray-200'
+                    ? 'bg-gray-900 text-white shadow-sm'
+                    : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'
                 }`}
               >
                 Design
@@ -2691,45 +2837,52 @@ const Canvas = () => {
                 onClick={() => setRightPanelMode('insights')}
                 title={`Insights (${insights.length})`}
                 aria-label={`Insights (${insights.length})`}
-                className={`h-8 px-2.5 text-xs rounded-md border inline-flex items-center justify-center gap-1 ${
+                className={`flex-1 py-1.5 text-xs font-semibold rounded-lg inline-flex items-center justify-center gap-1.5 transition-all ${
                   rightPanelMode === 'insights'
-                    ? 'bg-blue-50 text-blue-700 border-blue-200'
-                    : 'bg-white text-gray-600 border-gray-200'
+                    ? 'bg-gray-900 text-white shadow-sm'
+                    : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'
                 }`}
               >
-                <Lightbulb size={12} />
-                <span className="text-[10px] px-1.5 py-0.5 rounded bg-gray-100 text-gray-700">{insights.length}</span>
+                <Lightbulb size={11} />
+                Insights
+                {insights.length > 0 && (
+                  <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold ${rightPanelMode === 'insights' ? 'bg-white/20 text-white' : 'bg-amber-100 text-amber-700'}`}>{insights.length}</span>
+                )}
               </button>
               <button
                 type="button"
                 onClick={() => setRightPanelMode('comments')}
                 title={`Comments (${comments.length})`}
                 aria-label={`Comments (${comments.length})`}
-                className={`h-8 px-2.5 text-xs rounded-md border inline-flex items-center justify-center gap-1 ${
+                className={`flex-1 py-1.5 text-xs font-semibold rounded-lg inline-flex items-center justify-center gap-1.5 transition-all ${
                   rightPanelMode === 'comments'
-                    ? 'bg-blue-50 text-blue-700 border-blue-200'
-                    : 'bg-white text-gray-600 border-gray-200'
+                    ? 'bg-gray-900 text-white shadow-sm'
+                    : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'
                 }`}
               >
-                <MessageSquare size={12} />
-                <span className="text-[10px] px-1.5 py-0.5 rounded bg-gray-100 text-gray-700">{comments.length}</span>
+                <MessageSquare size={11} />
+                Comments
+                {comments.length > 0 && (
+                  <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold ${rightPanelMode === 'comments' ? 'bg-white/20 text-white' : 'bg-gray-100 text-gray-600'}`}>{comments.length}</span>
+                )}
               </button>
             </div>
 
             {rightPanelMode === 'design' ? (
-              <div className="space-y-4 overflow-y-auto pr-1 max-h-[calc(100vh-220px)]">
-                <p className="text-xs font-semibold text-gray-600 uppercase tracking-wide">
-                  {selectedEdge ? 'Edge Metadata' : selectedNode ? 'Component Metadata' : 'System Metadata'}
+              <div className="flex-1 overflow-y-auto">
+              <div className="p-4 space-y-3">
+                <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-widest">
+                  {selectedEdge ? 'Connection' : selectedNode ? 'Component' : 'System'}
                 </p>
               {selectedEdge ? (
-                <div className="rounded-md border border-gray-200 p-3 space-y-3">
+                <div className="rounded-xl border border-gray-200 p-3 space-y-3 bg-gray-50/50">
                   <div>
-                    <label className="text-xs text-gray-500 block mb-1">Protocol</label>
+                    <label className="text-[11px] font-semibold text-gray-500 block mb-1.5">Protocol</label>
                     <select
                       value={selectedEdge?.metadata?.protocol || ''}
                       onChange={(event) => setEdgeMetadataField('protocol', event.target.value)}
                       disabled={!canEditStructure}
-                      className="w-full border border-gray-300 rounded-md px-2.5 py-2 text-sm bg-white"
+                      className="w-full border border-gray-200 rounded-lg px-2.5 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-300"
                     >
                       {EDGE_PROTOCOL_OPTIONS.map((option) => (
                         <option key={`protocol-${option || 'none'}`} value={option}>
@@ -2739,27 +2892,27 @@ const Canvas = () => {
                     </select>
                   </div>
                   <div>
-                    <label className="text-xs text-gray-500 block mb-1">Notes</label>
+                    <label className="text-[11px] font-semibold text-gray-500 block mb-1.5">Notes</label>
                     <textarea
                       rows={3}
                       value={selectedEdge?.metadata?.notes || ''}
                       onChange={(event) => setEdgeMetadataField('notes', event.target.value)}
                       readOnly={!canEditStructure}
-                      className="w-full border border-gray-300 rounded-md px-2.5 py-2 text-sm resize-none"
+                      className="w-full border border-gray-200 rounded-lg px-2.5 py-2 text-sm resize-none bg-white focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-300"
                       placeholder="Communication context"
                     />
                   </div>
                 </div>
               ) : selectedNode ? (
                 <>
-                  <div className="rounded-md border border-gray-200 p-3 space-y-3">
-                    <p className="text-[11px] font-semibold text-gray-500 uppercase tracking-wide">What It Is</p>
+                  <div className="rounded-xl border border-gray-200 p-3 space-y-3 bg-gray-50/50">
+                    <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-widest">Identity</p>
                     {(() => {
                       const selectedComponent = COMPONENT_BY_TYPE.get(selectedNode.type);
                       return (
                         <div>
-                          <p className="text-xs text-gray-500">Type</p>
-                          <p className="text-sm text-gray-900 mt-1">
+                          <p className="text-[11px] text-gray-400 font-medium">Type</p>
+                          <p className="text-sm font-semibold text-gray-900 mt-0.5">
                             {selectedComponent?.label || selectedNode.type}
                           </p>
                           {selectedComponent?.description && (
@@ -2771,149 +2924,150 @@ const Canvas = () => {
                       );
                     })()}
                     <div>
-                      <label className="text-xs text-gray-500 block mb-1">Label</label>
+                      <label className="text-[11px] font-semibold text-gray-500 block mb-1.5">Label</label>
                       <input
                         type="text"
                         value={selectedNode?.label || ''}
                         onChange={(event) => setNodeLabel(event.target.value)}
                         readOnly={!canEditStructure}
-                        className="w-full border border-gray-300 rounded-md px-2.5 py-2 text-sm"
+                        className="w-full border border-gray-200 rounded-lg px-2.5 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-300"
                       />
                     </div>
                   </div>
 
-                  <div className="rounded-md border border-gray-200 p-3 space-y-3">
-                    <p className="text-[11px] font-semibold text-gray-500 uppercase tracking-wide">Why It Exists</p>
+                  <div className="rounded-xl border border-gray-200 p-3 space-y-3 bg-gray-50/50">
+                    <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-widest">Context</p>
                     <div>
-                      <label className="text-xs text-gray-500 block mb-1">Purpose</label>
+                      <label className="text-[11px] font-semibold text-gray-500 block mb-1.5">Purpose</label>
                       <textarea
                         rows={3}
                         value={selectedNode?.metadata?.purpose || ''}
                         onChange={(event) => setNodeMetadataField('purpose', event.target.value)}
                         readOnly={!canEditStructure}
-                        className="w-full border border-gray-300 rounded-md px-2.5 py-2 text-sm resize-none"
+                        className="w-full border border-gray-200 rounded-lg px-2.5 py-2 text-sm resize-none bg-white focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-300"
                         placeholder="Why this component exists"
                       />
                     </div>
                     <div>
-                      <label className="text-xs text-gray-500 block mb-1">Technology</label>
+                      <label className="text-[11px] font-semibold text-gray-500 block mb-1.5">Technology</label>
                       <input
                         type="text"
                         value={selectedNode?.metadata?.techChoice || ''}
                         onChange={(event) => setNodeMetadataField('techChoice', event.target.value)}
                         readOnly={!canEditStructure}
-                        className="w-full border border-gray-300 rounded-md px-2.5 py-2 text-sm"
+                        className="w-full border border-gray-200 rounded-lg px-2.5 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-300"
                         placeholder="Optional implementation choice"
                       />
                     </div>
                     <div>
-                      <div className="flex items-center justify-between mb-1">
-                        <label className="text-xs text-gray-500">Responsibilities</label>
+                      <div className="flex items-center justify-between mb-1.5">
+                        <label className="text-[11px] font-semibold text-gray-500">Responsibilities</label>
                         <button
                           type="button"
                           onClick={addNodeResponsibility}
                           disabled={!canEditStructure}
-                          className="inline-flex items-center justify-center w-6 h-6 rounded border border-blue-200 text-blue-600 hover:bg-blue-50"
+                          className="w-5 h-5 flex items-center justify-center rounded-md bg-blue-50 text-blue-600 hover:bg-blue-100 transition-colors disabled:opacity-40"
                           title="Add responsibility"
                         >
-                          <Plus size={14} />
+                          <Plus size={12} />
                         </button>
                       </div>
-                      <div className="space-y-2">
+                      <div className="space-y-1.5">
                         {(selectedNode?.metadata?.responsibilities || []).map((item, index) => (
-                          <div key={`resp-${selectedNode.id}-${index}`} className="flex items-center gap-2">
+                          <div key={`resp-${selectedNode.id}-${index}`} className="flex items-center gap-1.5">
                             <input
                               type="text"
                               value={item}
                               onChange={(event) => updateNodeResponsibility(index, event.target.value)}
                               readOnly={!canEditStructure}
-                              className="flex-1 border border-gray-300 rounded-md px-2.5 py-2 text-sm"
+                              className="flex-1 border border-gray-200 rounded-lg px-2.5 py-1.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-100"
                               placeholder="Responsibility"
                             />
                             <button
                               type="button"
                               onClick={() => removeNodeResponsibility(index)}
                               disabled={!canEditStructure}
-                              className="inline-flex items-center justify-center w-6 h-6 rounded border border-red-200 text-red-600 hover:bg-red-50"
+                              className="w-5 h-5 flex items-center justify-center rounded-md text-red-400 hover:bg-red-50 hover:text-red-600 transition-colors disabled:opacity-40"
                               title="Remove responsibility"
                             >
-                              <Trash2 size={14} />
+                              <Trash2 size={11} />
                             </button>
                           </div>
                         ))}
                       </div>
                     </div>
                     <div>
-                      <label className="text-xs text-gray-500 block mb-1">Notes</label>
+                      <label className="text-[11px] font-semibold text-gray-500 block mb-1.5">Notes</label>
                       <textarea
                         rows={3}
                         value={selectedNode?.metadata?.notes || ''}
                         onChange={(event) => setNodeMetadataField('notes', event.target.value)}
                         readOnly={!canEditStructure}
-                        className="w-full border border-gray-300 rounded-md px-2.5 py-2 text-sm resize-none"
+                        className="w-full border border-gray-200 rounded-lg px-2.5 py-2 text-sm resize-none bg-white focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-300"
                         placeholder="Free-form context"
                       />
                     </div>
                   </div>
                 </>
               ) : (
-                <div className="rounded-md border border-gray-200 p-3 space-y-3">
+                <div className="rounded-xl border border-gray-200 p-3 space-y-3 bg-gray-50/50">
+                  <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-widest">System</p>
                   <div>
-                    <label className="text-xs text-gray-500 block mb-1">Goal</label>
+                    <label className="text-[11px] font-semibold text-gray-500 block mb-1.5">Goal</label>
                     <textarea
                       rows={2}
                       value={canvasState?.systemMetadata?.goal || ''}
                       onChange={(event) => setSystemMetadataField('goal', event.target.value)}
                       readOnly={!canEditStructure}
-                      className="w-full border border-gray-300 rounded-md px-2.5 py-2 text-sm resize-none"
+                      className="w-full border border-gray-200 rounded-lg px-2.5 py-2 text-sm resize-none bg-white focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-300"
                       placeholder="What this system is trying to achieve"
                     />
                   </div>
                   <div>
-                    <div className="flex items-center justify-between mb-1">
-                      <label className="text-xs text-gray-500">Assumptions</label>
+                    <div className="flex items-center justify-between mb-1.5">
+                      <label className="text-[11px] font-semibold text-gray-500">Assumptions</label>
                       <button
                         type="button"
                         onClick={addSystemAssumption}
                         disabled={!canEditStructure}
-                        className="inline-flex items-center justify-center w-6 h-6 rounded border border-blue-200 text-blue-600 hover:bg-blue-50"
+                        className="w-5 h-5 flex items-center justify-center rounded-md bg-blue-50 text-blue-600 hover:bg-blue-100 transition-colors disabled:opacity-40"
                         title="Add assumption"
                       >
-                        <Plus size={14} />
+                        <Plus size={12} />
                       </button>
                     </div>
-                    <div className="space-y-2">
+                    <div className="space-y-1.5">
                       {(canvasState?.systemMetadata?.assumptions || []).map((item, index) => (
-                        <div key={`assump-${index}`} className="flex items-center gap-2">
+                        <div key={`assump-${index}`} className="flex items-center gap-1.5">
                           <input
                             type="text"
                             value={item}
                             onChange={(event) => updateSystemAssumption(index, event.target.value)}
                             readOnly={!canEditStructure}
-                            className="flex-1 border border-gray-300 rounded-md px-2.5 py-2 text-sm"
+                            className="flex-1 border border-gray-200 rounded-lg px-2.5 py-1.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-100"
                             placeholder="Assumption"
                           />
                           <button
                             type="button"
                             onClick={() => removeSystemAssumption(index)}
                             disabled={!canEditStructure}
-                            className="inline-flex items-center justify-center w-6 h-6 rounded border border-red-200 text-red-600 hover:bg-red-50"
+                            className="w-5 h-5 flex items-center justify-center rounded-md text-red-400 hover:bg-red-50 hover:text-red-600 transition-colors disabled:opacity-40"
                             title="Remove assumption"
                           >
-                            <Trash2 size={14} />
+                            <Trash2 size={11} />
                           </button>
                         </div>
                       ))}
                     </div>
                   </div>
                   <div>
-                    <label className="text-xs text-gray-500 block mb-1">Constraints</label>
+                    <label className="text-[11px] font-semibold text-gray-500 block mb-1.5">Constraints</label>
                     <textarea
                       rows={3}
                       value={canvasState?.systemMetadata?.constraints || ''}
                       onChange={(event) => setSystemMetadataField('constraints', event.target.value)}
                       readOnly={!canEditStructure}
-                      className="w-full border border-gray-300 rounded-md px-2.5 py-2 text-sm resize-none"
+                      className="w-full border border-gray-200 rounded-lg px-2.5 py-2 text-sm resize-none bg-white focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-300"
                       placeholder="Known limitations or boundaries"
                     />
                   </div>
@@ -2921,31 +3075,37 @@ const Canvas = () => {
               )}
 
               {!selectedEdge && (
-                <div className="rounded-md border border-gray-200 p-3 text-sm text-gray-600 space-y-1">
-                  <p>
-                    Nodes: <span className="font-semibold text-gray-900">{canvasState.nodes.length}</span>
-                  </p>
-                  <p>
-                    Edges: <span className="font-semibold text-gray-900">{canvasState.edges.length}</span>
-                  </p>
-                  <p>
-                    User: <span className="font-semibold text-gray-900">{user.full_name || user.email}</span>
-                  </p>
+                <div className="rounded-xl border border-gray-200 p-3 bg-gray-50/50 space-y-2">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-gray-500">Nodes</span>
+                    <span className="font-semibold text-gray-900 tabular-nums">{canvasState.nodes.length}</span>
+                  </div>
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-gray-500">Edges</span>
+                    <span className="font-semibold text-gray-900 tabular-nums">{canvasState.edges.length}</span>
+                  </div>
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-gray-500">User</span>
+                    <span className="font-semibold text-gray-900 truncate max-w-[140px]">{user.full_name || user.email}</span>
+                  </div>
                 </div>
               )}
               </div>
+              </div>
             ) : rightPanelMode === 'insights' ? (
-              <div className="space-y-3 overflow-y-auto pr-1 max-h-[calc(100vh-220px)]">
-                <p className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Passive Insights</p>
+              <div className="flex-1 overflow-y-auto p-4 space-y-3">
+                <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-widest">Passive Insights</p>
                 {insights.length === 0 ? (
-                  <div className="rounded-md border border-gray-200 p-3 text-sm text-gray-600">
-                    No observations yet. Keep modeling and insights will update automatically.
+                  <div className="rounded-xl border border-gray-200 p-4 text-center">
+                    <Lightbulb size={20} className="text-gray-300 mx-auto mb-2" />
+                    <p className="text-xs font-medium text-gray-500">No observations yet.</p>
+                    <p className="text-[11px] text-gray-400 mt-0.5">Keep modeling and insights will appear.</p>
                   </div>
                 ) : (
                   insightsByCategory.map(({ category, items }) =>
                     items.length === 0 ? null : (
-                      <div key={`insight-group-${category}`} className="rounded-md border border-gray-200 p-3 space-y-2">
-                        <p className="text-[11px] font-semibold text-gray-500 uppercase tracking-wide">{category}</p>
+                      <div key={`insight-group-${category}`} className="space-y-1.5">
+                        <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-widest">{category}</p>
                         {items.map((insight) => (
                           <button
                             key={insight.id}
@@ -2955,12 +3115,12 @@ const Canvas = () => {
                             onFocus={() => setHoveredInsightId(insight.id)}
                             onBlur={() => setHoveredInsightId(null)}
                             onClick={() => focusInsight(insight)}
-                            className={`w-full text-left px-2.5 py-2 rounded-md border text-xs leading-5 transition ${
+                            className={`w-full text-left px-3 py-2.5 rounded-xl border text-xs leading-5 transition-all ${
                               activeInsightId === insight.id
-                                ? 'border-teal-200 bg-teal-50 text-teal-900'
+                                ? 'border-emerald-200 bg-emerald-50 text-emerald-900 shadow-sm'
                                 : hoveredInsightId === insight.id
                                 ? 'border-gray-300 bg-gray-50 text-gray-800'
-                                : 'border-gray-200 bg-white text-gray-700'
+                                : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300'
                             }`}
                           >
                             {insight.message}
@@ -2972,49 +3132,47 @@ const Canvas = () => {
                 )}
               </div>
             ) : (
-              <div className="space-y-3 overflow-y-auto overflow-x-hidden pr-1 max-h-[calc(100vh-220px)]">
-                <p className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Canvas Comments</p>
-                <p className="text-[11px] text-gray-500">
-                  Long threads? Expand this panel to read more comfortably.
-                </p>
+              <div className="flex-1 overflow-y-auto overflow-x-hidden p-4 space-y-3">
+                <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-widest">Comments</p>
                 {commentError && (
-                  <div className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+                  <div className="rounded-xl border border-red-200 bg-red-50 p-3 text-xs text-red-700">
                     {commentError}
                   </div>
                 )}
 
                 {canComment ? (
-                  <div className="rounded-md border border-gray-200 p-3 space-y-2">
+                  <div className="rounded-xl border border-gray-200 p-3 space-y-2 bg-gray-50/50">
                     <textarea
                       rows={3}
                       value={newCommentBody}
                       onChange={(event) => setNewCommentBody(event.target.value)}
-                      className="w-full border border-gray-300 rounded-md px-2.5 py-2 text-sm resize-none"
+                      className="w-full border border-gray-200 rounded-lg px-2.5 py-2 text-sm resize-none bg-white focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-300"
                       placeholder="Write a comment..."
                     />
                     <div className="flex justify-end">
                       <button
                         type="button"
                         onClick={handleCreateComment}
-                        className="px-3 py-1.5 text-xs font-semibold rounded-md bg-blue-600 text-white hover:bg-blue-700"
+                        className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-gray-900 text-white hover:bg-gray-800 transition-colors"
                       >
-                        Post Comment
+                        Post
                       </button>
                     </div>
                   </div>
                 ) : (
-                  <div className="rounded-md border border-gray-200 p-3 text-sm text-gray-600">
+                  <div className="rounded-xl border border-gray-200 p-3 text-xs text-gray-500 text-center">
                     Commenting is not available for your current role.
                   </div>
                 )}
 
                 {areCommentsLoading ? (
                   <div className="flex justify-center py-6">
-                    <span className="inline-flex h-5 w-5 animate-spin rounded-full border-2 border-blue-200 border-t-blue-600" />
+                    <span className="inline-flex h-5 w-5 animate-spin rounded-full border-2 border-gray-200 border-t-gray-500" />
                   </div>
                 ) : comments.length === 0 ? (
-                  <div className="rounded-md border border-gray-200 p-3 text-sm text-gray-600">
-                    No comments yet.
+                  <div className="rounded-xl border border-gray-200 p-4 text-center">
+                    <MessageSquare size={20} className="text-gray-300 mx-auto mb-2" />
+                    <p className="text-xs font-medium text-gray-500">No comments yet.</p>
                   </div>
                 ) : (
                   <div className="space-y-3">{comments.map((comment) => renderCommentNode(comment))}</div>
