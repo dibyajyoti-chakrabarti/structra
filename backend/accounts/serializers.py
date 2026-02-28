@@ -13,7 +13,8 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = User
-        fields = ('user_id', 'full_name', 'email', 'username', 'password')
+        fields = ('user_id', 'full_name', 'email', 'username', 'pricing', 'password')
+        read_only_fields = ('pricing',)
 
     def validate_username(self, value):
         normalized = normalize_username_input(value)
@@ -64,13 +65,23 @@ class UserSerializer(serializers.ModelSerializer):
             'full_name',
             'email',
             'username',
+            'pricing',
+            'current_plan',
+            'plan_expires_at',
             'user_role',
             'org_name',
             'org_loc',
             'is_new',
             'created_at',
         )
-        read_only_fields = ('user_id', 'email', 'created_at')
+        read_only_fields = (
+            'user_id',
+            'email',
+            'pricing',
+            'current_plan',
+            'plan_expires_at',
+            'created_at',
+        )
 
 
 class IdentifierTokenObtainPairSerializer(serializers.Serializer):
@@ -97,6 +108,9 @@ class IdentifierTokenObtainPairSerializer(serializers.Serializer):
                 'email': user.email,
                 'username': user.username,
                 'full_name': user.full_name,
+                'pricing': user.pricing,
+                'current_plan': user.current_plan,
+                'plan_expires_at': user.plan_expires_at,
                 'is_new': user.is_new,
             },
         }

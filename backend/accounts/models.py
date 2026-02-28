@@ -35,6 +35,18 @@ class UserManager(BaseUserManager):
         return self.create_user(email, username, password, **extra_fields)
 
 class User(AbstractBaseUser, PermissionsMixin):
+    class CurrentPlan(models.TextChoices):
+        CORE = 'CORE', 'Core'
+        INDIVIDUAL = 'INDIVIDUAL', 'Individual'
+        TEAM = 'TEAM', 'Team'
+        ENTERPRISE = 'ENTERPRISE', 'Enterprise'
+
+    class PricingPlan(models.TextChoices):
+        CORE = 'core', 'Core'
+        INDIVIDUAL = 'individual', 'Individual'
+        TEAM = 'team', 'Team'
+        ENTERPRISE = 'enterprise', 'Enterprise'
+
     user_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     email = models.EmailField(unique=True)
     username = models.CharField(max_length=50, unique=True, validators=[username_validator])
@@ -48,6 +60,17 @@ class User(AbstractBaseUser, PermissionsMixin):
     org_name = models.CharField(max_length=255, blank=True, null=True)
     org_loc = models.CharField(max_length=255, blank=True, null=True)
     is_new = models.BooleanField(default=True)
+    pricing = models.CharField(
+        max_length=20,
+        choices=PricingPlan.choices,
+        default=PricingPlan.CORE,
+    )
+    current_plan = models.CharField(
+        max_length=20,
+        choices=CurrentPlan.choices,
+        default=CurrentPlan.CORE,
+    )
+    plan_expires_at = models.DateTimeField(null=True, blank=True)
 
     objects = UserManager()
 
