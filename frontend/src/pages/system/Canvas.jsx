@@ -2674,7 +2674,11 @@ const Canvas = () => {
         {Array.isArray(comment.replies) && comment.replies.length > 0 && (
           <div
             className="space-y-2 overflow-hidden"
-            style={!isCapped ? { borderLeft: '2px solid #e5e7eb', paddingLeft: '10px', marginLeft: '14px' } : { borderLeft: '2px solid #e5e7eb', paddingLeft: '8px', marginLeft: '8px' }}
+            style={
+              !isCapped
+                ? { borderLeft: '2px solid var(--canvas-comment-thread-border, #e5e7eb)', paddingLeft: '10px', marginLeft: '14px' }
+                : { borderLeft: '2px solid var(--canvas-comment-thread-border, #e5e7eb)', paddingLeft: '8px', marginLeft: '8px' }
+            }
           >
             {comment.replies.map((reply) => renderCommentNode(reply, depth + 1))}
           </div>
