@@ -33,15 +33,11 @@ const getSleepSchedule = (now = new Date()) => {
 };
 
 export default function ServerDown() {
-  const [dots, setDots] = useState("");
   const [elapsed, setElapsed] = useState(0);
   const [pulseKey, setPulseKey] = useState(0);
   const [sleepSchedule, setSleepSchedule] = useState(() => getSleepSchedule());
 
   useEffect(() => {
-    const dotsInterval = setInterval(() => {
-      setDots((d) => (d.length >= 3 ? "" : d + "."));
-    }, 500);
     const elapsedInterval = setInterval(() => {
       setElapsed((e) => e + 1);
     }, 1000);
@@ -53,7 +49,6 @@ export default function ServerDown() {
     }, 15000);
 
     return () => {
-      clearInterval(dotsInterval);
       clearInterval(elapsedInterval);
       clearInterval(scheduleInterval);
       clearInterval(pulseInterval);
@@ -144,12 +139,6 @@ export default function ServerDown() {
           width: 100%;
           max-width: 520px;
           filter: drop-shadow(0 24px 48px rgba(64,123,255,0.12));
-          animation: floatIllus 6s ease-in-out infinite;
-        }
-
-        @keyframes floatIllus {
-          0%, 100% { transform: translateY(0px); }
-          50%       { transform: translateY(-10px); }
         }
 
         .sd-illus-glow {
@@ -380,11 +369,11 @@ export default function ServerDown() {
             </div>
 
             <h1 className="sd-heading">
-              Server is <span>waking up</span>{dots}
+              Backend is <span>on a schedule</span>
             </h1>
 
             <p className="sd-body">
-              Structra runs fully on AWS Cloud infrastructure. For cost optimization, the backend is not currently running and will start again shortly. Keep this tab open and we will reconnect as soon as it is ready.
+              Structra infrastructure runs on AWS. For cost optimization, backend servers operate daily from 9:00 AM to 5:00 PM IST. Outside this window, services are paused and this page will reconnect automatically when the next run window starts.
             </p>
 
             <div className="sd-status-card">
@@ -428,7 +417,7 @@ export default function ServerDown() {
                     <line x1="12" y1="16" x2="12.01" y2="16" />
                   </svg>
                 </div>
-                <span>Cold starts typically take <strong>30-90 seconds</strong>.</span>
+                <span>Daily run window: <strong>9:00 AM - 5:00 PM IST</strong>.</span>
               </div>
             </div>
           </div>
