@@ -6,9 +6,6 @@ import Navbar from "../../components/Navbar";
 import Footer from "../../components/Footer";
 import useRazorpayCheckout from "../../hooks/useRazorpayCheckout";
 import { useAuth } from "../../contexts/AuthContext";
-import { formatDateLabel, getDaysRemaining } from "../../utils/dateUtils";
-
-const RENEWAL_WINDOW_DAYS = 3;
 
 const plans = [
   {
@@ -89,8 +86,7 @@ export default function Pricing() {
     setStatusMessage("");
   };
 
-  const handlePlanCta = async (planName, options = {}) => {
-    const { forceRenew = false } = options;
+  const handlePlanCta = async (planName) => {
     const normalizedPlan = (planName || "CORE").toUpperCase();
 
     if (planName === "Enterprise") {
@@ -98,22 +94,10 @@ export default function Pricing() {
       return;
     }
 
-    if (normalizedPlan === currentPlan && !forceRenew) {
-      return;
-    }
-
-    if (forceRenew) {
-      if (!localStorage.getItem("access")) {
-        setPaymentStatus("failed");
-        setStatusMessage("Please log in first to continue with renewal.");
-        return;
+    if (normalizedPlan === currentPlan) {
+      if (normalizedPlan === "INDIVIDUAL") {
+        navigate("/app/profile");
       }
-
-      setPaymentStatus("processing");
-      setStatusMessage("Opening secure checkout...");
-      const result = await startCheckout(normalizedPlan);
-      setPaymentStatus(result?.status || "failed");
-      setStatusMessage(result?.message || "Unable to complete checkout.");
       return;
     }
 
@@ -160,34 +144,23 @@ export default function Pricing() {
       </section>
 
       <section className="py-12 sm:py-16">
-        <div className="mx-auto grid w-full max-w-7xl gap-6 px-4 sm:px-6 lg:grid-cols-4 lg:px-8">
+        <div className="mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8">
+          <div className="grid gap-6 lg:grid-cols-4">
           {plans.map((plan) => {
             const isCurrentPlan =
               plan.name.toUpperCase() === currentPlan;
-            const planDaysRemaining = isCurrentPlan
-              ? getDaysRemaining(user?.plan_expires_at)
-              : null;
-            const shouldShowRenewForCurrentPlan =
-              isCurrentPlan &&
-              currentPlan !== "CORE" &&
-              (planDaysRemaining == null || planDaysRemaining <= RENEWAL_WINDOW_DAYS);
-            const activeUntilLabel = formatDateLabel(user?.plan_expires_at);
             const isIndividualProcessing =
               plan.name === "INDIVIDUAL" &&
               (isCheckoutLoading || paymentStatus === "processing");
             const isPlanButtonDisabled = isCurrentPlan
-              ? currentPlan === "CORE" ||
-                !shouldShowRenewForCurrentPlan ||
-                isIndividualProcessing
+              ? currentPlan === "CORE" || isIndividualProcessing
               : isIndividualProcessing;
             const ctaLabel = isCurrentPlan
               ? currentPlan === "CORE"
                 ? "Current Plan"
-                : shouldShowRenewForCurrentPlan
-                  ? (isIndividualProcessing ? "Processing..." : "Renew Plan")
-                  : activeUntilLabel
-                    ? `Active until ${activeUntilLabel}`
-                    : "Current Plan"
+                : plan.name === "INDIVIDUAL"
+                  ? "Manage Billing"
+                  : "Current Plan"
               : isIndividualProcessing
                 ? "Processing..."
                 : plan.cta;
@@ -241,15 +214,11 @@ export default function Pricing() {
               </ul>
 
               <button
-                onClick={() =>
-                  handlePlanCta(plan.name, {
-                    forceRenew: shouldShowRenewForCurrentPlan,
-                  })
-                }
+                onClick={() => handlePlanCta(plan.name)}
                 disabled={isPlanButtonDisabled}
                 className={`mt-8 inline-flex w-full items-center justify-center gap-2 rounded-xl px-5 py-3 text-sm font-bold transition ${
                   isCurrentPlan
-                    ? shouldShowRenewForCurrentPlan
+                    ? plan.name === "INDIVIDUAL" && currentPlan === "INDIVIDUAL"
                       ? "bg-blue-600 text-white hover:bg-blue-700"
                       : "cursor-not-allowed border border-emerald-300 bg-emerald-50 text-emerald-700"
                     : plan.highlighted
@@ -259,13 +228,14 @@ export default function Pricing() {
               >
                 {ctaLabel}
                 {!isCurrentPlan && <ArrowRight size={16} />}
-                {isCurrentPlan && shouldShowRenewForCurrentPlan && !isIndividualProcessing && (
+                {isCurrentPlan && plan.name === "INDIVIDUAL" && currentPlan === "INDIVIDUAL" && !isIndividualProcessing && (
                   <ArrowRight size={16} />
                 )}
               </button>
               </article>
             );
           })}
+          </div>
         </div>
       </section>
 
