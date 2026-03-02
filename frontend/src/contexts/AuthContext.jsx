@@ -28,6 +28,7 @@ export function AuthProvider({ children }) {
   const [user, setUser] = useState(() => ({
     current_plan: getStoredPlan(),
     plan_expires_at: null,
+    razorpay_subscription_id: null,
   }));
 
   const updateUserPlan = useCallback((currentPlan, expiresAt = null) => {

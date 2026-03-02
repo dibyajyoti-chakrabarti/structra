@@ -9,7 +9,7 @@ const getErrorMessage = (error, fallback) =>
   error?.response?.data?.error || error?.message || fallback;
 
 export default function useRazorpayCheckout() {
-  const { updateUserPlan } = useAuth();
+  const { updateUserPlan, refreshUserProfile } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
 
   const startCheckout = useCallback(async (planName = DEFAULT_PLAN_NAME) => {
@@ -37,7 +37,11 @@ export default function useRazorpayCheckout() {
         plan_name: planName,
       });
 
-      const { razorpay_order_id: razorpayOrderId, amount, currency } = createOrderResponse.data;
+      const {
+        razorpay_subscription_id: razorpaySubscriptionId,
+        amount,
+        currency,
+      } = createOrderResponse.data;
       const paiseAmount = Math.round(Number(amount) * 100);
 
       const result = await new Promise((resolve) => {
@@ -50,7 +54,7 @@ export default function useRazorpayCheckout() {
 
         const razorpay = new window.Razorpay({
           key: keyId,
-          order_id: razorpayOrderId,
+          subscription_id: razorpaySubscriptionId,
           amount: Number.isFinite(paiseAmount) ? paiseAmount : undefined,
           currency,
           name: "Structra",
@@ -63,7 +67,7 @@ export default function useRazorpayCheckout() {
 
             try {
               const verifyResponse = await api.post("payments/orders/verify/", {
-                razorpay_order_id: response.razorpay_order_id,
+                razorpay_subscription_id: response.razorpay_subscription_id,
                 razorpay_payment_id: response.razorpay_payment_id,
                 razorpay_signature: response.razorpay_signature,
               });
@@ -71,6 +75,7 @@ export default function useRazorpayCheckout() {
               const currentPlan = (verifyResponse.data?.current_plan || planName).toUpperCase();
               const expiresAt = verifyResponse.data?.expires_at || null;
               updateUserPlan(currentPlan, expiresAt);
+              await refreshUserProfile();
 
               resolve({
                 status: "success",
@@ -110,7 +115,7 @@ export default function useRazorpayCheckout() {
         message: getErrorMessage(error, "Unable to start checkout."),
       };
     }
-  }, [isLoading, updateUserPlan]);
+  }, [isLoading, refreshUserProfile, updateUserPlan]);
 
   return {
     startCheckout,
