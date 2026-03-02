@@ -1,5 +1,6 @@
 from rest_framework import generics, permissions
 from .serializers import (
+    ExpiryEnforcingTokenRefreshSerializer,
     IdentifierTokenObtainPairSerializer,
     UserRegistrationSerializer,
 )
@@ -24,6 +25,7 @@ from django.utils import timezone
 from django.db.models import Count, Value
 from django.db.models.functions import Coalesce
 from .email_utils import send_otp_email
+from .plan_utils import enforce_plan_expiry, get_active_razorpay_subscription_id
 from .username_utils import (
     generate_unique_username,
     normalize_username_input,
@@ -42,6 +44,11 @@ OTP_MAX_ATTEMPTS = 5
 class IdentifierTokenObtainPairView(TokenViewBase):
     permission_classes = [AllowAny]
     serializer_class = IdentifierTokenObtainPairSerializer
+
+
+class ExpiryEnforcingTokenRefreshView(TokenViewBase):
+    permission_classes = [AllowAny]
+    serializer_class = ExpiryEnforcingTokenRefreshSerializer
 
 
 class UserTrigramSearchView(generics.ListAPIView):
@@ -206,6 +213,8 @@ class GoogleLoginView(APIView):
                 'is_new': True # Default for new users
             }
         )
+        user = enforce_plan_expiry(user)
+        active_subscription_id = get_active_razorpay_subscription_id(user)
 
         # 3. Generate JWT Tokens
         refresh = RefreshToken.for_user(user)
@@ -217,9 +226,9 @@ class GoogleLoginView(APIView):
                 'email': user.email,
                 'username': user.username,
                 'full_name': user.full_name,
-                'pricing': user.pricing,
                 'current_plan': user.current_plan,
                 'plan_expires_at': user.plan_expires_at,
+                'razorpay_subscription_id': active_subscription_id,
                 'is_new': user.is_new
             }
         })
@@ -283,6 +292,8 @@ class GitHubLoginView(APIView):
                 'is_new': True
             }
         )
+        user = enforce_plan_expiry(user)
+        active_subscription_id = get_active_razorpay_subscription_id(user)
 
         # 5. Generate Tokens
         refresh = RefreshToken.for_user(user)
@@ -294,9 +305,9 @@ class GitHubLoginView(APIView):
                 'email': user.email,
                 'username': user.username,
                 'full_name': user.full_name,
-                'pricing': user.pricing,
                 'current_plan': user.current_plan,
                 'plan_expires_at': user.plan_expires_at,
+                'razorpay_subscription_id': active_subscription_id,
                 'is_new': user.is_new
             }
         })
@@ -334,6 +345,8 @@ def _generate_otp():
 
 
 def _issue_tokens_for_user(user):
+    user = enforce_plan_expiry(user)
+    active_subscription_id = get_active_razorpay_subscription_id(user)
     refresh = RefreshToken.for_user(user)
     return {
         'refresh': str(refresh),
@@ -342,9 +355,9 @@ def _issue_tokens_for_user(user):
             'email': user.email,
             'username': user.username,
             'full_name': user.full_name,
-            'pricing': user.pricing,
             'current_plan': user.current_plan,
             'plan_expires_at': user.plan_expires_at,
+            'razorpay_subscription_id': active_subscription_id,
             'is_new': user.is_new,
         }
     }

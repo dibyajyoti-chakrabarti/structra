@@ -60,11 +60,6 @@ class User(AbstractBaseUser, PermissionsMixin):
     org_name = models.CharField(max_length=255, blank=True, null=True)
     org_loc = models.CharField(max_length=255, blank=True, null=True)
     is_new = models.BooleanField(default=True)
-    pricing = models.CharField(
-        max_length=20,
-        choices=PricingPlan.choices,
-        default=PricingPlan.CORE,
-    )
     current_plan = models.CharField(
         max_length=20,
         choices=CurrentPlan.choices,
