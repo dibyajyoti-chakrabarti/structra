@@ -7,8 +7,9 @@ from django.db import models
 class PaymentTransaction(models.Model):
     class Status(models.TextChoices):
         PENDING = 'pending', 'Pending'
-        SUCCESS = 'success', 'Success'
+        ACTIVE = 'active', 'Active'
         FAILED = 'failed', 'Failed'
+        CANCELLED = 'cancelled', 'Cancelled'
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     user = models.ForeignKey(
@@ -23,7 +24,7 @@ class PaymentTransaction(models.Model):
         choices=Status.choices,
         default=Status.PENDING,
     )
-    razorpay_order_id = models.CharField(max_length=255, unique=True, null=True, blank=True)
+    razorpay_subscription_id = models.CharField(max_length=255, unique=True, null=True, blank=True)
     razorpay_payment_id = models.CharField(max_length=255, null=True, blank=True)
     razorpay_signature = models.CharField(max_length=512, null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
