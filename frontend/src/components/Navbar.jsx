@@ -6,6 +6,7 @@ import { Menu, X } from 'lucide-react';
 export default function Navbar() {
   const navigate = useNavigate();
   const [isOpen, setIsOpen] = useState(false);
+  const isAuthenticated = Boolean(localStorage.getItem("access"));
 
   return (
     <nav className="fixed top-0 z-50 w-full border-b border-blue-100 bg-white/95 backdrop-blur">
@@ -36,12 +37,25 @@ export default function Navbar() {
             
             <div className="h-6 w-px bg-blue-100" />
 
-            <button onClick={() => navigate("/login")} className="text-sm font-bold text-slate-700 transition-colors hover:text-blue-700">
-              Log in
-            </button>
-            <button onClick={() => navigate("/signup")} className="rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-bold text-white shadow-md shadow-blue-200 transition hover:bg-blue-700">
-              Get Started
-            </button>
+            {isAuthenticated ? (
+              <>
+                <button onClick={() => navigate("/app/profile")} className="text-sm font-bold text-slate-700 transition-colors hover:text-blue-700">
+                  Profile
+                </button>
+                <button onClick={() => navigate("/app")} className="rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-bold text-white shadow-md shadow-blue-200 transition hover:bg-blue-700">
+                  Go to App
+                </button>
+              </>
+            ) : (
+              <>
+                <button onClick={() => navigate("/login")} className="text-sm font-bold text-slate-700 transition-colors hover:text-blue-700">
+                  Log in
+                </button>
+                <button onClick={() => navigate("/signup")} className="rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-bold text-white shadow-md shadow-blue-200 transition hover:bg-blue-700">
+                  Get Started
+                </button>
+              </>
+            )}
           </div>
 
           {/* Mobile Menu Button */}
@@ -75,12 +89,49 @@ export default function Navbar() {
           <div className="my-4 h-px bg-blue-100" />
           
           <div className="flex flex-col gap-3">
-            <button onClick={() => navigate("/login")} className="w-full rounded-lg border border-blue-200 bg-white py-3 text-sm font-bold text-blue-700 hover:bg-blue-50">
-              Log in
-            </button>
-            <button onClick={() => navigate("/signup")} className="w-full rounded-lg bg-blue-600 py-3 text-sm font-bold text-white hover:bg-blue-700">
-              Get Started
-            </button>
+            {isAuthenticated ? (
+              <>
+                <button
+                  onClick={() => {
+                    navigate("/app/profile");
+                    setIsOpen(false);
+                  }}
+                  className="w-full rounded-lg border border-blue-200 bg-white py-3 text-sm font-bold text-blue-700 hover:bg-blue-50"
+                >
+                  Profile
+                </button>
+                <button
+                  onClick={() => {
+                    navigate("/app");
+                    setIsOpen(false);
+                  }}
+                  className="w-full rounded-lg bg-blue-600 py-3 text-sm font-bold text-white hover:bg-blue-700"
+                >
+                  Go to App
+                </button>
+              </>
+            ) : (
+              <>
+                <button
+                  onClick={() => {
+                    navigate("/login");
+                    setIsOpen(false);
+                  }}
+                  className="w-full rounded-lg border border-blue-200 bg-white py-3 text-sm font-bold text-blue-700 hover:bg-blue-50"
+                >
+                  Log in
+                </button>
+                <button
+                  onClick={() => {
+                    navigate("/signup");
+                    setIsOpen(false);
+                  }}
+                  className="w-full rounded-lg bg-blue-600 py-3 text-sm font-bold text-white hover:bg-blue-700"
+                >
+                  Get Started
+                </button>
+              </>
+            )}
           </div>
         </div>
       )}
