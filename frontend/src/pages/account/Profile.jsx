@@ -1,19 +1,21 @@
-import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom'; // Added for redirection
+import React, { useState, useEffect, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import AuthenticatedNavbar from '../../components/AuthenticatedNavbar';
 import { User, Mail, MapPin, Calendar, Building, Globe, Lock, ArrowRight, Settings, Check, X, Camera, Edit2, Copy, Star, Search, AtSign } from 'lucide-react';
 import api from '../../api';
-import { formatDistanceToNow } from 'date-fns'; // Added for relative time formatting
+import { formatDistanceToNow } from 'date-fns';
 import LoadingState from '../../components/LoadingState';
+import { useAuth } from '../../contexts/AuthContext';
+import { formatDateLabel } from '../../utils/dateUtils';
 
 const USERNAME_REGEX = /^[A-Za-z0-9_-]+$/;
 
 export default function Profile() {
-  const navigate = useNavigate(); // Hook for navigation
+  const navigate = useNavigate();
+  const { updateUserPlan, refreshUserProfile } = useAuth();
   
-  // State for user and workspaces data
   const [user, setUser] = useState(null);
-  const [workspaces, setWorkspaces] = useState([]); // Replaces the hardcoded array
+  const [workspaces, setWorkspaces] = useState([]);
   const [loading, setLoading] = useState(true);
   const [starringWorkspaceIds, setStarringWorkspaceIds] = useState([]);
   const [workspaceSearchInput, setWorkspaceSearchInput] = useState('');
@@ -22,12 +24,13 @@ export default function Profile() {
   const [userSearchResults, setUserSearchResults] = useState([]);
   const [isUserSearchLoading, setIsUserSearchLoading] = useState(false);
   const [userSearchError, setUserSearchError] = useState('');
+  const [isCancellingPlan, setIsCancellingPlan] = useState(false);
+  const [billingMessage, setBillingMessage] = useState('');
+  const [billingMessageType, setBillingMessageType] = useState('success');
 
-  // Edit Mode State
   const [isEditing, setIsEditing] = useState(false);
   const [formData, setFormData] = useState({});
   
-  // Email Copy State
   const [emailCopied, setEmailCopied] = useState(false);
   const [profileSaveError, setProfileSaveError] = useState('');
 
@@ -38,40 +41,55 @@ export default function Profile() {
     return () => clearTimeout(timer);
   }, [userSearchInput]);
 
-  // Helper: Format Date
   const formatDate = (isoString) => {
     if (!isoString) return "Unknown";
     const date = new Date(isoString);
     return date.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
   };
 
-  // Fetch Profile and Workspaces Data
+  const mapProfileToUser = useCallback(
+    (profileData = {}) => ({
+      id: profileData.user_id,
+      name: profileData.full_name,
+      username: profileData.username || '',
+      email: profileData.email,
+      role: profileData.user_role || 'Role not set',
+      organization: profileData.org_name || 'Organization not set',
+      location: profileData.org_loc || 'Location not set',
+      joined: formatDate(profileData.created_at),
+      avatar: null,
+      followers_count: profileData.followers_count || 0,
+      following_count: profileData.following_count || 0,
+      current_plan: (profileData.current_plan || 'CORE').toUpperCase(),
+      plan_expires_at: profileData.plan_expires_at || null,
+      razorpay_subscription_id: profileData.razorpay_subscription_id || null,
+    }),
+    [],
+  );
+
+  const refreshLocalProfile = useCallback(async () => {
+    const profileRes = await api.get('auth/profile/', { cache: false });
+    const mappedUser = mapProfileToUser(profileRes.data || {});
+    setUser((prev) => ({ ...(prev || {}), ...mappedUser }));
+    if (!isEditing) {
+      setFormData((prev) => ({ ...(prev || {}), ...mappedUser }));
+    }
+    return mappedUser;
+  }, [isEditing, mapProfileToUser]);
+
   useEffect(() => {
     const fetchData = async () => {
       try {
-        // Fetch profile and workspaces concurrently
         const [profileRes, workspaceRes] = await Promise.all([
           api.get('auth/profile/'),
           api.get('workspaces/')
         ]);
 
-        const userData = {
-          id: profileRes.data.user_id,
-          name: profileRes.data.full_name,
-          username: profileRes.data.username || "",
-          email: profileRes.data.email,
-          role: profileRes.data.user_role || "Role not set",
-          organization: profileRes.data.org_name || "Organization not set",
-          location: profileRes.data.org_loc || "Location not set",
-          joined: formatDate(profileRes.data.created_at),
-          avatar: null,
-          followers_count: profileRes.data.followers_count || 0,
-          following_count: profileRes.data.following_count || 0,
-        };
+        const userData = mapProfileToUser(profileRes.data);
         
         setUser(userData);
         setFormData(userData);
-        setWorkspaces(workspaceRes.data); // Set real workspace data
+        setWorkspaces(workspaceRes.data);
       } catch (err) {
         console.error("Failed to load profile or workspaces", err);
       } finally {
@@ -79,7 +97,7 @@ export default function Profile() {
       }
     };
     fetchData();
-  }, []);
+  }, [mapProfileToUser]);
 
   useEffect(() => {
     const query = debouncedUserSearchInput.replace(/^@+/, '');
@@ -203,6 +221,40 @@ export default function Profile() {
     setFormData({ ...formData, [name]: value });
   };
 
+  const handleCancelPlan = async () => {
+    const razorpaySubscriptionId = user?.razorpay_subscription_id || null;
+    if (!razorpaySubscriptionId) {
+      setBillingMessageType('error');
+      setBillingMessage('No active subscription found for this account.');
+      return;
+    }
+
+    setIsCancellingPlan(true);
+    setBillingMessage('');
+
+    try {
+      const response = await api.post('payments/subscriptions/cancel/', {
+        razorpay_subscription_id: razorpaySubscriptionId,
+      });
+
+      const updatedPlan = (response.data?.current_plan || user?.current_plan || 'CORE').toUpperCase();
+      const expiresAt = response.data?.expires_at || user?.plan_expires_at || null;
+      updateUserPlan(updatedPlan, expiresAt);
+      await refreshUserProfile();
+      await refreshLocalProfile();
+
+      setBillingMessageType('success');
+      setBillingMessage('Plan successfully cancelled. Your current access remains active until expiry.');
+    } catch (error) {
+      setBillingMessageType('error');
+      setBillingMessage(
+        error?.response?.data?.error || 'Unable to cancel your plan right now.',
+      );
+    } finally {
+      setIsCancellingPlan(false);
+    }
+  };
+
   const toggleWorkspaceStar = async (workspaceId, nextState) => {
     if (!workspaceId || starringWorkspaceIds.includes(workspaceId)) return;
 
@@ -255,6 +307,20 @@ export default function Profile() {
       (workspace.visibility || '').toLowerCase().includes(q)
     );
   });
+
+  const currentPlan = (user?.current_plan || 'CORE').toUpperCase();
+  const isIndividualPlan = currentPlan === 'INDIVIDUAL';
+  const hasActiveAutopay = Boolean(user?.razorpay_subscription_id);
+  const planDateLabel = formatDateLabel(user?.plan_expires_at);
+  const primaryPlanStatus = hasActiveAutopay
+    ? (planDateLabel ? `Auto-renews on ${planDateLabel}` : 'Auto-renewal is active.')
+    : (planDateLabel ? `Active until ${planDateLabel}` : 'No active billing cycle.');
+  const autopayStatus = hasActiveAutopay
+    ? (planDateLabel ? `Autopay expires on ${planDateLabel}` : 'Autopay active')
+    : 'Autopay inactive';
+  const paidWindowLockoutMessage = planDateLabel
+    ? `Your plan will expire on ${planDateLabel}. You can resubscribe after your current billing period ends.`
+    : 'Your paid access is still active. You can resubscribe after your current billing period ends.';
 
   if (loading) return <LoadingState message="Loading profile" minHeight="100vh" />;
   if (!user) return <div className="h-screen flex items-center justify-center text-red-600">Failed to load profile.</div>;
@@ -578,6 +644,65 @@ export default function Profile() {
                     </div>
                   )}
                 </div>
+              </section>
+
+              <section className="mt-4 rounded-xl border border-gray-200 bg-white p-5 md:p-6">
+                <div className="mb-4">
+                  <h2 className="text-lg font-semibold text-gray-900">Billing &amp; Plan</h2>
+                  <p className="text-sm text-gray-500">
+                    Manage your account-level subscription.
+                  </p>
+                </div>
+
+                <span className="inline-flex rounded-full bg-blue-100 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-blue-700">
+                  Current Plan: {currentPlan}
+                </span>
+
+                {isIndividualPlan ? (
+                  <>
+                    <div className="mt-4 space-y-1">
+                      <p className="text-sm text-gray-700">{primaryPlanStatus}</p>
+                      <p className="text-sm text-gray-600">{autopayStatus}</p>
+                    </div>
+
+                    {hasActiveAutopay ? (
+                      <button
+                        type="button"
+                        onClick={handleCancelPlan}
+                        disabled={isCancellingPlan}
+                        className={`mt-4 inline-flex w-full items-center justify-center rounded-md border px-4 py-2.5 text-sm font-semibold transition ${
+                          isCancellingPlan
+                            ? 'cursor-not-allowed border-rose-200 bg-rose-50 text-rose-400'
+                            : 'border-rose-200 bg-white text-rose-700 hover:bg-rose-50'
+                        }`}
+                      >
+                        {isCancellingPlan ? 'Cancelling...' : 'Cancel Plan'}
+                      </button>
+                    ) : (
+                      <p className="mt-4 text-sm text-gray-600">
+                        {paidWindowLockoutMessage}
+                      </p>
+                    )}
+                  </>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => navigate('/pricing')}
+                    className="mt-4 inline-flex w-full items-center justify-center rounded-md bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 transition"
+                  >
+                    Explore Plans
+                  </button>
+                )}
+
+                {billingMessage && (
+                  <p
+                    className={`mt-3 text-sm font-medium ${
+                      billingMessageType === 'error' ? 'text-rose-600' : 'text-emerald-700'
+                    }`}
+                  >
+                    {billingMessage}
+                  </p>
+                )}
               </section>
             </aside>
           </div>
