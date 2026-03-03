@@ -348,19 +348,16 @@ export default function Signup() {
                       className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
                       size={16}
                     />
-                    <span className="pointer-events-none absolute left-10 top-1/2 -translate-y-1/2 text-sm font-semibold text-slate-500">
-                      @
-                    </span>
                     <input
                       name="username"
                       value={formData.username}
                       onChange={handleChange}
                       type="text"
-                      placeholder="username"
+                      placeholder="Username"
                       required
                       pattern="[A-Za-z0-9_-]+"
                       title="Only letters, numbers, '-' and '_' are allowed."
-                      className="w-full rounded-xl border border-slate-200 bg-white py-3 pl-14 pr-4 text-sm text-slate-800 placeholder:text-slate-400 focus:border-blue-400 focus:outline-none"
+                      className="w-full rounded-xl border border-slate-200 bg-white py-3 pl-10 pr-4 text-sm text-slate-800 placeholder:text-slate-400 focus:border-blue-400 focus:outline-none"
                     />
                   </div>
 
