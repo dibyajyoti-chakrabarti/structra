@@ -7,6 +7,8 @@ import { useTheme } from "./contexts/ThemeContext.jsx";
 import Lander from "./pages/public/Lander";
 import Login from "./pages/auth/Login";
 import Signup from "./pages/auth/Signup";
+import ForgotPassword from "./pages/auth/ForgotPassword";
+import ResetPassword from "./pages/auth/ResetPassword";
 import WorkspaceHome from "./pages/workspace/WorkspaceHome";
 import DiscoverWorkspaces from "./pages/workspace/DiscoverWorkspaces";
 import WorkspaceInstance, {
@@ -86,7 +88,7 @@ function App() {
 
         if (!isMounted) return;
         setBackendHealthy(response.ok);
-      } catch (_error) {
+      } catch {
         if (!isMounted) return;
         setBackendHealthy(false);
       } finally {
@@ -131,6 +133,8 @@ function App() {
       <PlanExpirationBanner />
       <Routes>
         <Route path="/auth/github/callback" element={<GitHubCallback />} />
+        <Route path="/forgot-password" element={<ForgotPassword />} />
+        <Route path="/reset-password" element={<ResetPassword />} />
         
         {/* PUBLIC ROUTES - Wrapped to redirect authenticated users */}
         <Route

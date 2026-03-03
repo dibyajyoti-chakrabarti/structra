@@ -287,29 +287,48 @@ export default function Login() {
                   </div>
 
                   {authMethod === "password" ? (
-                    <div className="relative">
-                      <Lock
-                        className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
-                        size={16}
-                      />
-                      <input
-                        name="password"
-                        value={formData.password}
-                        onChange={handleChange}
-                        type={showPassword ? "text" : "password"}
-                        placeholder="Password"
-                        required
-                        className="w-full rounded-xl border border-slate-200 bg-white py-3 pl-10 pr-11 text-sm text-slate-800 placeholder:text-slate-400 focus:border-blue-400 focus:outline-none"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setShowPassword((prev) => !prev)}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 transition hover:text-slate-600"
-                        aria-label={showPassword ? "Hide password" : "Show password"}
-                      >
-                        {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
-                      </button>
-                    </div>
+                    <>
+                      <div className="relative">
+                        <Lock
+                          className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
+                          size={16}
+                        />
+                        <input
+                          name="password"
+                          value={formData.password}
+                          onChange={handleChange}
+                          type={showPassword ? "text" : "password"}
+                          placeholder="Password"
+                          required
+                          className="w-full rounded-xl border border-slate-200 bg-white py-3 pl-10 pr-11 text-sm text-slate-800 placeholder:text-slate-400 focus:border-blue-400 focus:outline-none"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowPassword((prev) => !prev)}
+                          className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 transition hover:text-slate-600"
+                          aria-label={showPassword ? "Hide password" : "Show password"}
+                        >
+                          {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                        </button>
+                      </div>
+                      <div className="flex justify-end">
+                        <button
+                          type="button"
+                          onClick={() =>
+                            navigate(
+                              `/forgot-password${
+                                formData.identifier.trim()
+                                  ? `?identifier=${encodeURIComponent(formData.identifier.trim())}`
+                                  : ""
+                              }`
+                            )
+                          }
+                          className="text-xs font-semibold text-blue-700 transition hover:text-blue-800"
+                        >
+                          Forgot password?
+                        </button>
+                      </div>
+                    </>
                   ) : (
                     <>
                       {otpSent && (
