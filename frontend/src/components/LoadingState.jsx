@@ -55,11 +55,28 @@ export default function LoadingState({
   minHeight = 260,
   imageWidth = 172,
   className = "",
+  statusPlacement = "inline",
+  lightModeOnly = false,
 }) {
+  const isBottomStatus = statusPlacement === "bottom";
+  const rootStyle = {
+    minHeight,
+    ...(lightModeOnly
+      ? {
+          "--text-muted": "#5f6b85",
+          "--accent": "#3b82f6",
+        }
+      : {}),
+  };
+
   return (
-    <div className={`lcat-root ${className}`} style={{ minHeight }}>
+    <div className={`lcat-root ${className}`} style={rootStyle}>
       <style>{styles}</style>
-      <div className="lcat-inner">
+      <div
+        className="lcat-inner"
+        style={isBottomStatus ? { minHeight: "100%", width: "100%", justifyContent: "space-between" } : undefined}
+      >
+        {isBottomStatus && <div />}
         <img className="lcat-art" src={loadingCat} alt="" aria-hidden="true" style={{ "--lcat-size": `${imageWidth}px` }} />
         <div className="lcat-status">
           <span>{message}</span>

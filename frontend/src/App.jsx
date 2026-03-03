@@ -108,12 +108,14 @@ function App() {
 
   if (!healthReady) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-gradient-to-b from-blue-50 via-white to-white px-4">
+      <div className="min-h-screen bg-gradient-to-b from-blue-50 via-sky-50/40 to-white px-6 py-8" data-theme="light">
         <LoadingState
-          message="Checking backend server status..."
-          minHeight={280}
-          imageWidth={176}
-          className="w-full max-w-md rounded-2xl border border-blue-100 bg-white px-6 py-6 shadow-md shadow-blue-100/70"
+          message="Checking status"
+          minHeight="calc(100vh - 4rem)"
+          imageWidth={188}
+          statusPlacement="bottom"
+          lightModeOnly
+          className="w-full"
         />
       </div>
     );
