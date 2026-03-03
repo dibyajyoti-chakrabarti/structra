@@ -8,6 +8,9 @@ from .views import (
     EmailOTPRequestView,
     EmailOTPVerifyView,
     IdentifierTokenObtainPairView,
+    PasswordResetRequestView,
+    PasswordResetValidateView,
+    PasswordResetConfirmView,
 )
 
 urlpatterns = [
@@ -19,4 +22,7 @@ urlpatterns = [
     path('github/', GitHubLoginView.as_view(), name='github_login'),
     path('email-otp/request/', EmailOTPRequestView.as_view(), name='email_otp_request'),
     path('email-otp/verify/', EmailOTPVerifyView.as_view(), name='email_otp_verify'),
+    path('password-reset/request/', PasswordResetRequestView.as_view(), name='password_reset_request'),
+    path('password-reset/validate/', PasswordResetValidateView.as_view(), name='password_reset_validate'),
+    path('password-reset/confirm/', PasswordResetConfirmView.as_view(), name='password_reset_confirm'),
 ]

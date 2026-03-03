@@ -21,10 +21,13 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.views import TokenViewBase
 from django.conf import settings
 from django.core.exceptions import ValidationError as DjangoValidationError
+from django.contrib.auth.tokens import PasswordResetTokenGenerator
 from django.utils import timezone
+from django.utils.encoding import force_str
+from django.utils.http import urlsafe_base64_decode, urlsafe_base64_encode
 from django.db.models import Count, Value
 from django.db.models.functions import Coalesce
-from .email_utils import send_otp_email
+from .email_utils import send_otp_email, send_password_reset_email
 from .plan_utils import enforce_plan_expiry, get_active_razorpay_subscription_id
 from .username_utils import (
     generate_unique_username,
@@ -39,6 +42,7 @@ User = get_user_model()
 OTP_TTL_MINUTES = 10
 OTP_RESEND_COOLDOWN_SECONDS = 60
 OTP_MAX_ATTEMPTS = 5
+PASSWORD_RESET_TIMEOUT_MINUTES = max(int(getattr(settings, "PASSWORD_RESET_TIMEOUT", 86400) // 60), 1)
 
 
 class IdentifierTokenObtainPairView(TokenViewBase):
@@ -363,6 +367,29 @@ def _issue_tokens_for_user(user):
     }
 
 
+def _build_password_reset_link(user):
+    frontend_base_url = getattr(settings, "FRONTEND_PASSWORD_RESET_URL", "http://localhost:5173/reset-password")
+    uid = urlsafe_base64_encode(str(user.pk).encode("utf-8"))
+    token = PasswordResetTokenGenerator().make_token(user)
+    return f"{frontend_base_url}?uid={uid}&token={token}"
+
+
+def _decode_password_reset_uid(uid):
+    if not uid:
+        return None
+    try:
+        raw_value = force_str(urlsafe_base64_decode(uid))
+    except Exception:
+        return None
+    return User.objects.filter(pk=raw_value).first()
+
+
+def _is_password_reset_token_valid(user, token):
+    if not user or not token:
+        return False
+    return PasswordResetTokenGenerator().check_token(user, token)
+
+
 class EmailOTPRequestView(APIView):
     permission_classes = [AllowAny]
 
@@ -515,3 +542,69 @@ class EmailOTPVerifyView(APIView):
                 return Response({'error': str(exc)}, status=status.HTTP_400_BAD_REQUEST)
 
         return Response(_issue_tokens_for_user(user), status=status.HTTP_200_OK)
+
+
+class PasswordResetRequestView(APIView):
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        identifier = _normalize_identifier(request.data.get("identifier") or request.data.get("email"))
+        if not identifier:
+            return Response({"error": "Email or username is required."}, status=status.HTTP_400_BAD_REQUEST)
+
+        user = _find_user_by_identifier(identifier)
+        if user and user.is_active:
+            reset_link = _build_password_reset_link(user)
+            try:
+                send_password_reset_email(
+                    recipient_email=user.email,
+                    reset_link=reset_link,
+                    ttl_minutes=PASSWORD_RESET_TIMEOUT_MINUTES,
+                )
+            except Exception:
+                return Response(
+                    {"error": "Failed to send reset email. Check email configuration."},
+                    status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                )
+
+        return Response(
+            {
+                "message": "If an account exists for that email or username, a password reset link has been sent."
+            },
+            status=status.HTTP_200_OK,
+        )
+
+
+class PasswordResetValidateView(APIView):
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        uid = (request.data.get("uid") or "").strip()
+        token = (request.data.get("token") or "").strip()
+        user = _decode_password_reset_uid(uid)
+
+        if not _is_password_reset_token_valid(user, token):
+            return Response({"error": "Invalid or expired reset link."}, status=status.HTTP_400_BAD_REQUEST)
+
+        return Response({"valid": True}, status=status.HTTP_200_OK)
+
+
+class PasswordResetConfirmView(APIView):
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        uid = (request.data.get("uid") or "").strip()
+        token = (request.data.get("token") or "").strip()
+        password = request.data.get("password") or ""
+
+        if not password:
+            return Response({"error": "New password is required."}, status=status.HTTP_400_BAD_REQUEST)
+
+        user = _decode_password_reset_uid(uid)
+        if not _is_password_reset_token_valid(user, token):
+            return Response({"error": "Invalid or expired reset link."}, status=status.HTTP_400_BAD_REQUEST)
+
+        user.set_password(password)
+        user.save(update_fields=["password"])
+
+        return Response({"message": "Password reset successful."}, status=status.HTTP_200_OK)
