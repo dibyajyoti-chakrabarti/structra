@@ -38,6 +38,8 @@ import {
 } from 'lucide-react';
 import api from '../../api';
 import LoadingState from '../../components/LoadingState';
+import EvaluationPanel from '../../components/EvaluationPanel';
+import { useEvaluation } from '../../hooks/useEvaluation';
 import { useTheme } from '../../contexts/ThemeContext';
 
 const NODE_WIDTH = 180;
@@ -1063,6 +1065,9 @@ const Canvas = () => {
   const isHistoryTraversalRef = useRef(false);
   const historyDragRef = useRef({ active: false, startState: null });
   const canvasStateRef = useRef(DEFAULT_CANVAS_STATE);
+  const evaluationHighlightTimeoutRef = useRef(null);
+
+  const evaluation = useEvaluation();
 
   const [loading, setLoading] = useState(true);
   const [workspace, setWorkspace] = useState(null);
@@ -1104,6 +1109,9 @@ const Canvas = () => {
   const [componentSearch, setComponentSearch] = useState('');
   const [isTextPlacementMode, setIsTextPlacementMode] = useState(false);
   const [isBoundsDrawingMode, setIsBoundsDrawingMode] = useState(false);
+  const [showEvalPanel, setShowEvalPanel] = useState(false);
+  const [evaluationHighlightedNodes, setEvaluationHighlightedNodes] = useState(() => new Set());
+  const [evaluationHighlightedEdges, setEvaluationHighlightedEdges] = useState(() => new Set());
 
   const lastSavedSignatureRef = useRef('');
   const retryAttemptRef = useRef(0);
@@ -1232,6 +1240,7 @@ const Canvas = () => {
       clearTimeout(autosaveDebounceRef.current);
       clearTimeout(retryTimeoutRef.current);
       clearTimeout(permissionNoticeTimeoutRef.current);
+      clearTimeout(evaluationHighlightTimeoutRef.current);
     };
   }, []);
 
@@ -1928,14 +1937,24 @@ const Canvas = () => {
     [insights]
   );
   const highlightedInsight = insightsById.get(hoveredInsightId) || insightsById.get(activeInsightId) || null;
-  const highlightedNodeIds = useMemo(
+  const insightHighlightedNodeIds = useMemo(
     () => new Set(highlightedInsight?.relatedNodeIds || []),
     [highlightedInsight]
   );
-  const highlightedEdgeIds = useMemo(
+  const insightHighlightedEdgeIds = useMemo(
     () => new Set(highlightedInsight?.relatedEdgeIds || []),
     [highlightedInsight]
   );
+  const highlightedNodeIds = useMemo(() => {
+    const combined = new Set(insightHighlightedNodeIds);
+    evaluationHighlightedNodes.forEach((id) => combined.add(id));
+    return combined;
+  }, [evaluationHighlightedNodes, insightHighlightedNodeIds]);
+  const highlightedEdgeIds = useMemo(() => {
+    const combined = new Set(insightHighlightedEdgeIds);
+    evaluationHighlightedEdges.forEach((id) => combined.add(id));
+    return combined;
+  }, [evaluationHighlightedEdges, insightHighlightedEdgeIds]);
   const insightsByCategory = useMemo(
     () =>
       Object.values(INSIGHT_CATEGORIES).map((category) => ({
@@ -1953,6 +1972,24 @@ const Canvas = () => {
       setHoveredInsightId(null);
     }
   }, [activeInsightId, hoveredInsightId, insightsById]);
+
+  const handleHighlight = useCallback((nodeIds = [], edgeIds = []) => {
+    setEvaluationHighlightedNodes(new Set(nodeIds));
+    setEvaluationHighlightedEdges(new Set(edgeIds));
+    clearTimeout(evaluationHighlightTimeoutRef.current);
+    evaluationHighlightTimeoutRef.current = setTimeout(() => {
+      setEvaluationHighlightedNodes(new Set());
+      setEvaluationHighlightedEdges(new Set());
+    }, 4000);
+  }, []);
+
+  const handleEvaluate = useCallback(() => {
+    if (canvasState.nodes.length === 0 || evaluation.status === 'scoring' || evaluation.status === 'awaiting_ai') {
+      return;
+    }
+    setShowEvalPanel(true);
+    evaluation.runEvaluation(canvasState, workspaceId, systemId);
+  }, [canvasState, evaluation, workspaceId, systemId]);
 
   const setNodeLabel = (label) => {
     if (!canEditStructure) return;
@@ -2901,11 +2938,27 @@ const Canvas = () => {
           </button>
           <button
             type="button"
-            className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold bg-gradient-to-r from-violet-600 to-indigo-600 text-white hover:from-violet-700 hover:to-indigo-700 transition-all shadow-sm"
-            title="AI Evaluation — coming soon"
+            onClick={handleEvaluate}
+            disabled={
+              canvasState.nodes.length === 0 ||
+              evaluation.status === 'scoring' ||
+              evaluation.status === 'awaiting_ai'
+            }
+            className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all shadow-sm disabled:opacity-60 disabled:cursor-not-allowed ${
+              evaluation.status === 'error'
+                ? 'border border-red-300 text-red-700 bg-white hover:bg-red-50'
+                : 'bg-gradient-to-r from-blue-600 to-cyan-600 text-white hover:from-blue-700 hover:to-cyan-700'
+            }`}
+            title={canvasState.nodes.length === 0 ? 'Add components to your design first' : 'Run AI Evaluation'}
           >
             <Sparkles size={13} />
-            AI Evaluation
+            {evaluation.status === 'error'
+              ? 'Retry Evaluation'
+              : evaluation.status === 'complete'
+                ? 'Re-evaluate'
+                : evaluation.status === 'scoring' || evaluation.status === 'awaiting_ai'
+                  ? 'Evaluating...'
+                  : 'AI Evaluation'}
           </button>
           <div className="w-px h-5 bg-gray-200" />
           <button
@@ -4562,12 +4615,28 @@ const Canvas = () => {
                 )}
               </div>
             )}
-            </aside>
+	            </aside>
+	          )}
+          {showEvalPanel && (
+            <EvaluationPanel
+              status={evaluation.status}
+              score={evaluation.score}
+              summary={evaluation.summary}
+              results={evaluation.results}
+              suggestions={evaluation.suggestions}
+              creditsExhausted={evaluation.creditsExhausted}
+              creditsRemaining={evaluation.creditsRemaining}
+              workspaceTier={evaluation.workspaceTier}
+              geminiError={evaluation.geminiError}
+              error={evaluation.error}
+              onClose={() => setShowEvalPanel(false)}
+              onHighlight={handleHighlight}
+            />
           )}
-        </main>
-      </div>
-    </div>
-  );
+	        </main>
+	      </div>
+	    </div>
+	  );
 };
 
 export default Canvas;
