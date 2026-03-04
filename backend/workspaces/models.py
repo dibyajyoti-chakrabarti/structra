@@ -1,5 +1,6 @@
 from django.db import models
 from django.conf import settings
+import uuid
 from core.constants import WorkspaceVisibility
 from core.utils import generate_alphanumeric_id
 
@@ -19,6 +20,9 @@ class Workspace(models.Model):
     )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+    ai_credits_remaining = models.IntegerField(default=5)
+    ai_credits_reset_at = models.DateTimeField(null=True, blank=True)
+    ai_credits_monthly = models.IntegerField(default=5)
 
     def save(self, *args, **kwargs):
         is_new = self._state.adding
@@ -79,4 +83,32 @@ class WorkspaceStar(models.Model):
         indexes = [
             models.Index(fields=['user', 'created_at']),
             models.Index(fields=['workspace', 'user']),
+        ]
+
+
+class EvaluationLog(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    workspace = models.ForeignKey(
+        Workspace,
+        on_delete=models.CASCADE,
+        related_name='evaluation_logs',
+    )
+    system_id = models.CharField(max_length=8)
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='evaluation_logs',
+    )
+    evaluated_at = models.DateTimeField(auto_now_add=True)
+    workspace_tier = models.CharField(max_length=20)
+    score = models.IntegerField()
+    rules_evaluated = models.IntegerField()
+    rules_passed = models.IntegerField()
+    credit_consumed = models.BooleanField(default=True)
+
+    class Meta:
+        db_table = 'evaluation_log'
+        indexes = [
+            models.Index(fields=['workspace', '-evaluated_at']),
+            models.Index(fields=['user', '-evaluated_at']),
         ]
