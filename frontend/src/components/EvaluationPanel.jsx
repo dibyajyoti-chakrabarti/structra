@@ -136,6 +136,13 @@ export default function EvaluationPanel({
       </div>
 
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
+        {(status === 'scoring' || status === 'awaiting_ai') && !summary && (
+          <section className="rounded-xl border border-gray-200 p-3 bg-gray-50 text-xs text-gray-600 flex items-center gap-2">
+            <span className="h-3.5 w-3.5 rounded-full border-2 border-gray-300 border-t-gray-600 animate-spin" />
+            {status === 'scoring' ? 'Queued for background evaluation…' : 'Evaluation in progress…'}
+          </section>
+        )}
+
         {status !== 'idle' && summary && (
           <section className="rounded-xl border border-gray-200 p-3 bg-gray-50">
             <div className="text-3xl font-bold text-gray-900">{score ?? 0}%</div>

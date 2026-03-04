@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { Outlet, useLocation, useNavigate, useOutletContext, useParams } from "react-router-dom";
 import {
   LayoutGrid, Settings, Trash2, X, CheckCircle, AlertCircle,
-  Search, Users, Star, Plus,
+  Search, Users, Star, Plus, Activity,
 } from "lucide-react";
 import AuthenticatedNavbar from "../../components/AuthenticatedNavbar";
 import WorkspaceNavbar from "../../components/WorkspaceNavbar";
@@ -517,7 +517,7 @@ export const WorkspaceOverview = () => {
 
   const stats = [
     { label: "Total Systems", value: systems.length },
-    { label: "Active Evaluations", value: 0 },
+    { label: "Active Evaluations", value: workspace.active_evaluation_count || 0 },
     { label: "Team Members", value: workspace.member_count || 1 },
   ];
 
@@ -608,15 +608,27 @@ export const WorkspaceOverview = () => {
       <div className="wo-content-grid">
         <div>
           <div className="wo-systems-head">
-            <span className="wo-systems-title">Systems</span>
-            <div className="wo-search-wrap">
-              <Search size={13} className="wo-search-icon" />
-              <input
-                className="wo-search-input"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search systems…"
-              />
+            <span className="wo-systems-title">
+              Systems · {workspace.total_evaluation_count || 0} evaluations
+            </span>
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+              <button
+                type="button"
+                className="wo-icon-btn"
+                onClick={() => navigate(`/app/ws/${workspaceId}/evaluations`)}
+                title="View workspace evaluations"
+              >
+                <Activity size={15} />
+              </button>
+              <div className="wo-search-wrap">
+                <Search size={13} className="wo-search-icon" />
+                <input
+                  className="wo-search-input"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Search systems…"
+                />
+              </div>
             </div>
           </div>
 

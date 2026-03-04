@@ -14,6 +14,7 @@ import DiscoverWorkspaces from "./pages/workspace/DiscoverWorkspaces";
 import WorkspaceInstance, {
   WorkspaceOverview,
 } from "./pages/workspace/WorkspaceInstance";
+import WorkspaceEvaluations from "./pages/workspace/WorkspaceEvaluations";
 import CreateSystem from "./pages/workspace/CreateSystem";
 import Profile from "./pages/account/Profile";
 import PublicUserProfile from "./pages/account/PublicUserProfile";
@@ -182,6 +183,7 @@ function App() {
           <Route path="/app/ws/:workspaceId" element={<WorkspaceInstance />}>
             <Route index element={<WorkspaceOverview />} />
             <Route path="create-system" element={<CreateSystem />} />
+            <Route path="evaluations" element={<WorkspaceEvaluations />} />
 
             <Route path="settings" element={<WorkspaceSettings />}>
               <Route index element={<GeneralSettings />} />
