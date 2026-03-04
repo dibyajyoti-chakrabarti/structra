@@ -9,61 +9,77 @@ import { useAuth } from "../../contexts/AuthContext";
 
 const plans = [
   {
-    name: "Core",
+    name: "CORE",
+    label: "Core",
     price: "₹0",
     interval: "/month",
-    subtitle: "For individuals and early exploration",
+    subtitle: "Student and explorer tier",
     cta: "Start Free",
     highlighted: false,
     features: [
-      "Single workspace",
-      "Visual architecture canvas",
-      "Basic AI evaluation credits",
-      "Personal profile and onboarding",
+      "1 personal workspace",
+      "Up to 3 systems per workspace",
+      "20 basic evaluation rules",
+      "5 AI evaluation credits / month",
+      "Public workspace option",
+      "Cannot invite members",
       "Community support",
     ],
   },
   {
     name: "INDIVIDUAL",
-    price: "₹299",
+    label: "Individual",
+    price: "₹599",
     interval: "/month",
-    subtitle: "For experienced individuals",
+    subtitle: "Serious solo architecture work",
     cta: "Start Individual Plan",
     highlighted: false,
     features: [
-      "Multiple Workspaces",
-      "Higher AI evaluation limits",
+      "Up to 5 workspaces",
+      "All 50+ evaluation rules",
+      "50 AI credits / month",
+      "Invite up to 3 members (+₹249/seat)",
+      "Private workspaces + full IAM",
+      "Version history (60 days)",
       "Advanced architecture templates",
-      "Version history and recovery",
       "Priority community support",
     ],
   },
   {
-    name: "Team",
-    price: "₹239",
-    interval: " /user/month",
-    subtitle: "For collaborative architecture teams",
-    cta: "Start Team Trial",
+    name: "TEAM",
+    label: "Team",
+    price: "₹349",
+    interval: "/seat/month",
+    subtitle: "Collaboration-first plan",
+    cta: "Start with your team",
     highlighted: true,
     features: [
-      "Multiple team workspaces",
-      "Shared canvases and reviews",
-      "Higher AI evaluation limits",
-      "Workspace settings and governance",
+      "Unlimited workspaces and systems",
+      "All 50+ evaluation rules",
+      "80 AI credits/seat shared pool",
+      "Overage toggle: ₹4/credit",
+      "Real-time co-editing + governance",
+      "Version history (90 days)",
+      "Unlimited members",
       "Priority email support",
     ],
+    note: "Typically ₹698+/month for a 2-person team",
   },
   {
-    name: "Enterprise",
+    name: "ENTERPRISE",
+    label: "Enterprise",
     price: "Custom",
     interval: "",
     subtitle: "For organizations with compliance and scale needs",
     cta: "Contact Sales",
     highlighted: false,
     features: [
-      "Advanced security controls",
-      "Role-based access policies",
-      "Audit-ready activity records",
+      "Everything in Team",
+      "SSO (SAML / OIDC)",
+      "SOC2-ready audit logs",
+      "Data residency options",
+      "99.9% uptime SLA",
+      "Custom rules and policies",
       "Custom onboarding and training",
       "Dedicated success manager",
     ],
@@ -89,19 +105,19 @@ export default function Pricing() {
   const handlePlanCta = async (planName) => {
     const normalizedPlan = (planName || "CORE").toUpperCase();
 
-    if (planName === "Enterprise") {
+    if (normalizedPlan === "ENTERPRISE") {
       window.location.href = "mailto:support@structra.cloud";
       return;
     }
 
     if (normalizedPlan === currentPlan) {
-      if (normalizedPlan === "INDIVIDUAL") {
+      if (normalizedPlan === "INDIVIDUAL" || normalizedPlan === "TEAM") {
         navigate("/app/profile");
       }
       return;
     }
 
-    if (normalizedPlan === "INDIVIDUAL") {
+    if (normalizedPlan === "INDIVIDUAL" || normalizedPlan === "TEAM") {
       if (!localStorage.getItem("access")) {
         setPaymentStatus("failed");
         setStatusMessage("Please log in first to continue with payment.");
@@ -110,7 +126,7 @@ export default function Pricing() {
 
       setPaymentStatus("processing");
       setStatusMessage("Opening secure checkout...");
-      const result = await startCheckout("INDIVIDUAL");
+      const result = await startCheckout(normalizedPlan);
       setPaymentStatus(result?.status || "failed");
       setStatusMessage(result?.message || "Unable to complete checkout.");
       return;
@@ -149,19 +165,19 @@ export default function Pricing() {
           {plans.map((plan) => {
             const isCurrentPlan =
               plan.name.toUpperCase() === currentPlan;
-            const isIndividualProcessing =
-              plan.name === "INDIVIDUAL" &&
+            const isCheckoutProcessing =
+              (plan.name === "INDIVIDUAL" || plan.name === "TEAM") &&
               (isCheckoutLoading || paymentStatus === "processing");
             const isPlanButtonDisabled = isCurrentPlan
-              ? currentPlan === "CORE" || isIndividualProcessing
-              : isIndividualProcessing;
+              ? currentPlan === "CORE" || isCheckoutProcessing
+              : isCheckoutProcessing;
             const ctaLabel = isCurrentPlan
               ? currentPlan === "CORE"
                 ? "Current Plan"
-                : plan.name === "INDIVIDUAL"
+                : (plan.name === "INDIVIDUAL" || plan.name === "TEAM")
                   ? "Manage Billing"
                   : "Current Plan"
-              : isIndividualProcessing
+              : isCheckoutProcessing
                 ? "Processing..."
                 : plan.cta;
 
@@ -186,7 +202,7 @@ export default function Pricing() {
                   Most Popular
                 </p>
               )}
-              <h2 className="text-2xl font-black text-slate-900">{plan.name}</h2>
+              <h2 className="text-2xl font-black text-slate-900">{plan.label || plan.name}</h2>
               <p className="mt-2 text-sm text-slate-600">{plan.subtitle}</p>
 
               <div className="mt-6 flex items-end gap-1">
@@ -212,23 +228,28 @@ export default function Pricing() {
                   </li>
                 ))}
               </ul>
+              {plan.note ? (
+                <p className="mt-4 rounded-lg bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-800">
+                  {plan.note}
+                </p>
+              ) : null}
 
               <button
                 onClick={() => handlePlanCta(plan.name)}
                 disabled={isPlanButtonDisabled}
                 className={`mt-8 inline-flex w-full items-center justify-center gap-2 rounded-xl px-5 py-3 text-sm font-bold transition ${
                   isCurrentPlan
-                    ? plan.name === "INDIVIDUAL" && currentPlan === "INDIVIDUAL"
+                    ? (plan.name === "INDIVIDUAL" || plan.name === "TEAM")
                       ? "bg-blue-600 text-white hover:bg-blue-700"
                       : "cursor-not-allowed border border-emerald-300 bg-emerald-50 text-emerald-700"
                     : plan.highlighted
                     ? "bg-blue-600 text-white hover:bg-blue-700"
                     : "border border-blue-200 bg-white text-blue-700 hover:bg-blue-50"
-                } ${isIndividualProcessing ? "cursor-not-allowed opacity-70" : ""}`}
+                } ${isCheckoutProcessing ? "cursor-not-allowed opacity-70" : ""}`}
               >
                 {ctaLabel}
                 {!isCurrentPlan && <ArrowRight size={16} />}
-                {isCurrentPlan && plan.name === "INDIVIDUAL" && currentPlan === "INDIVIDUAL" && !isIndividualProcessing && (
+                {isCurrentPlan && (plan.name === "INDIVIDUAL" || plan.name === "TEAM") && !isCheckoutProcessing && (
                   <ArrowRight size={16} />
                 )}
               </button>
@@ -247,29 +268,31 @@ export default function Pricing() {
           <div className="mt-8 grid gap-5 md:grid-cols-2">
             <div className="rounded-xl border border-slate-200 bg-slate-50 p-5">
               <h4 className="font-bold text-slate-900">
-                Is there a free trial for paid plans?
+                Why is Individual priced above Team per seat?
               </h4>
               <p className="mt-2 text-sm leading-relaxed text-slate-600">
-                Yes. Team plans can start with a trial so you can validate value
-                with your workflow before committing.
+                Individual is a premium solo experience. Team is priced per seat
+                and positioned for collaboration, typically shown as a 2-seat
+                baseline (₹698+/month).
               </p>
             </div>
             <div className="rounded-xl border border-slate-200 bg-slate-50 p-5">
               <h4 className="font-bold text-slate-900">
-                Can we switch plans later?
+                How does Team billing work?
               </h4>
               <p className="mt-2 text-sm leading-relaxed text-slate-600">
-                Absolutely. You can upgrade as your team grows or move to
-                enterprise when governance needs increase.
+                Team bills per active seat. Pricing previews default to a
+                2-person estimate so expected monthly cost is visible upfront.
               </p>
             </div>
             <div className="rounded-xl border border-slate-200 bg-slate-50 p-5">
               <h4 className="font-bold text-slate-900">
-                Do you support enterprise procurement?
+                Can Core users join paid workspaces?
               </h4>
               <p className="mt-2 text-sm leading-relaxed text-slate-600">
-                Yes. We support standard procurement flows, security reviews, and
-                custom commercial terms.
+                Yes. Invited members inherit the workspace tier inside that
+                workspace. Their own personal workspaces still follow their
+                personal plan.
               </p>
             </div>
             <div className="rounded-xl border border-slate-200 bg-slate-50 p-5">
@@ -343,7 +366,7 @@ export default function Pricing() {
             <p className="mt-3 text-sm leading-relaxed text-slate-600">
               {statusMessage ||
                 (paymentStatus === "success"
-                  ? "Payment Successful! Welcome to the INDIVIDUAL plan."
+                  ? "Payment successful. Your subscription is now active."
                   : "Something went wrong while processing your payment.")}
             </p>
 

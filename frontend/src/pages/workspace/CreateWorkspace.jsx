@@ -583,6 +583,36 @@ const CreateWorkspace = () => {
   const [inviteError, setInviteError] = useState('');
 
   const isValidEmail = (email) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+  const getWorkspaceCreateErrorMessage = (err) => {
+    const data = err?.response?.data || {};
+    const statusCode = err?.response?.status;
+
+    const rawMessage =
+      data?.error ||
+      data?.detail ||
+      data?.name?.[0] ||
+      data?.non_field_errors?.[0] ||
+      null;
+
+    if (typeof rawMessage === 'string' && rawMessage.trim()) {
+      if (rawMessage.includes('supports up to') && rawMessage.includes('workspace')) {
+        return `${rawMessage} Upgrade your plan to create more workspaces.`;
+      }
+      if (rawMessage.toLowerCase().includes('public workspace')) {
+        return `${rawMessage} Switch to private, delete an existing public workspace, or upgrade your plan.`;
+      }
+      return rawMessage;
+    }
+
+    if (statusCode === 403) {
+      return "You don't have permission to create this workspace on your current plan.";
+    }
+    if (statusCode === 400) {
+      return 'Workspace creation failed due to invalid input. Please check your details and try again.';
+    }
+
+    return 'Workspace creation failed due to a server or network error. Please try again.';
+  };
 
   const handleFinish = async (e) => {
     e.preventDefault();
@@ -606,7 +636,7 @@ const CreateWorkspace = () => {
       }
       navigate(`/app/ws/${workspaceId}`);
     } catch (err) {
-      setError(err.response?.data?.name?.[0] || 'Failed to create workspace. Please try again.');
+      setError(getWorkspaceCreateErrorMessage(err));
     } finally {
       setLoading(false);
     }

@@ -309,7 +309,7 @@ export default function Profile() {
   });
 
   const currentPlan = (user?.current_plan || 'CORE').toUpperCase();
-  const isIndividualPlan = currentPlan === 'INDIVIDUAL';
+  const isPaidSelfServePlan = currentPlan === 'INDIVIDUAL' || currentPlan === 'TEAM';
   const hasActiveAutopay = Boolean(user?.razorpay_subscription_id);
   const planDateLabel = formatDateLabel(user?.plan_expires_at);
   const primaryPlanStatus = hasActiveAutopay
@@ -658,7 +658,7 @@ export default function Profile() {
                   Current Plan: {currentPlan}
                 </span>
 
-                {isIndividualPlan ? (
+                {isPaidSelfServePlan ? (
                   <>
                     <div className="mt-4 space-y-1">
                       <p className="text-sm text-gray-700">{primaryPlanStatus}</p>

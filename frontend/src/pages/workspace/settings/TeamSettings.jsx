@@ -139,6 +139,7 @@ const TeamSettings = () => {
 
   const [members, setMembers] = useState([]);
   const [pendingInvitations, setPendingInvitations] = useState([]);
+  const [workspaceMeta, setWorkspaceMeta] = useState(null);
   const [inviteEmail, setInviteEmail] = useState('');
   const [loading, setLoading] = useState(true);
   const [sendingInvite, setSendingInvite] = useState(false);
@@ -163,12 +164,21 @@ const TeamSettings = () => {
     setPendingInvitations(r.data || []);
   }, [workspaceId, isAdmin]);
 
+  const fetchWorkspaceMeta = useCallback(async () => {
+    const r = await api.get(`workspaces/${workspaceId}/`);
+    setWorkspaceMeta(r.data || null);
+  }, [workspaceId]);
+
   const refresh = useCallback(async () => {
     setLoading(true);
-    try { await Promise.all([fetchMembers(), fetchPending()]); }
+    try { await Promise.all([fetchMembers(), fetchPending(), fetchWorkspaceMeta()]); }
     catch (e) { setError(e.response?.data?.error || 'Failed to load team data.'); }
     finally { setLoading(false); }
-  }, [fetchMembers, fetchPending]);
+  }, [fetchMembers, fetchPending, fetchWorkspaceMeta]);
+
+  const seatCount = workspaceMeta?.seat_count ?? Math.max(members.length, 1);
+  const billingEstimate = workspaceMeta?.billing_estimate_inr;
+  const memberLimit = workspaceMeta?.member_limit;
 
   useEffect(() => { refresh(); }, [refresh]);
 
@@ -253,6 +263,11 @@ const TeamSettings = () => {
 
       <h2 className="ts-page-title">Team Members</h2>
       <p className="ts-page-sub">Manage access permissions and roles for your workspace.</p>
+      <p className="ts-page-sub" style={{ marginTop: "-18px", marginBottom: "18px" }}>
+        {`Seats active: ${seatCount}${billingEstimate ? ` — ₹${billingEstimate}/month` : ""}${
+          memberLimit != null ? ` • Member limit: ${memberLimit}` : ""
+        }`}
+      </p>
 
       {message && (
         <div className="ts-feedback success">
