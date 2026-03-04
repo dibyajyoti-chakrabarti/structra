@@ -18,6 +18,12 @@ from permissions.models import WorkspaceMember
 from permissions.checks import user_is_workspace_admin
 from .serializers import WorkspaceSerializer, PublicWorkspaceSerializer, WorkspaceDetailSerializer
 from core.constants import WorkspaceRole, WorkspaceVisibility
+from core.pricing import (
+    PLAN_CORE,
+    get_workspace_limit_for_user_plan,
+    normalize_plan,
+)
+from .throttles import AnonymousPublicWorkspaceSearchThrottle
 
 
 class PublicWorkspaceSearchPagination(LimitOffsetPagination):
@@ -32,6 +38,25 @@ class WorkspaceListCreateView(generics.ListCreateAPIView):
         return Workspace.objects.filter(members__user=self.request.user).distinct().order_by("-updated_at")
 
     def perform_create(self, serializer):
+        owner_plan = normalize_plan(self.request.user.current_plan)
+        workspace_limit = get_workspace_limit_for_user_plan(owner_plan)
+        existing_owned_count = Workspace.objects.filter(owner=self.request.user).count()
+        if workspace_limit is not None and existing_owned_count >= workspace_limit:
+            raise PermissionDenied(
+                f"Your {owner_plan} plan supports up to {workspace_limit} workspace(s)."
+            )
+
+        requested_visibility = serializer.validated_data.get("visibility", WorkspaceVisibility.PRIVATE)
+        if owner_plan == PLAN_CORE and requested_visibility == WorkspaceVisibility.PUBLIC:
+            existing_public_count = Workspace.objects.filter(
+                owner=self.request.user,
+                visibility=WorkspaceVisibility.PUBLIC,
+            ).count()
+            if existing_public_count >= 1:
+                raise PermissionDenied(
+                    "Core plan supports only one public workspace."
+                )
+
         workspace = serializer.save(owner=self.request.user)
         # Creator always becomes workspace ADMIN.
         WorkspaceMember.objects.create(
@@ -105,8 +130,9 @@ class WorkspaceDetailView(generics.RetrieveUpdateDestroyAPIView):
 
 class PublicWorkspaceSearchView(generics.ListAPIView):
     serializer_class = PublicWorkspaceSerializer
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [permissions.AllowAny]
     pagination_class = PublicWorkspaceSearchPagination
+    throttle_classes = [AnonymousPublicWorkspaceSearchThrottle]
 
     def get_queryset(self):
         query = self.request.query_params.get("q", "").strip()

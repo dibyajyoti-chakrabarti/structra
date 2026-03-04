@@ -2,6 +2,12 @@ from rest_framework import serializers
 from .models import Workspace, WorkspaceStar
 from permissions.models import WorkspaceMember
 from core.constants import WorkspaceRole
+from core.pricing import (
+    PLAN_CORE,
+    get_member_limit_for_workspace_plan,
+    get_workspace_monthly_cost_estimate,
+    normalize_plan,
+)
 
 class WorkspaceSerializer(serializers.ModelSerializer):
     owner_name = serializers.ReadOnlyField(source='owner.full_name')
@@ -10,6 +16,10 @@ class WorkspaceSerializer(serializers.ModelSerializer):
     current_user_role = serializers.SerializerMethodField()
     is_admin = serializers.SerializerMethodField()
     is_starred = serializers.SerializerMethodField()
+    effective_plan = serializers.SerializerMethodField()
+    member_limit = serializers.SerializerMethodField()
+    seat_count = serializers.SerializerMethodField()
+    billing_estimate_inr = serializers.SerializerMethodField()
 
     class Meta:
         model = Workspace
@@ -25,6 +35,10 @@ class WorkspaceSerializer(serializers.ModelSerializer):
             'current_user_role',
             'is_admin',
             'is_starred',
+            'effective_plan',
+            'member_limit',
+            'seat_count',
+            'billing_estimate_inr',
             'created_at',
             'updated_at',
         ]
@@ -69,6 +83,29 @@ class WorkspaceSerializer(serializers.ModelSerializer):
 
     def get_is_starred(self, obj):
         return obj.id in self._get_starred_workspace_ids()
+
+    def _get_effective_plan(self, obj):
+        owner = getattr(obj, "owner", None)
+        return normalize_plan(getattr(owner, "current_plan", PLAN_CORE))
+
+    def get_effective_plan(self, obj):
+        return self._get_effective_plan(obj)
+
+    def get_member_limit(self, obj):
+        return get_member_limit_for_workspace_plan(self._get_effective_plan(obj))
+
+    def get_seat_count(self, obj):
+        member_count = obj.members.count()
+        return max(member_count, 1)
+
+    def get_billing_estimate_inr(self, obj):
+        plan = self._get_effective_plan(obj)
+        member_count = obj.members.count()
+        invited_member_count = max(member_count - 1, 0)
+        amount = get_workspace_monthly_cost_estimate(plan, invited_member_count)
+        if amount is None:
+            return None
+        return f"{amount:.2f}"
 
 
 class PublicWorkspaceSerializer(serializers.ModelSerializer):

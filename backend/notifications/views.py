@@ -11,7 +11,16 @@ from rest_framework.views import APIView
 from audit.models import AuditLog
 from audit.services import record_workspace_event
 from core.constants import InvitationStatus, WorkspaceRole
-from permissions.checks import user_is_workspace_admin
+from core.pricing import (
+    PLAN_CORE,
+    get_member_limit_for_workspace_plan,
+    normalize_plan,
+)
+from permissions.checks import (
+    check_workspace_entitlement,
+    get_workspace_admin_plan,
+    user_is_workspace_admin,
+)
 from permissions.models import WorkspaceMember
 from workspaces.models import Workspace
 from .models import AuditNotificationState, Invitation
@@ -123,6 +132,19 @@ class WorkspaceInvitationCreateView(APIView):
                 {"error": "Only workspace admins can send invitations."},
                 status=status.HTTP_403_FORBIDDEN,
             )
+        entitlement = check_workspace_entitlement(
+            user_id=request.user.user_id,
+            workspace_id=workspace.id,
+            feature="invite_member",
+        )
+        if not entitlement["allowed"]:
+            return Response(
+                {"error": entitlement["reason"] or "Only workspace admins can send invitations."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        workspace_plan = entitlement.get("plan") or get_workspace_admin_plan(workspace)
+        member_limit = get_member_limit_for_workspace_plan(workspace_plan)
 
         serializer = WorkspaceInvitationCreateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -171,6 +193,26 @@ class WorkspaceInvitationCreateView(APIView):
                 {"message": "Invitation already pending. Invitation email resent."},
                 status=status.HTTP_200_OK,
             )
+
+        if member_limit is not None:
+            active_non_admin_members = WorkspaceMember.objects.filter(
+                workspace=workspace,
+                role=WorkspaceRole.MEMBER,
+            ).count()
+            pending_member_invites = Invitation.objects.filter(
+                workspace=workspace,
+                status=InvitationStatus.PENDING,
+                expires_at__gt=timezone.now(),
+            ).count()
+            if active_non_admin_members + pending_member_invites >= member_limit:
+                if workspace_plan == PLAN_CORE:
+                    message = "Core workspaces cannot invite members."
+                else:
+                    message = (
+                        f"{workspace_plan} workspace reached its member limit of {member_limit}. "
+                        "Remove an invite/member or upgrade plan."
+                    )
+                return Response({"error": message}, status=status.HTTP_400_BAD_REQUEST)
 
         invited_user = get_user_model().objects.filter(email__iexact=email).first()
         invitation = Invitation.objects.create(
@@ -301,6 +343,27 @@ class InvitationAcceptView(APIView):
                 {"error": "This invitation was sent to a different email address."},
                 status=status.HTTP_403_FORBIDDEN,
             )
+
+        workspace_plan = normalize_plan(invitation.workspace.owner.current_plan)
+        member_limit = get_member_limit_for_workspace_plan(workspace_plan)
+        if member_limit is not None:
+            active_non_admin_members = WorkspaceMember.objects.filter(
+                workspace=invitation.workspace,
+                role=WorkspaceRole.MEMBER,
+            ).exclude(user=request.user).count()
+            if active_non_admin_members >= member_limit and not WorkspaceMember.objects.filter(
+                workspace=invitation.workspace,
+                user=request.user,
+            ).exists():
+                return Response(
+                    {
+                        "error": (
+                            f"This workspace reached its {workspace_plan} member limit ({member_limit}). "
+                            "Ask the admin to upgrade or free a seat."
+                        )
+                    },
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
 
         member, created = WorkspaceMember.objects.get_or_create(
             workspace=invitation.workspace,

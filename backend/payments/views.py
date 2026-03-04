@@ -13,6 +13,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from .constants import PLAN_INDIVIDUAL, PLAN_PRICES
+from core.pricing import PLAN_TEAM
 from .models import PaymentTransaction
 from .serializers import (
     CancelSubscriptionRequestSerializer,
@@ -35,6 +36,8 @@ def _get_razorpay_client():
 def _get_plan_subscription_id(plan_name):
     if plan_name == PLAN_INDIVIDUAL:
         return (settings.RAZORPAY_PLAN_ID_INDIVIDUAL or '').strip()
+    if plan_name == PLAN_TEAM:
+        return (settings.RAZORPAY_PLAN_ID_TEAM or '').strip()
     return ''
 
 

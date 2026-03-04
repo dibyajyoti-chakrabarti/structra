@@ -7,12 +7,15 @@ from rest_framework.views import APIView
 from audit.services import record_system_event, record_workspace_event
 from core.constants import CanvasRole
 from permissions.checks import (
+    check_workspace_entitlement,
+    get_workspace_admin_plan,
     resolve_canvas_role,
     system_read_access_q,
     user_is_workspace_admin,
     user_has_system_read_access,
     user_has_system_access,
 )
+from core.pricing import get_system_limit_for_workspace_plan
 from permissions.models import CanvasPermission, WorkspaceMember
 from workspaces.models import Workspace
 from .models import Canvas, CanvasComment
@@ -90,9 +93,22 @@ class CanvasListCreateView(generics.ListCreateAPIView):
 
     def perform_create(self, serializer):
         workspace = self._get_workspace()
+        entitlement = check_workspace_entitlement(
+            user_id=self.request.user.user_id,
+            workspace_id=workspace.id,
+            feature="create_system",
+        )
+        if not entitlement["allowed"]:
+            raise PermissionDenied(entitlement["reason"] or "Only workspace admins can create systems.")
 
-        if not user_is_workspace_admin(workspace, self.request.user):
-            raise PermissionDenied("Only workspace admins can create systems.")
+        workspace_plan = entitlement.get("plan") or get_workspace_admin_plan(workspace)
+        system_limit = get_system_limit_for_workspace_plan(workspace_plan)
+        if system_limit is not None:
+            existing_system_count = Canvas.objects.filter(workspace=workspace).count()
+            if existing_system_count >= system_limit:
+                raise ValidationError(
+                    {"error": f"{workspace_plan} workspaces can only have up to {system_limit} systems."}
+                )
 
         validated_permissions = self._validate_member_permissions(workspace)
 

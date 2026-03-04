@@ -19,6 +19,7 @@ User = get_user_model()
     RAZORPAY_KEY_SECRET='rzp_test_secret',
     RAZORPAY_WEBHOOK_SECRET='webhook_secret',
     RAZORPAY_PLAN_ID_INDIVIDUAL='plan_individual_test',
+    RAZORPAY_PLAN_ID_TEAM='plan_team_test',
 )
 class CreateOrderViewTests(APITestCase):
     def setUp(self):
@@ -66,7 +67,7 @@ class CreateOrderViewTests(APITestCase):
 
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         self.assertEqual(response.data['razorpay_subscription_id'], 'sub_abc123')
-        self.assertEqual(response.data['amount'], '299.00')
+        self.assertEqual(response.data['amount'], '599.00')
         self.assertEqual(response.data['currency'], 'INR')
 
         mock_client_cls.return_value.subscription.create.assert_called_once_with(
@@ -80,9 +81,33 @@ class CreateOrderViewTests(APITestCase):
         tx = PaymentTransaction.objects.get()
         self.assertEqual(tx.user, self.user)
         self.assertEqual(tx.plan_name, 'INDIVIDUAL')
-        self.assertEqual(str(tx.amount), '299.00')
+        self.assertEqual(str(tx.amount), '599.00')
         self.assertEqual(tx.status, PaymentTransaction.Status.PENDING)
         self.assertEqual(tx.razorpay_subscription_id, 'sub_abc123')
+
+    @patch('payments.views.razorpay.Client')
+    def test_creates_subscription_for_team_plan(self, mock_client_cls):
+        mock_client_cls.return_value.subscription.create.return_value = {'id': 'sub_team_abc123'}
+        self.client.force_authenticate(user=self.user)
+
+        response = self.client.post(self.create_url, {'plan_name': 'TEAM'}, format='json')
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(response.data['razorpay_subscription_id'], 'sub_team_abc123')
+        self.assertEqual(response.data['amount'], '349.00')
+        self.assertEqual(response.data['currency'], 'INR')
+
+        mock_client_cls.return_value.subscription.create.assert_called_once_with(
+            {
+                'plan_id': 'plan_team_test',
+                'total_count': 12,
+                'customer_notify': 1,
+            }
+        )
+
+        tx = PaymentTransaction.objects.get()
+        self.assertEqual(tx.plan_name, 'TEAM')
+        self.assertEqual(str(tx.amount), '349.00')
 
     @patch('payments.views.razorpay.Client')
     def test_rejects_invalid_plan(self, mock_client_cls):
@@ -167,7 +192,7 @@ class CreateOrderViewTests(APITestCase):
         tx = PaymentTransaction.objects.create(
             user=self.user,
             plan_name='INDIVIDUAL',
-            amount='299.00',
+            amount='599.00',
             status=PaymentTransaction.Status.PENDING,
             razorpay_subscription_id='sub_success_1',
         )
@@ -204,7 +229,7 @@ class CreateOrderViewTests(APITestCase):
         tx = PaymentTransaction.objects.create(
             user=self.user,
             plan_name='INDIVIDUAL',
-            amount='299.00',
+            amount='599.00',
             status=PaymentTransaction.Status.PENDING,
             razorpay_subscription_id='sub_fail_1',
         )
@@ -239,7 +264,7 @@ class CreateOrderViewTests(APITestCase):
         PaymentTransaction.objects.create(
             user=self.user,
             plan_name='INDIVIDUAL',
-            amount='299.00',
+            amount='599.00',
             status=PaymentTransaction.Status.ACTIVE,
             razorpay_subscription_id='sub_already_done',
         )
@@ -267,7 +292,7 @@ class CreateOrderViewTests(APITestCase):
         PaymentTransaction.objects.create(
             user=self.user,
             plan_name='INDIVIDUAL',
-            amount='299.00',
+            amount='599.00',
             status=PaymentTransaction.Status.FAILED,
             razorpay_subscription_id='sub_failed_state',
         )
@@ -298,7 +323,7 @@ class CreateOrderViewTests(APITestCase):
         PaymentTransaction.objects.create(
             user=other_user,
             plan_name='INDIVIDUAL',
-            amount='299.00',
+            amount='599.00',
             status=PaymentTransaction.Status.PENDING,
             razorpay_subscription_id='sub_other_user',
         )
@@ -327,7 +352,7 @@ class CreateOrderViewTests(APITestCase):
         tx = PaymentTransaction.objects.create(
             user=self.user,
             plan_name='INDIVIDUAL',
-            amount='299.00',
+            amount='599.00',
             status=PaymentTransaction.Status.ACTIVE,
             razorpay_subscription_id='sub_cancel_1',
         )
@@ -362,7 +387,7 @@ class CreateOrderViewTests(APITestCase):
         PaymentTransaction.objects.create(
             user=self.user,
             plan_name='INDIVIDUAL',
-            amount='299.00',
+            amount='599.00',
             status=PaymentTransaction.Status.CANCELLED,
             razorpay_subscription_id='sub_cancel_done',
         )
@@ -386,7 +411,7 @@ class CreateOrderViewTests(APITestCase):
         PaymentTransaction.objects.create(
             user=self.user,
             plan_name='INDIVIDUAL',
-            amount='299.00',
+            amount='599.00',
             status=PaymentTransaction.Status.PENDING,
             razorpay_subscription_id='sub_cancel_pending',
         )
@@ -413,7 +438,7 @@ class CreateOrderViewTests(APITestCase):
         PaymentTransaction.objects.create(
             user=other_user,
             plan_name='INDIVIDUAL',
-            amount='299.00',
+            amount='599.00',
             status=PaymentTransaction.Status.ACTIVE,
             razorpay_subscription_id='sub_cancel_other_user',
         )
@@ -434,7 +459,7 @@ class CreateOrderViewTests(APITestCase):
         PaymentTransaction.objects.create(
             user=self.user,
             plan_name='INDIVIDUAL',
-            amount='299.00',
+            amount='599.00',
             status=PaymentTransaction.Status.ACTIVE,
             razorpay_subscription_id='sub_cancel_missing_creds',
         )
@@ -454,7 +479,7 @@ class CreateOrderViewTests(APITestCase):
         PaymentTransaction.objects.create(
             user=self.user,
             plan_name='INDIVIDUAL',
-            amount='299.00',
+            amount='599.00',
             status=PaymentTransaction.Status.ACTIVE,
             razorpay_subscription_id='sub_cancel_error',
         )
@@ -510,7 +535,7 @@ class CreateOrderViewTests(APITestCase):
         tx = PaymentTransaction.objects.create(
             user=self.user,
             plan_name='INDIVIDUAL',
-            amount='299.00',
+            amount='599.00',
             status=PaymentTransaction.Status.ACTIVE,
             razorpay_subscription_id='sub_webhook_cancelled',
         )
@@ -541,7 +566,7 @@ class CreateOrderViewTests(APITestCase):
         tx = PaymentTransaction.objects.create(
             user=self.user,
             plan_name='INDIVIDUAL',
-            amount='299.00',
+            amount='599.00',
             status=PaymentTransaction.Status.ACTIVE,
             razorpay_subscription_id='sub_webhook_halted',
         )
@@ -572,7 +597,7 @@ class CreateOrderViewTests(APITestCase):
         tx = PaymentTransaction.objects.create(
             user=self.user,
             plan_name='INDIVIDUAL',
-            amount='299.00',
+            amount='599.00',
             status=PaymentTransaction.Status.PENDING,
             razorpay_subscription_id='sub_webhook_success',
         )
@@ -613,7 +638,7 @@ class CreateOrderViewTests(APITestCase):
         tx = PaymentTransaction.objects.create(
             user=self.user,
             plan_name='INDIVIDUAL',
-            amount='299.00',
+            amount='599.00',
             status=PaymentTransaction.Status.ACTIVE,
             razorpay_subscription_id='sub_webhook_active',
             razorpay_payment_id='pay_previous_cycle',
@@ -657,7 +682,7 @@ class CreateOrderViewTests(APITestCase):
         PaymentTransaction.objects.create(
             user=self.user,
             plan_name='INDIVIDUAL',
-            amount='299.00',
+            amount='599.00',
             status=PaymentTransaction.Status.ACTIVE,
             razorpay_subscription_id='sub_webhook_done',
             razorpay_payment_id='pay_webhook_done',

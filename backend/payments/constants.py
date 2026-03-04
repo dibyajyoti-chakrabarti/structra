@@ -1,8 +1,11 @@
-from decimal import Decimal
+from core.pricing import (
+    PLAN_INDIVIDUAL,
+    PLAN_TEAM,
+    PLAN_BASE_PRICES,
+)
 
-
-PLAN_INDIVIDUAL = 'INDIVIDUAL'
 
 PLAN_PRICES = {
-    PLAN_INDIVIDUAL: Decimal('299.00'),
+    PLAN_INDIVIDUAL: PLAN_BASE_PRICES[PLAN_INDIVIDUAL],
+    PLAN_TEAM: PLAN_BASE_PRICES[PLAN_TEAM],
 }
