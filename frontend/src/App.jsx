@@ -39,7 +39,6 @@ import Privacy from "./pages/public/Privacy";
 import Terms from "./pages/public/Terms";
 import OnboardingQuestionnaire from "./pages/onboarding/OnboardingQuestionnaire";
 import GitHubCallback from "./pages/auth/GitHubCallback";
-import LoadingState from "./components/LoadingState";
 import PlanExpirationBanner from "./components/PlanExpirationBanner";
 
 // 2. Create a helper component to handle the redirection
@@ -110,15 +109,17 @@ function App() {
 
   if (!healthReady) {
     return (
-      <div className="min-h-screen bg-gradient-to-b from-blue-50 via-sky-50/40 to-white px-6 py-8" data-theme="light">
-        <LoadingState
-          message="Checking status"
-          minHeight="calc(100vh - 4rem)"
-          imageWidth={188}
-          statusPlacement="bottom"
-          lightModeOnly
-          className="w-full"
-        />
+      <div
+        className="min-h-screen flex items-center justify-center bg-slate-50"
+        data-theme="light"
+      >
+        <div className="inline-flex items-center gap-3 text-slate-700 text-sm font-semibold">
+          <span
+            className="h-4 w-4 rounded-full border-2 border-blue-200 border-t-blue-600 animate-spin"
+            aria-hidden="true"
+          />
+          <span>Checking Server Status</span>
+        </div>
       </div>
     );
   }
