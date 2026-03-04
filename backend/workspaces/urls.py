@@ -1,4 +1,5 @@
 from django.urls import path
+from canvases.evaluation_views import WorkspaceEvaluationListAPIView
 from .views import (
     WorkspaceListCreateView,
     WorkspaceDetailView,
@@ -12,5 +13,6 @@ urlpatterns = [
     path('starred/', StarredWorkspaceListView.as_view(), name='workspace-starred-list'),
     path('public/search/', PublicWorkspaceSearchView.as_view(), name='workspace-public-search'),
     path('<str:id>/star/', WorkspaceStarToggleView.as_view(), name='workspace-star-toggle'),
+    path('<str:workspace_id>/evaluations/', WorkspaceEvaluationListAPIView.as_view(), name='workspace-evaluation-list'),
     path('<str:id>/', WorkspaceDetailView.as_view(), name='workspace-detail'),
 ]

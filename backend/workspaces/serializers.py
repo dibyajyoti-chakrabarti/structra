@@ -20,6 +20,8 @@ class WorkspaceSerializer(serializers.ModelSerializer):
     member_limit = serializers.SerializerMethodField()
     seat_count = serializers.SerializerMethodField()
     billing_estimate_inr = serializers.SerializerMethodField()
+    active_evaluation_count = serializers.SerializerMethodField()
+    total_evaluation_count = serializers.SerializerMethodField()
 
     class Meta:
         model = Workspace
@@ -39,6 +41,8 @@ class WorkspaceSerializer(serializers.ModelSerializer):
             'member_limit',
             'seat_count',
             'billing_estimate_inr',
+            'active_evaluation_count',
+            'total_evaluation_count',
             'created_at',
             'updated_at',
         ]
@@ -106,6 +110,12 @@ class WorkspaceSerializer(serializers.ModelSerializer):
         if amount is None:
             return None
         return f"{amount:.2f}"
+
+    def get_active_evaluation_count(self, obj):
+        return obj.evaluation_runs.filter(status__in=['pending', 'running']).count()
+
+    def get_total_evaluation_count(self, obj):
+        return obj.evaluation_runs.count()
 
 
 class PublicWorkspaceSerializer(serializers.ModelSerializer):

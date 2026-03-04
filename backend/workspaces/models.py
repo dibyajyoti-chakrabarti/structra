@@ -112,3 +112,46 @@ class EvaluationLog(models.Model):
             models.Index(fields=['workspace', '-evaluated_at']),
             models.Index(fields=['user', '-evaluated_at']),
         ]
+
+
+class EvaluationRun(models.Model):
+    class Status(models.TextChoices):
+        PENDING = 'pending', 'Pending'
+        RUNNING = 'running', 'Running'
+        COMPLETED = 'completed', 'Completed'
+        FAILED = 'failed', 'Failed'
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    workspace = models.ForeignKey(
+        Workspace,
+        on_delete=models.CASCADE,
+        related_name='evaluation_runs',
+    )
+    system_id = models.CharField(max_length=8)
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='evaluation_runs',
+    )
+    workspace_tier = models.CharField(max_length=20, default='core')
+    canvas_state = models.JSONField(default=dict, blank=True)
+    status = models.CharField(max_length=20, choices=Status.choices, default=Status.PENDING)
+    score = models.IntegerField(null=True, blank=True)
+    summary = models.JSONField(default=dict, blank=True)
+    results = models.JSONField(default=list, blank=True)
+    suggestions = models.TextField(null=True, blank=True)
+    credits_exhausted = models.BooleanField(default=False)
+    credits_remaining = models.IntegerField(null=True, blank=True)
+    gemini_error = models.BooleanField(default=False)
+    error_message = models.TextField(blank=True, default='')
+    created_at = models.DateTimeField(auto_now_add=True)
+    started_at = models.DateTimeField(null=True, blank=True)
+    completed_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        db_table = 'evaluation_runs'
+        indexes = [
+            models.Index(fields=['workspace', '-created_at']),
+            models.Index(fields=['workspace', 'status']),
+            models.Index(fields=['user', '-created_at']),
+        ]
