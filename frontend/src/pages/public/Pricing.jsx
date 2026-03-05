@@ -1,10 +1,10 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { CheckCircle2, ArrowRight } from "lucide-react";
-import Confetti from "react-confetti";
 import Navbar from "../../components/Navbar";
 import Footer from "../../components/Footer";
 import useRazorpayCheckout from "../../hooks/useRazorpayCheckout";
+import PaymentSuccessOverlay from "../../components/payments/PaymentSuccessOverlay";
 import { useAuth } from "../../contexts/AuthContext";
 
 const plans = [
@@ -89,7 +89,12 @@ const plans = [
 export default function Pricing() {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { startCheckout, isLoading: isCheckoutLoading } = useRazorpayCheckout();
+  const {
+    startCheckout,
+    isLoading: isCheckoutLoading,
+    showSuccessOverlay,
+    successOverlayMessage,
+  } = useRazorpayCheckout();
   const [paymentStatus, setPaymentStatus] = useState("idle");
   const [statusMessage, setStatusMessage] = useState("");
   const isAuthenticated = Boolean(localStorage.getItem("access"));
@@ -127,8 +132,13 @@ export default function Pricing() {
       setPaymentStatus("processing");
       setStatusMessage("Opening secure checkout...");
       const result = await startCheckout(normalizedPlan);
-      setPaymentStatus(result?.status || "failed");
-      setStatusMessage(result?.message || "Unable to complete checkout.");
+      if ((result?.status || "failed") === "failed") {
+        setPaymentStatus("failed");
+        setStatusMessage(result?.message || "Unable to complete checkout.");
+      } else {
+        setPaymentStatus("idle");
+        setStatusMessage("");
+      }
       return;
     }
 
@@ -342,55 +352,32 @@ export default function Pricing() {
         </div>
       </section>
 
-      {(paymentStatus === "success" || paymentStatus === "failed") && (
+      {paymentStatus === "failed" && (
         <div className="fixed inset-0 z-[120] flex items-center justify-center bg-slate-900/55 px-4 backdrop-blur-sm">
-          {paymentStatus === "success" && (
-            <Confetti
-              className="pointer-events-none !fixed inset-0 z-[121]"
-              recycle={false}
-              numberOfPieces={520}
-            />
-          )}
-
-          <div
-            className={`relative z-[122] w-full max-w-md rounded-2xl border bg-white p-7 text-center shadow-2xl ${
-              paymentStatus === "success" ? "border-emerald-200" : "border-rose-200"
-            }`}
-          >
-            <div className="text-4xl">
-              {paymentStatus === "success" ? "🎉" : "❌"}
-            </div>
+          <div className="relative z-[122] w-full max-w-md rounded-2xl border border-rose-200 bg-white p-7 text-center shadow-2xl">
+            <div className="text-4xl">❌</div>
             <h3 className="mt-4 text-2xl font-black text-slate-900">
-              {paymentStatus === "success" ? "Payment Confirmed" : "Payment Failed"}
+              Payment Failed
             </h3>
             <p className="mt-3 text-sm leading-relaxed text-slate-600">
               {statusMessage ||
-                (paymentStatus === "success"
-                  ? "Payment successful. Your subscription is now active."
-                  : "Something went wrong while processing your payment.")}
+                "Something went wrong while processing your payment."}
             </p>
 
-            {paymentStatus === "success" ? (
-              <button
-                onClick={() => {
-                  closePaymentModal();
-                  navigate("/app");
-                }}
-                className="mt-6 inline-flex w-full items-center justify-center rounded-xl bg-emerald-600 px-5 py-3 text-sm font-black text-white transition hover:bg-emerald-700"
-              >
-                Continue to Workspace
-              </button>
-            ) : (
-              <button
-                onClick={closePaymentModal}
-                className="mt-6 inline-flex w-full items-center justify-center rounded-xl bg-rose-600 px-5 py-3 text-sm font-black text-white transition hover:bg-rose-700"
-              >
-                Try Again
-              </button>
-            )}
+            <button
+              onClick={closePaymentModal}
+              className="mt-6 inline-flex w-full items-center justify-center rounded-xl bg-rose-600 px-5 py-3 text-sm font-black text-white transition hover:bg-rose-700"
+            >
+              Try Again
+            </button>
           </div>
         </div>
       )}
+
+      <PaymentSuccessOverlay
+        open={showSuccessOverlay}
+        message={successOverlayMessage}
+      />
 
       <Footer />
     </div>
