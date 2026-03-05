@@ -4,6 +4,17 @@ import uuid
 from core.constants import WorkspaceVisibility
 from core.utils import generate_alphanumeric_id
 
+
+class ActiveWorkspaceQuerySet(models.QuerySet):
+    def active(self):
+        return self.filter(archived_at__isnull=True)
+
+
+class ActiveWorkspaceManager(models.Manager):
+    def get_queryset(self):
+        return ActiveWorkspaceQuerySet(self.model, using=self._db).active()
+
+
 class Workspace(models.Model):
     id = models.CharField(max_length=8, primary_key=True, editable=False)
     name = models.CharField(max_length=255)
@@ -23,13 +34,22 @@ class Workspace(models.Model):
     ai_credits_remaining = models.IntegerField(default=5)
     ai_credits_reset_at = models.DateTimeField(null=True, blank=True)
     ai_credits_monthly = models.IntegerField(default=5)
+    ai_credits_purchased_pack_remaining = models.IntegerField(default=0)
+    ai_credits_overage_used_monthly = models.IntegerField(default=0)
+    overage_enabled = models.BooleanField(default=False)
+    archived_at = models.DateTimeField(null=True, blank=True)
+    archive_recover_until = models.DateTimeField(null=True, blank=True)
+    archive_reason = models.CharField(max_length=100, blank=True, default="")
+
+    objects = ActiveWorkspaceManager()
+    all_objects = models.Manager()
 
     def save(self, *args, **kwargs):
         is_new = self._state.adding
         previous_visibility = None
         if not is_new:
             previous_visibility = (
-                Workspace.objects.filter(pk=self.pk)
+                Workspace.all_objects.filter(pk=self.pk)
                 .values_list("visibility", flat=True)
                 .first()
             )
@@ -154,4 +174,43 @@ class EvaluationRun(models.Model):
             models.Index(fields=['workspace', '-created_at']),
             models.Index(fields=['workspace', 'status']),
             models.Index(fields=['user', '-created_at']),
+            models.Index(fields=["workspace", "created_at"], name="evalrun_workspace_created_idx"),
+        ]
+
+
+class WorkspaceCreditConsumption(models.Model):
+    class Source(models.TextChoices):
+        MONTHLY_POOL = "MONTHLY_POOL", "Monthly Pool"
+        PURCHASED_PACK = "PURCHASED_PACK", "Purchased Pack"
+        OVERAGE = "OVERAGE", "Overage"
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    workspace = models.ForeignKey(
+        Workspace,
+        on_delete=models.CASCADE,
+        related_name="credit_consumptions",
+    )
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="workspace_credit_consumptions",
+    )
+    evaluation_run = models.ForeignKey(
+        "workspaces.EvaluationRun",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="credit_consumptions",
+    )
+    source = models.CharField(max_length=20, choices=Source.choices)
+    credits_used = models.PositiveIntegerField(default=1)
+    consumed_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "workspace_credit_consumptions"
+        indexes = [
+            models.Index(fields=["workspace", "-consumed_at"], name="workspace_c_workspa_15d3d8_idx"),
+            models.Index(fields=["workspace", "consumed_at"], name="workspace_c_workspa_087f39_idx"),
+            models.Index(fields=["workspace", "user", "-consumed_at"], name="workspace_c_workspa_98baf7_idx"),
+            models.Index(fields=["source", "-consumed_at"], name="workspace_c_source_550f76_idx"),
         ]

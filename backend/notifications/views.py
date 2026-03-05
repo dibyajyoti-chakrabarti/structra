@@ -368,7 +368,11 @@ class InvitationAcceptView(APIView):
         member, created = WorkspaceMember.objects.get_or_create(
             workspace=invitation.workspace,
             user=request.user,
-            defaults={"role": invitation.role},
+            defaults={
+                "role": invitation.role,
+                "joined_at": timezone.now(),
+                "left_at": None,
+            },
         )
 
         invitation.status = InvitationStatus.ACCEPTED

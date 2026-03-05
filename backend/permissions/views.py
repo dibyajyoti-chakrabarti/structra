@@ -1,5 +1,6 @@
 from django.shortcuts import get_object_or_404
 from django.contrib.auth import get_user_model
+from django.utils import timezone
 from rest_framework import permissions, status
 from rest_framework.exceptions import PermissionDenied
 from rest_framework.response import Response
@@ -69,7 +70,8 @@ class WorkspaceMemberDeleteView(APIView):
         ).delete()
         removed_member_name = membership.user.full_name or membership.user.email
         removed_member_id = str(membership.user.user_id)
-        membership.delete()
+        membership.left_at = timezone.now()
+        membership.save(update_fields=["left_at"])
 
         record_workspace_event(
             workspace=workspace,

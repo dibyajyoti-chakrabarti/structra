@@ -1,19 +1,33 @@
 from django.utils import timezone
+from datetime import timedelta
+
+
+GRACE_PERIOD_DAYS = 14
+
+
+def get_plan_access_state(user):
+    if not user or not getattr(user, "plan_expires_at", None):
+        return {"state": "active", "grace_ends_at": None}
+
+    now = timezone.now()
+    expires_at = user.plan_expires_at
+    if now <= expires_at:
+        return {"state": "active", "grace_ends_at": None}
+
+    grace_ends_at = expires_at + timedelta(days=GRACE_PERIOD_DAYS)
+    if now <= grace_ends_at:
+        return {"state": "grace", "grace_ends_at": grace_ends_at}
+
+    return {"state": "enforcement_due", "grace_ends_at": grace_ends_at}
 
 
 def enforce_plan_expiry(user):
-    if not user or not getattr(user, 'plan_expires_at', None):
+    if not user:
         return user
 
-    now = timezone.now()
-    if now <= user.plan_expires_at:
-        return user
-
-    if user.current_plan == user.CurrentPlan.CORE:
-        return user
-
-    user.current_plan = user.CurrentPlan.CORE
-    user.save(update_fields=['current_plan'])
+    access_state = get_plan_access_state(user)
+    setattr(user, "_plan_access_state", access_state["state"])
+    setattr(user, "_plan_grace_ends_at", access_state.get("grace_ends_at"))
     return user
 
 

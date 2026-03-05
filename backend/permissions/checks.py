@@ -113,7 +113,11 @@ def system_read_access_q(user):
     return (
         Q(visibility=WorkspaceVisibility.PUBLIC) |
         Q(permissions__user=user) |
-        Q(workspace__members__user=user, workspace__members__role=WorkspaceRole.ADMIN)
+        Q(
+            workspace__members__user=user,
+            workspace__members__role=WorkspaceRole.ADMIN,
+            workspace__members__left_at__isnull=True,
+        )
     )
 
 
