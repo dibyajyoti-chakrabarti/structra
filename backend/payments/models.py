@@ -40,3 +40,41 @@ class PaymentTransaction(models.Model):
 
     def __str__(self):
         return f'{self.user_id}:{self.plan_name}:{self.status}'
+
+
+class WebhookEventLog(models.Model):
+    class Status(models.TextChoices):
+        PROCESSING = "processing", "Processing"
+        SUCCEEDED = "succeeded", "Succeeded"
+        FAILED = "failed", "Failed"
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    razorpay_event_id = models.CharField(max_length=255, unique=True)
+    event_type = models.CharField(max_length=120)
+    subscription_id = models.CharField(max_length=255, null=True, blank=True)
+    status = models.CharField(
+        max_length=20,
+        choices=Status.choices,
+        default=Status.PROCESSING,
+    )
+    processed_at = models.DateTimeField(null=True, blank=True)
+    last_error = models.TextField(blank=True, default="")
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "payment_webhook_event_logs"
+        ordering = ["-created_at"]
+        indexes = [
+            models.Index(
+                fields=["event_type", "created_at"],
+                name="payment_webh_event_t_6f57ab_idx",
+            ),
+            models.Index(
+                fields=["status", "created_at"],
+                name="payment_webh_status_88ca78_idx",
+            ),
+        ]
+
+    def __str__(self):
+        return f"{self.razorpay_event_id}:{self.event_type}:{self.status}"

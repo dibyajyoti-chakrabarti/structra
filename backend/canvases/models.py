@@ -17,6 +17,10 @@ def default_canvas_state():
     }
 
 class Canvas(models.Model):
+    class ActiveCanvasManager(models.Manager):
+        def get_queryset(self):
+            return super().get_queryset().filter(archived_at__isnull=True)
+
     id = models.CharField(max_length=8, primary_key=True, editable=False)
     name = models.CharField(max_length=255)
     description = models.TextField(blank=True, null=True)
@@ -33,12 +37,18 @@ class Canvas(models.Model):
     canvas_state = models.JSONField(default=default_canvas_state, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+    archived_at = models.DateTimeField(null=True, blank=True)
+    archive_recover_until = models.DateTimeField(null=True, blank=True)
+    archive_reason = models.CharField(max_length=100, blank=True, default="")
     last_modified_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL,
         null=True,
         related_name='modified_canvases'
     )
+
+    objects = ActiveCanvasManager()
+    all_objects = models.Manager()
 
     def save(self, *args, **kwargs):
         if not self.id:
@@ -52,6 +62,9 @@ class Canvas(models.Model):
         db_table = 'systems'
         ordering = ['-updated_at']
         verbose_name_plural = 'Systems'
+        indexes = [
+            models.Index(fields=["workspace", "archived_at"], name="systems_workspace_archived_idx"),
+        ]
         constraints = [
             models.UniqueConstraint(
                 fields=['workspace', 'name'],

@@ -4,6 +4,7 @@ from django.contrib.postgres.search import (
     SearchVector,
     TrigramSimilarity,
 )
+from django.utils import timezone
 from django.db.models import F, Q, FloatField, Value
 from django.db.models.functions import Coalesce, Greatest
 from rest_framework import generics, permissions
@@ -35,7 +36,10 @@ class WorkspaceListCreateView(generics.ListCreateAPIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
-        return Workspace.objects.filter(members__user=self.request.user).distinct().order_by("-updated_at")
+        return Workspace.objects.filter(
+            members__user=self.request.user,
+            members__left_at__isnull=True,
+        ).distinct().order_by("-updated_at")
 
     def perform_create(self, serializer):
         owner_plan = normalize_plan(self.request.user.current_plan)
@@ -63,6 +67,7 @@ class WorkspaceListCreateView(generics.ListCreateAPIView):
             workspace=workspace,
             user=self.request.user,
             role=WorkspaceRole.ADMIN,
+            joined_at=timezone.now(),
         )
         record_workspace_event(
             workspace=workspace,
@@ -83,10 +88,13 @@ class WorkspaceDetailView(generics.RetrieveUpdateDestroyAPIView):
     def get_queryset(self):
         if self.request.method in SAFE_METHODS:
             return Workspace.objects.filter(
-                Q(members__user=self.request.user)
+                Q(members__user=self.request.user, members__left_at__isnull=True)
                 | Q(visibility=WorkspaceVisibility.PUBLIC)
             ).distinct()
-        return Workspace.objects.filter(members__user=self.request.user).distinct()
+        return Workspace.objects.filter(
+            members__user=self.request.user,
+            members__left_at__isnull=True,
+        ).distinct()
 
     def _assert_admin(self, workspace):
         if not user_is_workspace_admin(workspace, self.request.user):
@@ -179,7 +187,7 @@ class StarredWorkspaceListView(generics.ListAPIView):
         return (
             Workspace.objects.filter(stars__user=self.request.user)
             .filter(
-                Q(members__user=self.request.user)
+                Q(members__user=self.request.user, members__left_at__isnull=True)
                 | Q(visibility=WorkspaceVisibility.PUBLIC)
             )
             .distinct()

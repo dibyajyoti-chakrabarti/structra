@@ -8,6 +8,7 @@ from core.pricing import (
     get_workspace_monthly_cost_estimate,
     normalize_plan,
 )
+from payments.seat_utils import get_billable_seat_snapshot
 
 class WorkspaceSerializer(serializers.ModelSerializer):
     owner_name = serializers.ReadOnlyField(source='owner.full_name')
@@ -49,8 +50,7 @@ class WorkspaceSerializer(serializers.ModelSerializer):
         read_only_fields = ['id', 'owner', 'created_at', 'updated_at']
     
     def get_member_count(self, obj):
-        # Counts entries in the workspace_members table for this workspace
-        return obj.members.count()
+        return WorkspaceMember.objects.filter(workspace=obj).count()
     
     def get_system_count(self, obj):
         # Assuming the related_name in Canvas model is 'systems'
@@ -99,13 +99,13 @@ class WorkspaceSerializer(serializers.ModelSerializer):
         return get_member_limit_for_workspace_plan(self._get_effective_plan(obj))
 
     def get_seat_count(self, obj):
-        member_count = obj.members.count()
-        return max(member_count, 1)
+        snapshot = get_billable_seat_snapshot(obj)
+        return snapshot["total_occupied"]
 
     def get_billing_estimate_inr(self, obj):
         plan = self._get_effective_plan(obj)
-        member_count = obj.members.count()
-        invited_member_count = max(member_count - 1, 0)
+        snapshot = get_billable_seat_snapshot(obj)
+        invited_member_count = snapshot["billable_invited_seats"]
         amount = get_workspace_monthly_cost_estimate(plan, invited_member_count)
         if amount is None:
             return None

@@ -8,7 +8,6 @@ from urllib import error as urllib_error
 from urllib import request as urllib_request
 
 from django.db import close_old_connections, transaction
-from django.db.models import F
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from rest_framework import permissions, serializers, status
@@ -20,9 +19,16 @@ from canvases.models import Canvas
 from permissions.checks import user_has_system_read_access
 from permissions.models import WorkspaceMember
 from workspaces.models import EvaluationLog, EvaluationRun, Workspace
+from workspaces.credit_service import (
+    CreditExhaustedError,
+    TeamSoftThrottleError,
+    claim_ai_credit,
+    ensure_workspace_credit_state,
+)
 
 RUNNER_PATH = Path(__file__).resolve().parent / 'evaluation' / 'runner.mjs'
 DEFAULT_GEMINI_MODEL = 'gemini-2.5-flash'
+HOURLY_WORKSPACE_EVALUATION_LIMIT = 10
 TIER_MAP = {
     'CORE': 'core',
     'INDIVIDUAL': 'individual',
@@ -46,58 +52,9 @@ class EvaluateRequestSerializer(serializers.Serializer):
         return value
 
 
-def _next_month_reset(now):
-    month = 1 if now.month == 12 else now.month + 1
-    year = now.year + 1 if now.month == 12 else now.year
-    return now.replace(year=year, month=month, day=1, hour=0, minute=0, second=0, microsecond=0)
-
-
 def _resolve_workspace_tier(workspace):
     raw_plan = (getattr(workspace.owner, 'current_plan', 'CORE') or 'CORE').upper()
     return TIER_MAP.get(raw_plan, 'core')
-
-
-def _team_seat_count(workspace):
-    return max(workspace.members.count(), 1)
-
-
-def _monthly_credits_for_tier(workspace, workspace_tier):
-    if workspace_tier == 'core':
-        return 5
-    if workspace_tier == 'individual':
-        return 50
-    if workspace_tier == 'team':
-        return _team_seat_count(workspace) * 80
-    return max(int(workspace.ai_credits_monthly or 100), 1)
-
-
-def _ensure_credit_state(workspace, workspace_tier):
-    now = timezone.now()
-    monthly = _monthly_credits_for_tier(workspace, workspace_tier)
-    fields_to_update = []
-
-    if workspace.ai_credits_monthly != monthly:
-        workspace.ai_credits_monthly = monthly
-        fields_to_update.append('ai_credits_monthly')
-
-    if workspace.ai_credits_reset_at is None:
-        workspace.ai_credits_reset_at = _next_month_reset(now)
-        fields_to_update.append('ai_credits_reset_at')
-
-    if workspace.ai_credits_remaining is None:
-        workspace.ai_credits_remaining = monthly
-        fields_to_update.append('ai_credits_remaining')
-
-    if workspace.ai_credits_reset_at and now >= workspace.ai_credits_reset_at:
-        workspace.ai_credits_remaining = monthly
-        workspace.ai_credits_reset_at = _next_month_reset(now)
-        if 'ai_credits_remaining' not in fields_to_update:
-            fields_to_update.append('ai_credits_remaining')
-        if 'ai_credits_reset_at' not in fields_to_update:
-            fields_to_update.append('ai_credits_reset_at')
-
-    if fields_to_update:
-        workspace.save(update_fields=fields_to_update)
 
 
 def _run_rule_engine(canvas_state, workspace_tier):
@@ -198,7 +155,7 @@ def _process_evaluation_run(run_id):
             raise RuntimeError('System not found for this evaluation run.')
 
         workspace_tier = run.workspace_tier or _resolve_workspace_tier(workspace)
-        _ensure_credit_state(workspace, workspace_tier)
+        ensure_workspace_credit_state(workspace)
 
         engine_payload = _run_rule_engine(run.canvas_state or {}, workspace_tier)
         results = engine_payload.get('results', [])
@@ -207,48 +164,18 @@ def _process_evaluation_run(run_id):
         prompt = engine_payload.get('prompt', '')
 
         failed_count = int(summary.get('failed', 0) or 0)
-        credits_remaining = int(workspace.ai_credits_remaining or 0)
+        credits_remaining = int(run.credits_remaining or 0)
         suggestions = None
         credits_exhausted = False
         gemini_error = False
-        credit_consumed = False
+        credit_consumed = True
 
         if failed_count == 0:
             suggestions = 'Your architecture passes all applicable rules. No improvements to suggest.'
-        elif credits_remaining <= 0:
-            credits_exhausted = True
-            credits_remaining = 0
         else:
-            if workspace_tier == 'team':
-                seven_days_ago = timezone.now() - timedelta(days=7)
-                user_consumed = EvaluationLog.objects.filter(
-                    workspace=workspace,
-                    user=run.user,
-                    evaluated_at__gte=seven_days_ago,
-                    credit_consumed=True,
-                ).count()
-                pool_limit = max(int(workspace.ai_credits_monthly or 0), 1)
-                if (user_consumed + 1) > (pool_limit * 0.4):
-                    raise RuntimeError('You have used 40% of the team pool. Contact your admin to override.')
-
             api_key = os.getenv('GEMINI_API_KEY', '')
             gemini_model = os.getenv('GEMINI_MODEL', DEFAULT_GEMINI_MODEL)
             suggestions, gemini_error = _call_gemini(prompt, api_key, gemini_model)
-
-            if suggestions:
-                with transaction.atomic():
-                    updated_rows = Workspace.objects.filter(
-                        id=workspace.id,
-                        ai_credits_remaining__gt=0,
-                    ).update(ai_credits_remaining=F('ai_credits_remaining') - 1)
-                    if updated_rows:
-                        credit_consumed = True
-                        workspace.refresh_from_db(fields=['ai_credits_remaining'])
-                        credits_remaining = int(workspace.ai_credits_remaining or 0)
-                    else:
-                        credits_exhausted = True
-                        credits_remaining = 0
-                        suggestions = None
 
         EvaluationLog.objects.create(
             workspace=workspace,
@@ -309,19 +236,13 @@ class EvaluateAPIView(APIView):
         workspace = get_object_or_404(Workspace.objects.select_related('owner'), id=workspace_id)
         system = get_object_or_404(Canvas, id=system_id, workspace=workspace)
 
-        is_member = WorkspaceMember.objects.filter(workspace=workspace, user=request.user).exists()
-        if not is_member or not user_has_system_read_access(system, request.user):
-            raise PermissionDenied('You do not have permission to evaluate this system.')
-
-        workspace_tier = _resolve_workspace_tier(workspace)
-
         now = timezone.now()
         one_hour_ago = now - timedelta(hours=1)
         recent_requests = EvaluationRun.objects.filter(
-            workspace=workspace,
+            workspace_id=workspace_id,
             created_at__gte=one_hour_ago,
         ).order_by('created_at')
-        if recent_requests.count() >= 10:
+        if recent_requests.count() >= HOURLY_WORKSPACE_EVALUATION_LIMIT:
             first_event = recent_requests.first()
             retry_after = 60
             if first_event:
@@ -334,35 +255,39 @@ class EvaluateAPIView(APIView):
                 status=status.HTTP_429_TOO_MANY_REQUESTS,
             )
 
-        _ensure_credit_state(workspace, workspace_tier)
+        is_member = WorkspaceMember.objects.filter(workspace=workspace, user=request.user).exists()
+        if not is_member or not user_has_system_read_access(system, request.user):
+            raise PermissionDenied('You do not have permission to evaluate this system.')
 
-        if workspace_tier == 'team':
-            seven_days_ago = now - timedelta(days=7)
-            user_consumed = EvaluationLog.objects.filter(
-                workspace=workspace,
-                user=request.user,
-                evaluated_at__gte=seven_days_ago,
-                credit_consumed=True,
-            ).count()
-            pool_limit = max(int(workspace.ai_credits_monthly or 0), 1)
-            if (user_consumed + 1) > (pool_limit * 0.4):
-                return Response(
-                    {
-                        'error': 'user_throttle',
-                        'message': 'You have used 40% of the team pool. Contact your admin to override.',
-                    },
-                    status=status.HTTP_429_TOO_MANY_REQUESTS,
+        workspace_tier = _resolve_workspace_tier(workspace)
+        try:
+            with transaction.atomic():
+                run = EvaluationRun.objects.create(
+                    workspace=workspace,
+                    system_id=system.id,
+                    user=request.user,
+                    workspace_tier=workspace_tier,
+                    canvas_state=canvas_state,
+                    status=EvaluationRun.Status.PENDING,
                 )
-
-        run = EvaluationRun.objects.create(
-            workspace=workspace,
-            system_id=system.id,
-            user=request.user,
-            workspace_tier=workspace_tier,
-            canvas_state=canvas_state,
-            status=EvaluationRun.Status.PENDING,
-            credits_remaining=int(workspace.ai_credits_remaining or 0),
-        )
+                claim_result = claim_ai_credit(
+                    workspace_id=workspace.id,
+                    user_id=request.user.user_id,
+                    evaluation_run_id=run.id,
+                    now=now,
+                )
+                run.credits_remaining = claim_result['credits_remaining']
+                run.save(update_fields=['credits_remaining'])
+        except TeamSoftThrottleError as exc:
+            return Response(
+                {'error': 'user_throttle', 'message': str(exc)},
+                status=status.HTTP_429_TOO_MANY_REQUESTS,
+            )
+        except CreditExhaustedError:
+            return Response(
+                {'error': 'credits_exhausted', 'message': 'Workspace AI credits are exhausted.'},
+                status=status.HTTP_402_PAYMENT_REQUIRED,
+            )
 
         worker = threading.Thread(target=_process_evaluation_run, args=(run.id,), daemon=True)
         worker.start()
