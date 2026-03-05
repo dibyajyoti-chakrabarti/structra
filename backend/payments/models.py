@@ -68,11 +68,11 @@ class WebhookEventLog(models.Model):
         indexes = [
             models.Index(
                 fields=["event_type", "created_at"],
-                name="payment_webh_event_t_6f57ab_idx",
+                name="pay_wh_event_type_idx",
             ),
             models.Index(
                 fields=["status", "created_at"],
-                name="payment_webh_status_88ca78_idx",
+                name="pay_wh_status_idx",
             ),
         ]
 
