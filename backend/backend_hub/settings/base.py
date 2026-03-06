@@ -5,11 +5,11 @@ from dotenv import load_dotenv
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
-BACKEND_DIR = BASE_DIR / 'backend'
+PROJECT_DIR = BASE_DIR.parent
 
 # Load environment files.
-load_dotenv(BACKEND_DIR / '.env')
 load_dotenv(BASE_DIR / '.env')
+load_dotenv(PROJECT_DIR / '.env')
 
 # SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = os.getenv('DJANGO_SECRET_KEY', 'django-insecure-change-me')
@@ -152,3 +152,7 @@ RAZORPAY_KEY_SECRET = os.getenv('RAZORPAY_KEY_SECRET', '')
 RAZORPAY_WEBHOOK_SECRET = os.getenv('RAZORPAY_WEBHOOK_SECRET', '')
 RAZORPAY_PLAN_ID_INDIVIDUAL = os.getenv('RAZORPAY_PLAN_ID_INDIVIDUAL', '')
 RAZORPAY_PLAN_ID_TEAM = os.getenv('RAZORPAY_PLAN_ID_TEAM', '')
+
+USE_SQS = os.getenv("USE_SQS", "false").lower() == "true"
+SQS_QUEUE_URL = os.getenv("SQS_QUEUE_URL", "")
+AWS_REGION = os.getenv("AWS_REGION", "ap-south-2")
