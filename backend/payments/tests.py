@@ -9,9 +9,6 @@ from django.utils import timezone
 from rest_framework import status
 from rest_framework.test import APITestCase
 
-from audit.models import AuditLog, AuditStatus
-from core.constants import WorkspaceRole
-from permissions.models import WorkspaceMember
 from workspaces.models import Workspace
 from .models import PaymentTransaction, WebhookEventLog
 
@@ -103,7 +100,11 @@ class CreateOrderViewTests(APITestCase):
         mock_client_cls.return_value.subscription.create.return_value = {'id': 'sub_checkout_individual'}
         self.client.force_authenticate(user=self.user)
 
-        response = self.client.post(self.checkout_url, {'plan_name': 'INDIVIDUAL'}, format='json')
+        response = self.client.post(
+            self.checkout_url,
+            {'plan_name': 'INDIVIDUAL', 'quantity': 9},
+            format='json',
+        )
 
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         self.assertEqual(response.data['razorpay_subscription_id'], 'sub_checkout_individual')
@@ -115,25 +116,33 @@ class CreateOrderViewTests(APITestCase):
                 'customer_notify': 1,
             }
         )
+        tx = PaymentTransaction.objects.get(razorpay_subscription_id='sub_checkout_individual')
+        self.assertEqual(tx.requested_seats, 1)
 
     @patch('payments.views.razorpay.Client')
-    def test_checkout_creates_team_subscription_with_admin_seat_quantity_one(self, mock_client_cls):
+    def test_checkout_creates_team_subscription_with_requested_quantity(self, mock_client_cls):
         mock_client_cls.return_value.subscription.create.return_value = {'id': 'sub_checkout_team'}
         self.client.force_authenticate(user=self.user)
 
-        response = self.client.post(self.checkout_url, {'plan_name': 'TEAM'}, format='json')
+        response = self.client.post(
+            self.checkout_url,
+            {'plan_name': 'TEAM', 'quantity': 3},
+            format='json',
+        )
 
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         self.assertEqual(response.data['razorpay_subscription_id'], 'sub_checkout_team')
-        self.assertEqual(response.data['amount'], '349.00')
+        self.assertEqual(response.data['amount'], '1047.00')
         mock_client_cls.return_value.subscription.create.assert_called_once_with(
             {
                 'plan_id': 'plan_team_test',
                 'total_count': 120,
                 'customer_notify': 1,
-                'quantity': 1,
+                'quantity': 3,
             }
         )
+        tx = PaymentTransaction.objects.get(razorpay_subscription_id='sub_checkout_team')
+        self.assertEqual(tx.requested_seats, 3)
 
     @patch('payments.views.razorpay.Client')
     def test_checkout_allows_individual_to_team_upgrade(self, mock_client_cls):
@@ -142,10 +151,37 @@ class CreateOrderViewTests(APITestCase):
         self.user.save(update_fields=['current_plan'])
         self.client.force_authenticate(user=self.user)
 
-        response = self.client.post(self.checkout_url, {'plan_name': 'TEAM'}, format='json')
+        response = self.client.post(
+            self.checkout_url,
+            {'plan_name': 'TEAM', 'quantity': 2},
+            format='json',
+        )
 
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         self.assertEqual(response.data['razorpay_subscription_id'], 'sub_checkout_upgrade')
+        self.assertEqual(response.data['amount'], '698.00')
+        tx = PaymentTransaction.objects.get(razorpay_subscription_id='sub_checkout_upgrade')
+        self.assertEqual(tx.requested_seats, 2)
+
+    @patch('payments.views.razorpay.Client')
+    def test_checkout_rejects_team_when_quantity_missing(self, mock_client_cls):
+        self.client.force_authenticate(user=self.user)
+
+        response = self.client.post(self.checkout_url, {'plan_name': 'TEAM'}, format='json')
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(response.data['error'], 'Quantity is required for TEAM plan.')
+        mock_client_cls.assert_not_called()
+
+    @patch('payments.views.razorpay.Client')
+    def test_checkout_rejects_team_when_quantity_invalid(self, mock_client_cls):
+        self.client.force_authenticate(user=self.user)
+
+        response = self.client.post(self.checkout_url, {'plan_name': 'TEAM', 'quantity': 0}, format='json')
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(response.data['error'], 'Ensure this value is greater than or equal to 1.')
+        mock_client_cls.assert_not_called()
 
     @patch('payments.views.razorpay.Client')
     def test_checkout_blocks_same_plan(self, mock_client_cls):
@@ -335,6 +371,46 @@ class CreateOrderViewTests(APITestCase):
         self.assertGreater(delta.total_seconds(), 29 * 24 * 60 * 60)
         self.assertLess(delta.total_seconds(), 31 * 24 * 60 * 60)
         mock_client_cls.return_value.utility.verify_subscription_payment_signature.assert_called_once()
+
+    @patch('payments.views.razorpay.Client')
+    def test_verify_team_payment_applies_requested_seats_and_workspace_pool(self, mock_client_cls):
+        workspace = Workspace.objects.create(
+            owner=self.user,
+            name='Team Verify Workspace',
+        )
+        workspace.ai_credits_monthly = 80
+        workspace.ai_credits_remaining = 12
+        workspace.save(update_fields=['ai_credits_monthly', 'ai_credits_remaining'])
+
+        tx = PaymentTransaction.objects.create(
+            user=self.user,
+            plan_name='TEAM',
+            requested_seats=4,
+            amount='1396.00',
+            status=PaymentTransaction.Status.PENDING,
+            razorpay_subscription_id='sub_team_verify_1',
+        )
+        self.client.force_authenticate(user=self.user)
+
+        response = self.client.post(
+            self.verify_url,
+            {
+                'razorpay_subscription_id': 'sub_team_verify_1',
+                'razorpay_payment_id': 'pay_team_verify_1',
+                'razorpay_signature': 'sig_team_verify_1',
+            },
+            format='json',
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data['current_plan'], 'TEAM')
+        tx.refresh_from_db()
+        self.user.refresh_from_db()
+        workspace.refresh_from_db()
+        self.assertEqual(tx.status, PaymentTransaction.Status.ACTIVE)
+        self.assertEqual(self.user.purchased_team_seats, 4)
+        self.assertEqual(workspace.ai_credits_monthly, 320)
+        self.assertEqual(workspace.ai_credits_remaining, 320)
 
     @patch('payments.views.razorpay.Client')
     def test_verify_signature_failure_marks_transaction_failed(self, mock_client_cls):
@@ -878,6 +954,7 @@ class CreateOrderViewTests(APITestCase):
                         'entity': {
                             'id': 'sub_new_team',
                             'current_end': current_end,
+                            'quantity': 2,
                         }
                     },
                 },
@@ -892,6 +969,7 @@ class CreateOrderViewTests(APITestCase):
         self.assertEqual(new_tx.status, PaymentTransaction.Status.ACTIVE)
         self.assertEqual(new_tx.razorpay_payment_id, 'pay_new_team')
         self.assertEqual(self.user.current_plan, 'TEAM')
+        self.assertEqual(self.user.purchased_team_seats, 2)
         self.assertEqual(old_tx.status, PaymentTransaction.Status.CANCELLED)
         mock_client_cls.return_value.subscription.cancel.assert_called_once_with('sub_old_active')
 
@@ -936,6 +1014,7 @@ class CreateOrderViewTests(APITestCase):
                         'entity': {
                             'id': 'sub_new_team_fail',
                             'current_end': int((timezone.now() + timedelta(days=30)).timestamp()),
+                            'quantity': 3,
                         }
                     },
                 },
@@ -1002,20 +1081,11 @@ class CreateOrderViewTests(APITestCase):
         self.assertEqual(response.data['message'], 'Event ignored')
 
     @patch('payments.views.razorpay.Client')
-    def test_webhook_subscription_updated_quantity_match_logs_success(self, mock_client_cls):
+    def test_webhook_subscription_updated_applies_team_quantity_and_pool(self, mock_client_cls):
         workspace = Workspace.objects.create(name='Billing WS', owner=self.user)
-        invited_user = User.objects.create_user(
-            email='member1@example.com',
-            username='member1',
-            password='password123',
-            full_name='Member 1',
-        )
-        WorkspaceMember.objects.create(
-            workspace=workspace,
-            user=invited_user,
-            role=WorkspaceRole.MEMBER,
-            joined_at=timezone.now() - timedelta(hours=1),
-        )
+        workspace.ai_credits_monthly = 160
+        workspace.ai_credits_remaining = 60
+        workspace.save(update_fields=['ai_credits_monthly', 'ai_credits_remaining'])
         PaymentTransaction.objects.create(
             user=self.user,
             plan_name='TEAM',
@@ -1041,61 +1111,37 @@ class CreateOrderViewTests(APITestCase):
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data['message'], 'Webhook processed')
-        audit = AuditLog.objects.filter(
-            workspace=workspace,
-            action='billing.subscription_quantity_sync',
-        ).latest('created_at')
-        self.assertEqual(audit.status, AuditStatus.SUCCESS)
-        self.assertEqual(audit.metadata['payload_quantity'], 2)
-        self.assertEqual(audit.metadata['expected_quantity'], 2)
+        self.user.refresh_from_db()
+        workspace.refresh_from_db()
+        self.assertEqual(self.user.purchased_team_seats, 2)
+        self.assertEqual(workspace.ai_credits_monthly, 160)
+        self.assertEqual(workspace.ai_credits_remaining, 60)
 
     @patch('payments.views.razorpay.Client')
-    def test_webhook_subscription_updated_quantity_mismatch_logs_warning(self, mock_client_cls):
-        workspace_a = Workspace.objects.create(name='Billing A', owner=self.user)
-        workspace_b = Workspace.objects.create(name='Billing B', owner=self.user)
-
-        invited_1 = User.objects.create_user(
-            email='member2@example.com',
-            username='member2',
-            password='password123',
-            full_name='Member 2',
-        )
-        invited_2 = User.objects.create_user(
-            email='member3@example.com',
-            username='member3',
-            password='password123',
-            full_name='Member 3',
-        )
-        WorkspaceMember.objects.create(
-            workspace=workspace_a,
-            user=invited_1,
-            role=WorkspaceRole.MEMBER,
-            joined_at=timezone.now() - timedelta(hours=1),
-        )
-        WorkspaceMember.objects.create(
-            workspace=workspace_b,
-            user=invited_2,
-            role=WorkspaceRole.MEMBER,
-            joined_at=timezone.now() - timedelta(hours=1),
-        )
-
+    def test_webhook_subscription_updated_preserves_consumed_credits(self, mock_client_cls):
+        workspace = Workspace.objects.create(name='Billing A', owner=self.user)
+        workspace.ai_credits_monthly = 160
+        workspace.ai_credits_remaining = 20
+        workspace.save(update_fields=['ai_credits_monthly', 'ai_credits_remaining'])
+        self.user.purchased_team_seats = 2
+        self.user.save(update_fields=['purchased_team_seats'])
         PaymentTransaction.objects.create(
             user=self.user,
             plan_name='TEAM',
             amount='349.00',
             status=PaymentTransaction.Status.ACTIVE,
-            razorpay_subscription_id='sub_update_mismatch',
+            razorpay_subscription_id='sub_update_pool',
         )
 
         response = self._post_webhook(
             {
-                'id': 'ev_update_mismatch',
+                'id': 'ev_update_pool',
                 'event': 'subscription.updated',
                 'payload': {
                     'subscription': {
                         'entity': {
-                            'id': 'sub_update_mismatch',
-                            'quantity': 2,
+                            'id': 'sub_update_pool',
+                            'quantity': 3,
                         }
                     }
                 },
@@ -1104,9 +1150,9 @@ class CreateOrderViewTests(APITestCase):
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data['message'], 'Webhook processed')
-        warnings = AuditLog.objects.filter(
-            action='billing.subscription_quantity_sync',
-            status=AuditStatus.WARNING,
-        )
-        self.assertEqual(warnings.count(), 2)
-        self.assertTrue(all(log.metadata['expected_quantity'] == 3 for log in warnings))
+        self.user.refresh_from_db()
+        workspace.refresh_from_db()
+        self.assertEqual(self.user.purchased_team_seats, 3)
+        self.assertEqual(workspace.ai_credits_monthly, 240)
+        # consumed = 160 - 20 = 140, so new remaining = 240 - 140 = 100
+        self.assertEqual(workspace.ai_credits_remaining, 100)

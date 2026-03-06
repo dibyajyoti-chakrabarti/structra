@@ -34,7 +34,7 @@ class CreditServiceTests(TestCase):
         )
         return owner, workspace
 
-    def test_team_monthly_pool_includes_admin_base_seat(self):
+    def test_team_monthly_pool_uses_purchased_seats(self):
         owner, workspace = self._make_workspace("TEAM")
 
         ensure_workspace_credit_state(workspace, now=timezone.now(), force_reset=True)
@@ -55,6 +55,13 @@ class CreditServiceTests(TestCase):
             joined_at=timezone.now(),
         )
 
+        ensure_workspace_credit_state(workspace, now=timezone.now(), force_reset=True)
+        workspace.refresh_from_db()
+        self.assertEqual(workspace.ai_credits_monthly, 80)
+        self.assertEqual(workspace.ai_credits_remaining, 80)
+
+        owner.purchased_team_seats = 2
+        owner.save(update_fields=["purchased_team_seats"])
         ensure_workspace_credit_state(workspace, now=timezone.now(), force_reset=True)
         workspace.refresh_from_db()
         self.assertEqual(workspace.ai_credits_monthly, 160)

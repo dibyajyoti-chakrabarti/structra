@@ -66,6 +66,7 @@ class User(AbstractBaseUser, PermissionsMixin):
         default=CurrentPlan.CORE,
     )
     plan_expires_at = models.DateTimeField(null=True, blank=True)
+    purchased_team_seats = models.IntegerField(default=1)
 
     objects = UserManager()
 

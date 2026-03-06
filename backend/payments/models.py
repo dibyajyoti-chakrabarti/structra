@@ -18,6 +18,7 @@ class PaymentTransaction(models.Model):
         related_name='payment_transactions',
     )
     plan_name = models.CharField(max_length=50, db_index=True)
+    requested_seats = models.IntegerField(default=1)
     amount = models.DecimalField(max_digits=10, decimal_places=2)
     status = models.CharField(
         max_length=20,

@@ -1,7 +1,7 @@
 from rest_framework import serializers
 
 from .constants import PLAN_PRICES
-from core.pricing import PLAN_CORE, PLAN_INDIVIDUAL
+from core.pricing import PLAN_CORE, PLAN_INDIVIDUAL, PLAN_TEAM
 
 
 class CreateSubscriptionRequestSerializer(serializers.Serializer):
@@ -18,6 +18,24 @@ class CreateSubscriptionResponseSerializer(serializers.Serializer):
     razorpay_subscription_id = serializers.CharField()
     amount = serializers.DecimalField(max_digits=10, decimal_places=2)
     currency = serializers.CharField()
+
+
+class CheckoutSubscriptionRequestSerializer(CreateSubscriptionRequestSerializer):
+    quantity = serializers.IntegerField(required=False, min_value=1)
+
+    def validate(self, attrs):
+        attrs = super().validate(attrs)
+        plan_name = attrs["plan_name"]
+        quantity = attrs.get("quantity")
+
+        if plan_name == PLAN_TEAM:
+            if quantity is None:
+                raise serializers.ValidationError({"quantity": "Quantity is required for TEAM plan."})
+            attrs["quantity"] = int(quantity)
+        else:
+            attrs["quantity"] = 1
+
+        return attrs
 
 
 class VerifySubscriptionRequestSerializer(serializers.Serializer):

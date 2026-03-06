@@ -232,6 +232,7 @@ class GoogleLoginView(APIView):
                 'full_name': user.full_name,
                 'current_plan': user.current_plan,
                 'plan_expires_at': user.plan_expires_at,
+                'purchased_team_seats': user.purchased_team_seats,
                 'razorpay_subscription_id': active_subscription_id,
                 'is_new': user.is_new
             }
@@ -311,6 +312,7 @@ class GitHubLoginView(APIView):
                 'full_name': user.full_name,
                 'current_plan': user.current_plan,
                 'plan_expires_at': user.plan_expires_at,
+                'purchased_team_seats': user.purchased_team_seats,
                 'razorpay_subscription_id': active_subscription_id,
                 'is_new': user.is_new
             }
@@ -361,6 +363,7 @@ def _issue_tokens_for_user(user):
             'full_name': user.full_name,
             'current_plan': user.current_plan,
             'plan_expires_at': user.plan_expires_at,
+            'purchased_team_seats': user.purchased_team_seats,
             'razorpay_subscription_id': active_subscription_id,
             'is_new': user.is_new,
         }
