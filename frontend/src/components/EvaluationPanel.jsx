@@ -1,6 +1,8 @@
 import { useMemo, useState } from 'react';
 import { AlertCircle, CheckCircle2, ChevronDown, ChevronUp, Sparkles, XCircle } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import InsightTokenIndicator from './InsightTokenIndicator';
+import StructuredReport from './StructuredReport';
 
 const RULE_NAMES = {
   'F-01': 'API Protocol Fit',
@@ -69,20 +71,15 @@ const confidenceClass = (confidence) => {
   return 'text-gray-600 bg-gray-100 border-gray-200';
 };
 
-const monthlyCreditsForTier = (workspaceTier) => {
-  if (workspaceTier === 'core') return 5;
-  if (workspaceTier === 'individual') return 50;
-  return null;
-};
-
 export default function EvaluationPanel({
   status,
   score,
   summary,
   results,
   suggestions,
-  creditsExhausted,
-  creditsRemaining,
+  noTokens,
+  insightTokensRemaining,
+  tokenConsumed,
   workspaceTier,
   geminiError,
   error,
@@ -105,10 +102,6 @@ export default function EvaluationPanel({
   const pro = byRuleTier.pro || { total: 0, passed: 0, failed: 0 };
   const enterprise = byRuleTier.enterprise || { total: 0, passed: 0, failed: 0 };
 
-  const monthlyCredits = monthlyCreditsForTier(workspaceTier);
-  const creditsUsed = monthlyCredits != null && creditsRemaining != null ? Math.max(monthlyCredits - creditsRemaining, 0) : null;
-  const creditProgress = monthlyCredits ? Math.min(Math.round((creditsUsed / monthlyCredits) * 100), 100) : null;
-
   const toggleFailedRule = (ruleId) => {
     setExpandedFailedRuleIds((prev) => {
       const next = new Set(prev);
@@ -124,6 +117,9 @@ export default function EvaluationPanel({
         <div>
           <p className="text-[11px] font-semibold uppercase tracking-widest text-gray-500">AI Evaluation</p>
           <p className="text-xs text-gray-500">Rule engine + AI suggestions</p>
+          <div className="mt-2">
+            <InsightTokenIndicator remaining={insightTokensRemaining} />
+          </div>
         </div>
         <button
           type="button"
@@ -139,7 +135,7 @@ export default function EvaluationPanel({
         {(status === 'scoring' || status === 'awaiting_ai') && !summary && (
           <section className="rounded-xl border border-gray-200 p-3 bg-gray-50 text-xs text-gray-600 flex items-center gap-2">
             <span className="h-3.5 w-3.5 rounded-full border-2 border-gray-300 border-t-gray-600 animate-spin" />
-            {status === 'scoring' ? 'Queued for background evaluation…' : 'Evaluation in progress…'}
+            {status === 'scoring' ? 'Running rule engine…' : 'Generating AI suggestions…'}
           </section>
         )}
 
@@ -186,24 +182,13 @@ export default function EvaluationPanel({
           </section>
         )}
 
-        <section className="rounded-lg border border-gray-200 p-3 bg-white">
-          {!creditsExhausted ? (
-            <>
-              <p className="text-xs text-gray-700">{creditsRemaining ?? 0} AI credits remaining this month</p>
-              <div className="mt-2 h-1.5 w-full rounded bg-gray-100 overflow-hidden">
-                <div
-                  className="h-full bg-blue-500"
-                  style={{ width: `${creditProgress == null ? 0 : Math.max(0, 100 - creditProgress)}%` }}
-                />
-              </div>
-            </>
-          ) : (
-            <div className="text-xs text-amber-700">
-              AI credits exhausted.{' '}
-              <Link to="/pricing" className="underline font-semibold">
-                Upgrade or buy add-on credits.
-              </Link>
-            </div>
+        <section className="rounded-lg border border-gray-200 p-3 bg-white text-xs">
+          <p className="text-gray-700">{insightTokensRemaining ?? 0} Insight Tokens remaining today</p>
+          {tokenConsumed && <p className="mt-1 text-emerald-700">1 token was consumed for this AI evaluation.</p>}
+          {noTokens && (
+            <p className="mt-1 text-amber-700">
+              You have no Insight Tokens remaining today. Tokens reset tomorrow.
+            </p>
           )}
         </section>
 
@@ -301,7 +286,7 @@ export default function EvaluationPanel({
             AI Suggestions
           </div>
 
-          {status === 'awaiting_ai' && !creditsExhausted && (
+          {status === 'awaiting_ai' && !noTokens && (
             <div className="rounded-lg border border-gray-200 p-3 text-xs text-gray-600 flex items-center gap-2">
               <span className="h-3.5 w-3.5 rounded-full border-2 border-gray-300 border-t-gray-600 animate-spin" />
               Generating suggestions...
@@ -309,21 +294,18 @@ export default function EvaluationPanel({
           )}
 
           {typeof suggestions === 'string' && (
-            <pre className="rounded-lg border border-gray-200 bg-gray-50 p-3 text-xs text-gray-700 whitespace-pre-wrap break-words font-sans leading-relaxed">
-              {suggestions}
-            </pre>
-          )}
-
-          {creditsExhausted && (
-            <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800">
-              AI suggestions are unavailable because credits are exhausted.{' '}
-              <Link to="/pricing" className="underline font-semibold">
-                Upgrade or add credits.
-              </Link>
+            <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
+              <StructuredReport text={suggestions} />
             </div>
           )}
 
-          {geminiError && !suggestions && !creditsExhausted && (
+          {noTokens && (
+            <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800">
+              AI suggestions are unavailable because you have no Insight Tokens remaining today.
+            </div>
+          )}
+
+          {geminiError && !suggestions && !noTokens && (
             <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800">
               Could not reach AI service.
             </div>

@@ -1473,9 +1473,9 @@ export function buildGeminiPrompt(results, systemMetadata, workspaceTier = 'core
     .map((r) => `- [${r.id}]: ${r.reason}`)
     .join('\n');
 
-  return `You are a senior system design reviewer at Structra.
-Your job is to give actionable, specific improvement suggestions for a software architecture.
-Do NOT be generic. Every suggestion must directly reference the system goal and the specific failed rule.
+  return `You are a principal architecture auditor at Structra.
+Produce a structured, professional, litigation-grade technical evaluation report.
+The report must be detailed, specific, and decision-ready.
 
 SYSTEM GOAL:
 ${systemMetadata?.goal || 'Not stated'}
@@ -1486,7 +1486,8 @@ ${(systemMetadata?.assumptions || []).join('\n') || 'None stated'}
 CONSTRAINTS:
 ${systemMetadata?.constraints || 'Not stated'}
 
-EVALUATION SCORE: ${summary.score}% (${summary.passed}/${summary.applicable} rules passed)
+EVALUATION SCORE:
+${summary.score}% (${summary.passed}/${summary.applicable} applicable rules passed)
 
 FAILED RULES:
 ${failedList || 'None — all applicable rules passed.'}
@@ -1494,16 +1495,37 @@ ${failedList || 'None — all applicable rules passed.'}
 PASSING RULES (for context):
 ${passedList || 'None'}
 
-INSTRUCTIONS:
-1. For each failed rule, write a concrete improvement suggestion in 2-3 sentences.
-   - Name the specific component or pattern that is missing.
-   - Explain why it matters for THIS system based on the goal.
-   - Suggest the exact fix (component to add, pattern to implement, metadata to document).
-2. Group suggestions by category: Connectivity, Compute, Data, Security, Reliability, Observability.
-3. After the suggestions, write a 2-sentence "Overall Assessment" of the architecture's production-readiness.
-4. Use plain language. No markdown headers. No bullet nesting deeper than 1 level.
-5. If the system goal is vague or not stated, note that in the Overall Assessment and ask the user to clarify.
-${coreTierNote ? `6. ${coreTierNote}` : ''}
+REPORT FORMAT REQUIREMENTS (MANDATORY):
+1. Output valid Markdown only.
+2. Use exactly these sections in this order:
+   - ## Executive Summary
+   - ## Risk Register
+   - ## Findings By Domain
+   - ## Remediation Roadmap
+   - ## Verification Checklist
+   - ## Overall Assessment
+3. In "Risk Register", provide a table with columns:
+   | Risk ID | Domain | Severity | Evidence | Business Impact | Recommended Fix |
+4. In "Findings By Domain", create subsections:
+   ### Connectivity
+   ### Compute
+   ### Data
+   ### Security
+   ### Reliability
+   ### Observability
+5. For each failed rule, include:
+   - the concrete architecture gap,
+   - why it matters for this specific system,
+   - implementation-level remediation steps,
+   - expected measurable outcome after remediation.
+6. In "Remediation Roadmap", provide phases:
+   - Immediate (0-2 weeks)
+   - Near-term (2-6 weeks)
+   - Mid-term (6-12 weeks)
+7. In "Verification Checklist", provide actionable checkboxes with acceptance criteria.
+8. Keep language precise and technical, avoid fluff.
+9. If system goal is unclear, explicitly state this as a material limitation.
+${coreTierNote ? `10. ${coreTierNote}` : ''}
 
-Respond only with the suggestions and assessment. Do not repeat the rule IDs or scores.`;
+Do not output any preface or disclaimer. Output the report only.`;
 }

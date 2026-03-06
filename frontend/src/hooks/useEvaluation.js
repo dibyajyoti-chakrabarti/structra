@@ -1,123 +1,116 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useState } from 'react';
 import api from '../api';
+import { evaluateRules, summarizeResults } from '../evaluation/evaluateRules';
 
 const INITIAL_STATE = {
-  runId: null,
-  status: 'idle', // 'idle' | 'scoring' | 'awaiting_ai' | 'complete' | 'error'
+  status: 'idle', // 'idle' | 'scoring' | 'awaiting_confirmation' | 'awaiting_ai' | 'complete' | 'error'
   score: null,
   summary: null,
   results: [],
   suggestions: null,
-  creditsExhausted: false,
-  creditsRemaining: null,
-  workspaceTier: null,
+  insightTokensRemaining: null,
+  dailyInsightTokens: null,
+  tier: null,
+  seatCount: null,
+  tokenConsumed: false,
+  noTokens: false,
   geminiError: false,
   error: null,
 };
 
 export function useEvaluation() {
   const [state, setState] = useState(INITIAL_STATE);
-  const pollTimerRef = useRef(null);
-  const isUnmountedRef = useRef(false);
 
-  const clearPollTimer = useCallback(() => {
-    if (pollTimerRef.current) {
-      clearTimeout(pollTimerRef.current);
-      pollTimerRef.current = null;
-    }
+  const refreshInsightTokens = useCallback(async (workspaceId) => {
+    const response = await api.get('evaluation/insight-tokens/', {
+      params: { workspaceId },
+      cache: false,
+    });
+    const data = response.data || {};
+    setState((prev) => ({
+      ...prev,
+      insightTokensRemaining: data.insightTokensRemaining ?? prev.insightTokensRemaining,
+      dailyInsightTokens: data.dailyInsightTokens ?? prev.dailyInsightTokens,
+      tier: data.tier ?? prev.tier,
+      seatCount: data.seatCount ?? prev.seatCount,
+    }));
+    return data;
   }, []);
 
-  useEffect(() => {
-    return () => {
-      isUnmountedRef.current = true;
-      clearPollTimer();
-    };
-  }, [clearPollTimer]);
-
-  const pollRunStatus = useCallback((runId) => {
-    const tick = async () => {
-      if (!runId || isUnmountedRef.current) return;
-
-      try {
-        const response = await api.get(`evaluate/${runId}/`, { cache: false });
-        const data = response.data || {};
-        const runStatus = data.status;
-
-        if (runStatus === 'pending') {
-          setState((prev) => ({ ...prev, status: 'scoring', runId }));
-          pollTimerRef.current = setTimeout(tick, 1200);
-          return;
-        }
-
-        if (runStatus === 'running') {
-          setState((prev) => ({ ...prev, status: 'awaiting_ai', runId }));
-          pollTimerRef.current = setTimeout(tick, 1800);
-          return;
-        }
-
-        if (runStatus === 'completed') {
-          clearPollTimer();
-          setState((prev) => ({
-            ...prev,
-            runId,
-            status: 'complete',
-            score: data.score ?? null,
-            summary: data.summary ?? null,
-            results: Array.isArray(data.results) ? data.results : [],
-            suggestions: data.suggestions ?? null,
-            creditsExhausted: Boolean(data.creditsExhausted),
-            creditsRemaining: data.creditsRemaining ?? null,
-            workspaceTier: data.workspaceTier ?? null,
-            geminiError: Boolean(data.geminiError),
-            error: null,
-          }));
-          return;
-        }
-
-        clearPollTimer();
-        setState((prev) => ({
-          ...prev,
-          runId,
-          status: 'error',
-          error: data.error || 'Evaluation failed in background processing.',
-        }));
-      } catch {
-        pollTimerRef.current = setTimeout(tick, 1800);
-      }
-    };
-
-    tick();
-  }, [clearPollTimer]);
-
-  const runEvaluation = useCallback(async (canvasState, workspaceId, systemId) => {
-    clearPollTimer();
-    setState((prev) => ({ ...prev, status: 'scoring', error: null, geminiError: false }));
+  const runRuleEvaluation = useCallback(async (canvasState, workspaceTier, workspaceId) => {
+    setState((prev) => ({
+      ...prev,
+      status: 'scoring',
+      error: null,
+      geminiError: false,
+      suggestions: null,
+      tokenConsumed: false,
+      noTokens: false,
+    }));
 
     try {
-      const response = await api.post('evaluate/', {
+      const effectiveTier = (workspaceTier || 'core').toLowerCase();
+      const localState = {
+        ...(canvasState || {}),
+        workspaceTier: effectiveTier,
+      };
+      const results = evaluateRules(localState);
+      const summary = summarizeResults(results);
+
+      const tokenState = workspaceId ? await refreshInsightTokens(workspaceId) : {};
+
+      setState((prev) => ({
+        ...prev,
+        status: 'awaiting_confirmation',
+        score: summary.score ?? 0,
+        summary,
+        results,
+        tier: tokenState.tier ?? effectiveTier,
+      }));
+      return true;
+    } catch {
+      setState((prev) => ({
+        ...prev,
+        status: 'error',
+        error: 'Failed to run evaluation. Please try again.',
+      }));
+      return false;
+    }
+  }, [refreshInsightTokens]);
+
+  const confirmAiEvaluation = useCallback(async (canvasState, workspaceId, systemId) => {
+    setState((prev) => ({
+      ...prev,
+      status: 'awaiting_ai',
+      error: null,
+      geminiError: false,
+      tokenConsumed: false,
+      noTokens: false,
+    }));
+
+    try {
+      const response = await api.post('evaluation/ai/', {
         workspaceId,
         systemId,
         canvasState,
       });
-
       const data = response.data || {};
-      const runId = data.runId || null;
-      if (!runId) {
-        setState((prev) => ({
-          ...prev,
-          status: 'error',
-          error: 'Evaluation run could not be queued.',
-        }));
-        return;
-      }
-
       setState((prev) => ({
         ...prev,
-        runId,
-        status: data.status === 'running' ? 'awaiting_ai' : 'scoring',
-        workspaceTier: data.workspaceTier ?? prev.workspaceTier,
+        status: 'complete',
+        score: data.score ?? prev.score,
+        summary: data.summary ?? prev.summary,
+        results: Array.isArray(data.results) ? data.results : prev.results,
+        suggestions: data.suggestions ?? null,
+        insightTokensRemaining: data.insightTokensRemaining ?? prev.insightTokensRemaining,
+        dailyInsightTokens: data.dailyInsightTokens ?? prev.dailyInsightTokens,
+        tier: data.tier ?? data.workspaceTier ?? prev.tier,
+        seatCount: data.seatCount ?? prev.seatCount,
+        tokenConsumed: Boolean(data.tokenConsumed),
+        noTokens: false,
+        geminiError: false,
+        error: null,
       }));
-      pollRunStatus(runId);
     } catch (err) {
       const status = err?.response?.status;
       const data = err?.response?.data || {};
@@ -126,10 +119,31 @@ export function useEvaluation() {
         setState((prev) => ({
           ...prev,
           status: 'error',
-          error:
-            data.error === 'rate_limit'
-              ? 'Evaluation limit reached. Try again in a few minutes.'
-              : data.message || 'Evaluation request is temporarily throttled.',
+          error: 'Evaluation limit reached. Try again in a few minutes.',
+        }));
+        return;
+      }
+
+      if (data.error === 'NO_TOKENS') {
+        setState((prev) => ({
+          ...prev,
+          status: 'complete',
+          noTokens: true,
+          insightTokensRemaining: data.insightTokensRemaining ?? 0,
+          tokenConsumed: false,
+          error: data.message || 'You have no Insight Tokens remaining today. Tokens reset tomorrow.',
+        }));
+        return;
+      }
+
+      if (data.error === 'GEMINI_FAILED') {
+        setState((prev) => ({
+          ...prev,
+          status: 'complete',
+          geminiError: true,
+          insightTokensRemaining: data.insightTokensRemaining ?? prev.insightTokensRemaining,
+          tokenConsumed: false,
+          error: data.message || 'Could not reach AI service.',
         }));
         return;
       }
@@ -140,16 +154,26 @@ export function useEvaluation() {
         error: 'Evaluation request failed. Please try again.',
       }));
     }
-  }, [clearPollTimer, pollRunStatus]);
+  }, []);
+
+  const dismissAiConfirmation = useCallback(() => {
+    setState((prev) => ({
+      ...prev,
+      status: prev.summary ? 'complete' : 'idle',
+      error: null,
+    }));
+  }, []);
 
   const reset = useCallback(() => {
-    clearPollTimer();
     setState(INITIAL_STATE);
-  }, [clearPollTimer]);
+  }, []);
 
   return {
     ...state,
-    runEvaluation,
+    runRuleEvaluation,
+    confirmAiEvaluation,
+    dismissAiConfirmation,
+    refreshInsightTokens,
     reset,
   };
 }
