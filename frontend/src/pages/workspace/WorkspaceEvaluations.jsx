@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { Activity, AlertCircle, CheckCircle2, Clock3, RefreshCcw, XCircle } from 'lucide-react';
+import { Activity, AlertCircle, CheckCircle2, Clock3, RefreshCcw, X, XCircle } from 'lucide-react';
 import api from '../../api';
 import LoadingState from '../../components/LoadingState';
 import StructuredReport from '../../components/StructuredReport';
@@ -35,6 +35,7 @@ export default function WorkspaceEvaluations() {
   const [runs, setRuns] = useState([]);
   const [activeCount, setActiveCount] = useState(0);
   const [selectedRunId, setSelectedRunId] = useState(null);
+  const [isReportOpen, setIsReportOpen] = useState(false);
   const [error, setError] = useState('');
 
   const loadData = useCallback(async () => {
@@ -87,7 +88,7 @@ export default function WorkspaceEvaluations() {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">{workspace?.name || workspaceId} Evaluations</h1>
-          <p className="text-sm text-gray-500">Select an evaluation metadata button to open the full report.</p>
+          <p className="text-sm text-gray-500">Click any evaluation row to open its full report.</p>
         </div>
         <div className="flex items-center gap-2">
           <button
@@ -134,66 +135,88 @@ export default function WorkspaceEvaluations() {
           No evaluation runs yet. Trigger one from any system canvas.
         </div>
       ) : (
-        <>
-          <div className="grid grid-cols-1 gap-2 md:grid-cols-2 xl:grid-cols-3">
-            {runs.map((run) => {
-              const isActive = run.id === selectedRunId;
-              return (
-                <button
-                  key={run.id}
-                  type="button"
-                  onClick={() => setSelectedRunId(run.id)}
-                  className={`rounded-xl border p-3 text-left transition-colors ${
-                    isActive
-                      ? 'border-blue-300 bg-blue-50'
-                      : 'border-gray-200 bg-white hover:border-gray-300 hover:bg-gray-50'
-                  }`}
-                >
-                  <div className="flex items-center justify-between gap-2">
-                    <div className="inline-flex items-center gap-1.5 text-xs font-semibold text-gray-900">
-                      {statusIcon(run.status)}
-                      {statusLabel(run.status)}
-                    </div>
-                    <span className="text-[11px] text-gray-500">{formatTime(run.createdAt)}</span>
-                  </div>
-                  <div className="mt-2 grid grid-cols-2 gap-1 text-xs text-gray-700">
-                    <span>System: <strong>{run.systemId}</strong></span>
-                    <span>Score: <strong>{run.score ?? '—'}</strong></span>
-                    <span>Tier: <strong>{run.workspaceTier || '—'}</strong></span>
-                    <span>Tokens: <strong>{run.insightTokensRemaining ?? run.creditsRemaining ?? '—'}</strong></span>
-                  </div>
-                </button>
-              );
-            })}
-          </div>
-
-          {selectedRun && (
-            <section className="rounded-xl border border-gray-200 bg-white p-4">
+        <div className="space-y-2">
+          {runs.map((run) => (
+            <button
+              key={run.id}
+              type="button"
+              onClick={() => {
+                setSelectedRunId(run.id);
+                setIsReportOpen(true);
+              }}
+              className="w-full rounded-xl border border-gray-200 bg-white p-4 text-left transition-colors hover:border-gray-300 hover:bg-gray-50"
+            >
               <div className="flex flex-wrap items-center justify-between gap-2">
-                <div>
-                  <h2 className="text-lg font-semibold text-gray-900">Evaluation Report</h2>
-                  <p className="text-xs text-gray-500">Run: {selectedRun.id}</p>
+                <div className="inline-flex items-center gap-1.5 text-sm font-semibold text-gray-900">
+                  {statusIcon(run.status)}
+                  {statusLabel(run.status)}
                 </div>
-                <Link
-                  to={`/app/ws/${workspaceId}/systems/${selectedRun.systemId}`}
-                  className="inline-flex items-center rounded-md border border-gray-200 px-2.5 py-1.5 text-xs font-semibold text-gray-700 hover:bg-gray-50"
-                >
-                  Open System
-                </Link>
+                <span className="text-xs text-gray-500">{formatTime(run.createdAt)}</span>
+              </div>
+              <div className="mt-2 grid grid-cols-2 gap-2 text-xs text-gray-700 md:grid-cols-4">
+                <span>System: <strong>{run.systemId}</strong></span>
+                <span>Score: <strong>{run.score ?? '—'}</strong></span>
+                <span>Tier: <strong>{run.workspaceTier || '—'}</strong></span>
+                <span>Tokens: <strong>{run.insightTokensRemaining ?? run.creditsRemaining ?? '—'}</strong></span>
+              </div>
+            </button>
+          ))}
+        </div>
+      )}
+
+      {isReportOpen && selectedRun && (
+        <div
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/45 p-4 backdrop-blur-sm"
+          onClick={() => setIsReportOpen(false)}
+        >
+          <div
+            className="max-h-[88vh] w-full max-w-5xl overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-2xl"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="flex items-start justify-between border-b border-gray-200 px-5 py-4">
+              <div>
+                <h2 className="text-lg font-semibold text-gray-900">Evaluation Report</h2>
+                <p className="text-xs text-gray-500">Run: {selectedRun.id}</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsReportOpen(false)}
+                className="rounded-lg border border-gray-200 p-1.5 text-gray-500 hover:bg-gray-50 hover:text-gray-700"
+                aria-label="Close report modal"
+              >
+                <X size={14} />
+              </button>
+            </div>
+
+            <div className="max-h-[calc(88vh-72px)] space-y-3 overflow-y-auto p-5">
+              <div className="grid grid-cols-2 gap-2 text-xs text-gray-700 md:grid-cols-4">
+                <div className="rounded-lg bg-gray-50 p-2">Status: <strong>{statusLabel(selectedRun.status)}</strong></div>
+                <div className="rounded-lg bg-gray-50 p-2">System: <strong>{selectedRun.systemId}</strong></div>
+                <div className="rounded-lg bg-gray-50 p-2">Score: <strong>{selectedRun.score ?? '—'}</strong></div>
+                <div className="rounded-lg bg-gray-50 p-2">Tier: <strong>{selectedRun.workspaceTier || '—'}</strong></div>
               </div>
 
               {selectedRun.error && (
-                <div className="mt-3 rounded-lg border border-red-200 bg-red-50 p-2.5 text-xs text-red-700">
+                <div className="rounded-lg border border-red-200 bg-red-50 p-2.5 text-xs text-red-700">
                   {selectedRun.error}
                 </div>
               )}
 
-              <div className="mt-3 rounded-lg border border-gray-200 bg-gray-50 p-4">
+              <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
                 <StructuredReport text={selectedRun.suggestions || 'No AI report was generated for this evaluation run.'} />
               </div>
-            </section>
-          )}
-        </>
+
+              <div className="flex justify-end">
+                <Link
+                  to={`/app/ws/${workspaceId}/systems/${selectedRun.systemId}`}
+                  className="inline-flex items-center rounded-md border border-gray-200 px-3 py-2 text-xs font-semibold text-gray-700 hover:bg-gray-50"
+                >
+                  Open System
+                </Link>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
