@@ -9,16 +9,31 @@ from rest_framework.exceptions import PermissionDenied
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from canvases.evaluation_service import resolve_workspace_tier, run_evaluation_job
+from canvases.evaluation_service import (
+    call_gemini_for_prompt,
+    evaluate_canvas_state,
+    resolve_workspace_tier,
+    run_evaluation_job,
+)
 from canvases.models import Canvas
 from canvases.sqs_publisher import publish_evaluation_job
 from permissions.checks import user_has_system_read_access
 from permissions.models import WorkspaceMember
-from workspaces.models import EvaluationRun, Workspace
+from workspaces.models import EvaluationLog, EvaluationRun, Workspace
 from workspaces.credit_service import (
     CreditExhaustedError,
     TeamSoftThrottleError,
     claim_ai_credit,
+)
+from workspaces.middleware.check_insight_tokens import (
+    WorkspaceAiRateLimitError,
+    enforce_workspace_hourly_ai_limit,
+)
+from workspaces.services.insight_token_service import (
+    NoInsightTokensError,
+    consume_insight_token_after_success,
+    ensure_workspace_has_insight_tokens,
+    get_workspace_insight_token_status,
 )
 HOURLY_WORKSPACE_EVALUATION_LIMIT = 10
 
@@ -38,6 +53,14 @@ class EvaluateRequestSerializer(serializers.Serializer):
         return value
 
 
+class InsightTokenStatusRequestSerializer(serializers.Serializer):
+    workspaceId = serializers.CharField(max_length=8)
+
+
+class AIEvaluationRequestSerializer(EvaluateRequestSerializer):
+    pass
+
+
 def _serialize_run(run):
     return {
         'id': str(run.id),
@@ -51,6 +74,8 @@ def _serialize_run(run):
         'suggestions': run.suggestions,
         'creditsExhausted': run.credits_exhausted,
         'creditsRemaining': run.credits_remaining,
+        'insightTokenConsumed': run.insight_token_consumed,
+        'insightTokensRemaining': run.insight_tokens_remaining,
         'geminiError': run.gemini_error,
         'error': run.error_message or None,
         'createdAt': run.created_at,
@@ -147,6 +172,315 @@ class EvaluateAPIView(APIView):
             worker.start()
 
         return Response({'runId': str(run.id)}, status=status.HTTP_202_ACCEPTED)
+
+
+class InsightTokenStatusAPIView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        serializer = InsightTokenStatusRequestSerializer(data=request.query_params)
+        serializer.is_valid(raise_exception=True)
+
+        workspace_id = serializer.validated_data['workspaceId']
+        workspace = get_object_or_404(Workspace.objects.select_related('owner'), id=workspace_id)
+
+        is_member = WorkspaceMember.objects.filter(workspace=workspace, user=request.user).exists()
+        if not is_member:
+            raise PermissionDenied('You do not have permission to access this workspace.')
+
+        token_state = get_workspace_insight_token_status(workspace_id=workspace.id)
+        return Response(token_state, status=status.HTTP_200_OK)
+
+
+class AIEvaluationAPIView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request):
+        serializer = AIEvaluationRequestSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        workspace_id = serializer.validated_data['workspaceId']
+        system_id = serializer.validated_data['systemId']
+        canvas_state = serializer.validated_data['canvasState']
+
+        workspace = get_object_or_404(Workspace.objects.select_related('owner'), id=workspace_id)
+        system = get_object_or_404(Canvas, id=system_id, workspace=workspace)
+
+        is_member = WorkspaceMember.objects.filter(workspace=workspace, user=request.user).exists()
+        if not is_member or not user_has_system_read_access(system, request.user):
+            raise PermissionDenied('You do not have permission to evaluate this system.')
+
+        now = timezone.now()
+        try:
+            enforce_workspace_hourly_ai_limit(workspace_id=workspace.id, now=now)
+        except WorkspaceAiRateLimitError as exc:
+            return Response(
+                {'error': 'RATE_LIMIT', 'retryAfterSeconds': exc.retry_after_seconds},
+                status=status.HTTP_429_TOO_MANY_REQUESTS,
+            )
+
+        workspace_tier = resolve_workspace_tier(workspace)
+        engine_payload = evaluate_canvas_state(canvas_state, workspace_tier)
+        results = engine_payload['results']
+        summary = engine_payload['summary']
+        score = engine_payload['score']
+        prompt = engine_payload['prompt']
+
+        run = EvaluationRun.objects.create(
+            workspace=workspace,
+            system_id=system.id,
+            user=request.user,
+            workspace_tier=workspace_tier,
+            canvas_state=canvas_state,
+            status=EvaluationRun.Status.RUNNING,
+            started_at=now,
+        )
+
+        failed_count = int(summary.get('failed', 0) or 0)
+        if failed_count == 0:
+            token_state = get_workspace_insight_token_status(workspace_id=workspace.id, now=now)
+            suggestions = 'Your architecture passes all applicable rules. No improvements to suggest.'
+
+            EvaluationLog.objects.create(
+                workspace=workspace,
+                system_id=system.id,
+                user=request.user,
+                workspace_tier=workspace_tier,
+                score=score,
+                rules_evaluated=int(summary.get('applicable', 0) or 0),
+                rules_passed=int(summary.get('passed', 0) or 0),
+                credit_consumed=False,
+            )
+
+            run.status = EvaluationRun.Status.COMPLETED
+            run.score = score
+            run.summary = summary
+            run.results = results
+            run.suggestions = suggestions
+            run.credits_exhausted = False
+            run.credits_remaining = token_state['insightTokensRemaining']
+            run.insight_token_consumed = False
+            run.insight_tokens_remaining = token_state['insightTokensRemaining']
+            run.gemini_error = False
+            run.error_message = ''
+            run.completed_at = timezone.now()
+            run.save(
+                update_fields=[
+                    'status',
+                    'score',
+                    'summary',
+                    'results',
+                    'suggestions',
+                    'credits_exhausted',
+                    'credits_remaining',
+                    'insight_token_consumed',
+                    'insight_tokens_remaining',
+                    'gemini_error',
+                    'error_message',
+                    'completed_at',
+                ]
+            )
+
+            return Response(
+                {
+                    'runId': str(run.id),
+                    'workspaceTier': workspace_tier,
+                    'score': score,
+                    'summary': summary,
+                    'results': results,
+                    'suggestions': suggestions,
+                    'tokenConsumed': False,
+                    **token_state,
+                },
+                status=status.HTTP_200_OK,
+            )
+
+        try:
+            ensure_workspace_has_insight_tokens(workspace_id=workspace.id, now=now)
+        except NoInsightTokensError as exc:
+            run.status = EvaluationRun.Status.FAILED
+            run.score = score
+            run.summary = summary
+            run.results = results
+            run.suggestions = None
+            run.credits_exhausted = True
+            run.credits_remaining = 0
+            run.insight_token_consumed = False
+            run.insight_tokens_remaining = 0
+            run.gemini_error = False
+            run.error_message = str(exc)
+            run.completed_at = timezone.now()
+            run.save(
+                update_fields=[
+                    'status',
+                    'score',
+                    'summary',
+                    'results',
+                    'suggestions',
+                    'credits_exhausted',
+                    'credits_remaining',
+                    'insight_token_consumed',
+                    'insight_tokens_remaining',
+                    'gemini_error',
+                    'error_message',
+                    'completed_at',
+                ]
+            )
+            return Response(
+                {
+                    'error': 'NO_TOKENS',
+                    'message': str(exc),
+                    'workspaceTier': workspace_tier,
+                    'score': score,
+                    'summary': summary,
+                    'results': results,
+                    'insightTokensRemaining': 0,
+                },
+                status=status.HTTP_402_PAYMENT_REQUIRED,
+            )
+
+        suggestions, gemini_error = call_gemini_for_prompt(prompt)
+        if gemini_error or not suggestions:
+            token_state = get_workspace_insight_token_status(workspace_id=workspace.id, now=timezone.now())
+            run.status = EvaluationRun.Status.COMPLETED
+            run.score = score
+            run.summary = summary
+            run.results = results
+            run.suggestions = None
+            run.credits_exhausted = False
+            run.credits_remaining = token_state['insightTokensRemaining']
+            run.insight_token_consumed = False
+            run.insight_tokens_remaining = token_state['insightTokensRemaining']
+            run.gemini_error = True
+            run.error_message = 'Could not reach AI service.'
+            run.completed_at = timezone.now()
+            run.save(
+                update_fields=[
+                    'status',
+                    'score',
+                    'summary',
+                    'results',
+                    'suggestions',
+                    'credits_exhausted',
+                    'credits_remaining',
+                    'insight_token_consumed',
+                    'insight_tokens_remaining',
+                    'gemini_error',
+                    'error_message',
+                    'completed_at',
+                ]
+            )
+
+            return Response(
+                {
+                    'error': 'GEMINI_FAILED',
+                    'message': 'Could not reach AI service.',
+                    'workspaceTier': workspace_tier,
+                    'score': score,
+                    'summary': summary,
+                    'results': results,
+                    **token_state,
+                },
+                status=status.HTTP_503_SERVICE_UNAVAILABLE,
+            )
+
+        try:
+            token_state = consume_insight_token_after_success(workspace_id=workspace.id, now=timezone.now())
+        except NoInsightTokensError as exc:
+            run.status = EvaluationRun.Status.FAILED
+            run.score = score
+            run.summary = summary
+            run.results = results
+            run.suggestions = None
+            run.credits_exhausted = True
+            run.credits_remaining = 0
+            run.insight_token_consumed = False
+            run.insight_tokens_remaining = 0
+            run.gemini_error = False
+            run.error_message = str(exc)
+            run.completed_at = timezone.now()
+            run.save(
+                update_fields=[
+                    'status',
+                    'score',
+                    'summary',
+                    'results',
+                    'suggestions',
+                    'credits_exhausted',
+                    'credits_remaining',
+                    'insight_token_consumed',
+                    'insight_tokens_remaining',
+                    'gemini_error',
+                    'error_message',
+                    'completed_at',
+                ]
+            )
+            return Response(
+                {
+                    'error': 'NO_TOKENS',
+                    'message': str(exc),
+                    'workspaceTier': workspace_tier,
+                    'score': score,
+                    'summary': summary,
+                    'results': results,
+                    'insightTokensRemaining': 0,
+                },
+                status=status.HTTP_402_PAYMENT_REQUIRED,
+            )
+
+        EvaluationLog.objects.create(
+            workspace=workspace,
+            system_id=system.id,
+            user=request.user,
+            workspace_tier=workspace_tier,
+            score=score,
+            rules_evaluated=int(summary.get('applicable', 0) or 0),
+            rules_passed=int(summary.get('passed', 0) or 0),
+            credit_consumed=True,
+        )
+
+        run.status = EvaluationRun.Status.COMPLETED
+        run.score = score
+        run.summary = summary
+        run.results = results
+        run.suggestions = suggestions
+        run.credits_exhausted = False
+        run.credits_remaining = token_state['insightTokensRemaining']
+        run.insight_token_consumed = True
+        run.insight_tokens_remaining = token_state['insightTokensRemaining']
+        run.gemini_error = False
+        run.error_message = ''
+        run.completed_at = timezone.now()
+        run.save(
+            update_fields=[
+                'status',
+                'score',
+                'summary',
+                'results',
+                'suggestions',
+                'credits_exhausted',
+                'credits_remaining',
+                'insight_token_consumed',
+                'insight_tokens_remaining',
+                'gemini_error',
+                'error_message',
+                'completed_at',
+            ]
+        )
+
+        return Response(
+            {
+                'runId': str(run.id),
+                'workspaceTier': workspace_tier,
+                'score': score,
+                'summary': summary,
+                'results': results,
+                'suggestions': suggestions,
+                'tokenConsumed': True,
+                **token_state,
+            },
+            status=status.HTTP_200_OK,
+        )
 
 
 class EvaluationRunStatusAPIView(APIView):

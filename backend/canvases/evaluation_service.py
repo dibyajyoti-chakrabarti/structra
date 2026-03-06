@@ -10,7 +10,6 @@ from django.db import close_old_connections
 from django.utils import timezone
 
 from canvases.models import Canvas
-from workspaces.credit_service import ensure_workspace_credit_state
 from workspaces.models import EvaluationLog, EvaluationRun
 
 logger = logging.getLogger(__name__)
@@ -55,6 +54,20 @@ def _run_rule_engine(canvas_state, workspace_tier):
         raise RuntimeError('Invalid rule engine response.') from exc
 
 
+def evaluate_canvas_state(canvas_state, workspace_tier):
+    engine_payload = _run_rule_engine(canvas_state, workspace_tier)
+    results = engine_payload.get('results', [])
+    summary = engine_payload.get('summary', {})
+    score = int(engine_payload.get('score', summary.get('score', 0) or 0))
+    prompt = engine_payload.get('prompt', '')
+    return {
+        'results': results,
+        'summary': summary,
+        'score': score,
+        'prompt': prompt,
+    }
+
+
 def _call_gemini(prompt, api_key, model_name):
     if not api_key:
         return None, True
@@ -86,6 +99,12 @@ def _call_gemini(prompt, api_key, model_name):
         .get('text')
     )
     return suggestions, False
+
+
+def call_gemini_for_prompt(prompt):
+    api_key = os.getenv('GEMINI_API_KEY', '')
+    gemini_model = os.getenv('GEMINI_MODEL', DEFAULT_GEMINI_MODEL)
+    return _call_gemini(prompt, api_key, gemini_model)
 
 
 def mark_run_failed(run_id, exc):
@@ -120,13 +139,11 @@ def run_evaluation_job(run, canvas_state):
             raise RuntimeError('System not found for this evaluation run.')
 
         workspace_tier = run.workspace_tier or resolve_workspace_tier(workspace)
-        ensure_workspace_credit_state(workspace)
-
-        engine_payload = _run_rule_engine(canvas_state or run.canvas_state or {}, workspace_tier)
-        results = engine_payload.get('results', [])
-        summary = engine_payload.get('summary', {})
-        score = int(engine_payload.get('score', summary.get('score', 0) or 0))
-        prompt = engine_payload.get('prompt', '')
+        engine_payload = evaluate_canvas_state(canvas_state or run.canvas_state or {}, workspace_tier)
+        results = engine_payload['results']
+        summary = engine_payload['summary']
+        score = engine_payload['score']
+        prompt = engine_payload['prompt']
 
         failed_count = int(summary.get('failed', 0) or 0)
         credits_remaining = int(run.credits_remaining or 0)
@@ -136,9 +153,7 @@ def run_evaluation_job(run, canvas_state):
         if failed_count == 0:
             suggestions = 'Your architecture passes all applicable rules. No improvements to suggest.'
         else:
-            api_key = os.getenv('GEMINI_API_KEY', '')
-            gemini_model = os.getenv('GEMINI_MODEL', DEFAULT_GEMINI_MODEL)
-            suggestions, gemini_error = _call_gemini(prompt, api_key, gemini_model)
+            suggestions, gemini_error = call_gemini_for_prompt(prompt)
 
         EvaluationLog.objects.create(
             workspace=workspace,

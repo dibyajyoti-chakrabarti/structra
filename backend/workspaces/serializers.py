@@ -10,6 +10,11 @@ from core.pricing import (
     normalize_plan,
 )
 from payments.seat_utils import get_billable_seat_snapshot
+from workspaces.services.insight_token_service import (
+    get_daily_insight_tokens,
+    get_workspace_seat_count,
+    get_workspace_tier,
+)
 
 class WorkspaceSerializer(serializers.ModelSerializer):
     owner_name = serializers.ReadOnlyField(source='owner.full_name')
@@ -25,6 +30,11 @@ class WorkspaceSerializer(serializers.ModelSerializer):
     billing_estimate_inr = serializers.SerializerMethodField()
     active_evaluation_count = serializers.SerializerMethodField()
     total_evaluation_count = serializers.SerializerMethodField()
+    tier = serializers.SerializerMethodField()
+    seatCount = serializers.SerializerMethodField()
+    dailyInsightTokens = serializers.SerializerMethodField()
+    insightTokensRemaining = serializers.SerializerMethodField()
+    lastTokenResetDate = serializers.SerializerMethodField()
 
     class Meta:
         model = Workspace
@@ -47,6 +57,11 @@ class WorkspaceSerializer(serializers.ModelSerializer):
             'billing_estimate_inr',
             'active_evaluation_count',
             'total_evaluation_count',
+            'tier',
+            'seatCount',
+            'dailyInsightTokens',
+            'insightTokensRemaining',
+            'lastTokenResetDate',
             'created_at',
             'updated_at',
         ]
@@ -129,6 +144,22 @@ class WorkspaceSerializer(serializers.ModelSerializer):
 
     def get_total_evaluation_count(self, obj):
         return obj.evaluation_runs.count()
+
+    def get_tier(self, obj):
+        return get_workspace_tier(obj)
+
+    def get_seatCount(self, obj):
+        return get_workspace_seat_count(obj)
+
+    def get_dailyInsightTokens(self, obj):
+        return int(obj.daily_insight_tokens or get_daily_insight_tokens(obj))
+
+    def get_insightTokensRemaining(self, obj):
+        default_allocation = get_daily_insight_tokens(obj)
+        return int(obj.insight_tokens_remaining if obj.insight_tokens_remaining is not None else default_allocation)
+
+    def get_lastTokenResetDate(self, obj):
+        return obj.last_token_reset_date
 
 
 class PublicWorkspaceSerializer(serializers.ModelSerializer):

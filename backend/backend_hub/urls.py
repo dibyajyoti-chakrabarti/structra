@@ -1,7 +1,12 @@
 from django.contrib import admin
 from django.urls import path, include
 from core.views import health_check
-from canvases.evaluation_views import EvaluateAPIView, EvaluationRunStatusAPIView
+from canvases.evaluation_views import (
+    AIEvaluationAPIView,
+    EvaluateAPIView,
+    EvaluationRunStatusAPIView,
+    InsightTokenStatusAPIView,
+)
 
 urlpatterns = [
     path('admin/', admin.site.urls),
@@ -18,4 +23,6 @@ urlpatterns = [
     path('api/systems/', include('canvases.system_urls')),
     path('api/evaluate/', EvaluateAPIView.as_view(), name='system-evaluate'),
     path('api/evaluate/<uuid:run_id>/', EvaluationRunStatusAPIView.as_view(), name='system-evaluate-status'),
+    path('api/evaluation/ai/', AIEvaluationAPIView.as_view(), name='system-ai-evaluate'),
+    path('api/evaluation/insight-tokens/', InsightTokenStatusAPIView.as_view(), name='workspace-insight-token-status'),
 ]
