@@ -66,3 +66,42 @@ class InsightTokenServiceTests(TestCase):
         workspace.refresh_from_db()
 
         self.assertEqual(workspace.insight_tokens_remaining, 2)
+
+    def test_core_tokens_are_shared_across_owner_workspaces(self):
+        owner, workspace_a = self._make_workspace('CORE')
+        workspace_b = Workspace.objects.create(name='CORE Insight Workspace B', owner=owner)
+        WorkspaceMember.objects.create(
+            workspace=workspace_b,
+            user=owner,
+            role=WorkspaceRole.ADMIN,
+            joined_at=timezone.now(),
+        )
+
+        ensure_workspace_insight_token_state(workspace_a, now=timezone.now(), force_reset=True)
+        consume_insight_token_after_success(workspace_id=workspace_a.id, now=timezone.now())
+
+        workspace_a.refresh_from_db()
+        workspace_b.refresh_from_db()
+
+        self.assertEqual(workspace_a.insight_tokens_remaining, 2)
+        self.assertEqual(workspace_b.insight_tokens_remaining, 2)
+
+    def test_team_tokens_remain_workspace_scoped(self):
+        owner, workspace_a = self._make_workspace('TEAM')
+        workspace_b = Workspace.objects.create(name='TEAM Insight Workspace B', owner=owner)
+        WorkspaceMember.objects.create(
+            workspace=workspace_b,
+            user=owner,
+            role=WorkspaceRole.ADMIN,
+            joined_at=timezone.now(),
+        )
+
+        ensure_workspace_insight_token_state(workspace_a, now=timezone.now(), force_reset=True)
+        ensure_workspace_insight_token_state(workspace_b, now=timezone.now(), force_reset=True)
+        consume_insight_token_after_success(workspace_id=workspace_a.id, now=timezone.now())
+
+        workspace_a.refresh_from_db()
+        workspace_b.refresh_from_db()
+
+        self.assertEqual(workspace_a.insight_tokens_remaining, workspace_a.daily_insight_tokens - 1)
+        self.assertEqual(workspace_b.insight_tokens_remaining, workspace_b.daily_insight_tokens)

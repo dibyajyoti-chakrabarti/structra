@@ -16,6 +16,56 @@ class NoInsightTokensError(RuntimeError):
     pass
 
 
+def _uses_owner_shared_pool(workspace: Workspace) -> bool:
+    tier = get_workspace_tier(workspace)
+    return tier in {'core', 'individual'}
+
+
+def _sync_owner_shared_pool(workspace: Workspace, *, allocation: int, today, force_reset=False) -> Workspace:
+    owner_id = getattr(workspace, 'owner_id', None)
+    if owner_id is None:
+        return workspace
+
+    owner_workspaces = list(
+        Workspace.all_objects.filter(owner_id=owner_id).order_by('created_at')
+    )
+    if not owner_workspaces:
+        return workspace
+
+    should_reset = force_reset or any(ws.last_token_reset_date != today for ws in owner_workspaces)
+    if should_reset:
+        authoritative_remaining = allocation
+    else:
+        authoritative_remaining = min(
+            int(ws.insight_tokens_remaining if ws.insight_tokens_remaining is not None else allocation)
+            for ws in owner_workspaces
+        )
+
+    dirty = False
+    for ws in owner_workspaces:
+        if ws.daily_insight_tokens != allocation:
+            dirty = True
+            break
+        if ws.insight_tokens_remaining != authoritative_remaining:
+            dirty = True
+            break
+        if ws.last_token_reset_date != today:
+            dirty = True
+            break
+
+    if dirty:
+        Workspace.all_objects.filter(owner_id=owner_id).update(
+            daily_insight_tokens=allocation,
+            insight_tokens_remaining=authoritative_remaining,
+            last_token_reset_date=today,
+        )
+
+    workspace.daily_insight_tokens = allocation
+    workspace.insight_tokens_remaining = authoritative_remaining
+    workspace.last_token_reset_date = today
+    return workspace
+
+
 def get_workspace_tier(workspace: Workspace) -> str:
     owner = getattr(workspace, 'owner', None)
     return normalize_plan(getattr(owner, 'current_plan', PLAN_CORE)).lower()
@@ -45,6 +95,14 @@ def ensure_workspace_insight_token_state(workspace: Workspace, *, now=None, forc
     now = now or timezone.now()
     today = timezone.localdate(now)
     allocation = get_daily_insight_tokens(workspace)
+
+    if _uses_owner_shared_pool(workspace):
+        return _sync_owner_shared_pool(
+            workspace,
+            allocation=allocation,
+            today=today,
+            force_reset=force_reset,
+        )
 
     fields_to_update = []
 
@@ -77,6 +135,7 @@ def get_workspace_insight_token_status(*, workspace_id, now=None):
 
     return {
         'tier': get_workspace_tier(workspace),
+        'tokenScope': 'owner' if _uses_owner_shared_pool(workspace) else 'workspace',
         'seatCount': get_workspace_seat_count(workspace),
         'dailyInsightTokens': int(workspace.daily_insight_tokens or 0),
         'insightTokensRemaining': int(workspace.insight_tokens_remaining or 0),
@@ -90,6 +149,8 @@ def ensure_workspace_has_insight_tokens(*, workspace_id, now=None):
         workspace = (
             Workspace.all_objects.select_related('owner').select_for_update().get(id=workspace_id)
         )
+        if _uses_owner_shared_pool(workspace):
+            list(Workspace.all_objects.select_for_update().filter(owner_id=workspace.owner_id).only('id'))
         workspace = ensure_workspace_insight_token_state(workspace, now=now)
         remaining = int(workspace.insight_tokens_remaining or 0)
         if remaining <= 0:
@@ -99,6 +160,7 @@ def ensure_workspace_has_insight_tokens(*, workspace_id, now=None):
 
         return {
             'tier': get_workspace_tier(workspace),
+            'tokenScope': 'owner' if _uses_owner_shared_pool(workspace) else 'workspace',
             'seatCount': get_workspace_seat_count(workspace),
             'dailyInsightTokens': int(workspace.daily_insight_tokens or 0),
             'insightTokensRemaining': remaining,
@@ -112,6 +174,8 @@ def consume_insight_token_after_success(*, workspace_id, now=None):
         workspace = (
             Workspace.all_objects.select_related('owner').select_for_update().get(id=workspace_id)
         )
+        if _uses_owner_shared_pool(workspace):
+            list(Workspace.all_objects.select_for_update().filter(owner_id=workspace.owner_id).only('id'))
         workspace = ensure_workspace_insight_token_state(workspace, now=now)
 
         remaining = int(workspace.insight_tokens_remaining or 0)
@@ -120,11 +184,19 @@ def consume_insight_token_after_success(*, workspace_id, now=None):
                 'You have no Insight Tokens remaining today. Tokens reset tomorrow.'
             )
 
-        workspace.insight_tokens_remaining = remaining - 1
-        workspace.save(update_fields=['insight_tokens_remaining', 'updated_at'])
+        next_remaining = remaining - 1
+        if _uses_owner_shared_pool(workspace):
+            Workspace.all_objects.filter(owner_id=workspace.owner_id).update(
+                insight_tokens_remaining=next_remaining
+            )
+            workspace.insight_tokens_remaining = next_remaining
+        else:
+            workspace.insight_tokens_remaining = next_remaining
+            workspace.save(update_fields=['insight_tokens_remaining', 'updated_at'])
 
         return {
             'tier': get_workspace_tier(workspace),
+            'tokenScope': 'owner' if _uses_owner_shared_pool(workspace) else 'workspace',
             'seatCount': get_workspace_seat_count(workspace),
             'dailyInsightTokens': int(workspace.daily_insight_tokens or 0),
             'insightTokensRemaining': int(workspace.insight_tokens_remaining or 0),
