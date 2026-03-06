@@ -515,10 +515,16 @@ export const WorkspaceOverview = () => {
     return (m.full_name || "").toLowerCase().includes(q) || (m.email || "").toLowerCase().includes(q);
   });
 
+  const workspacePlan = (workspace.effective_plan || "").toUpperCase();
+  const isTeamWorkspaceAdmin = Boolean(workspace.is_admin && workspacePlan === "TEAM");
+  const activeSeatCount = Number(workspace.seat_count || Math.max(workspace.member_count || 1, 1));
+  const purchasedSeatCount = Number(workspace.purchased_seat_count || 1);
   const stats = [
     { label: "Total Systems", value: systems.length },
     { label: "Active Evaluations", value: workspace.active_evaluation_count || 0 },
-    { label: "Team Members", value: workspace.member_count || 1 },
+    isTeamWorkspaceAdmin
+      ? { label: "Seats Active", value: `${activeSeatCount}/${purchasedSeatCount}` }
+      : { label: "Team Members", value: workspace.member_count || 1 },
   ];
 
   return (

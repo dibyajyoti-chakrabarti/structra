@@ -177,8 +177,11 @@ const TeamSettings = () => {
   }, [fetchMembers, fetchPending, fetchWorkspaceMeta]);
 
   const seatCount = workspaceMeta?.seat_count ?? Math.max(members.length, 1);
+  const purchasedSeatCount = workspaceMeta?.purchased_seat_count ?? 1;
   const billingEstimate = workspaceMeta?.billing_estimate_inr;
   const memberLimit = workspaceMeta?.member_limit;
+  const workspacePlan = (workspaceMeta?.effective_plan || '').toUpperCase();
+  const showSeatRatio = isAdmin && workspacePlan === 'TEAM';
 
   useEffect(() => { refresh(); }, [refresh]);
 
@@ -263,11 +266,13 @@ const TeamSettings = () => {
 
       <h2 className="ts-page-title">Team Members</h2>
       <p className="ts-page-sub">Manage access permissions and roles for your workspace.</p>
-      <p className="ts-page-sub" style={{ marginTop: "-18px", marginBottom: "18px" }}>
-        {`Seats active: ${seatCount}${billingEstimate ? ` — ₹${billingEstimate}/month` : ""}${
-          memberLimit != null ? ` • Member limit: ${memberLimit}` : ""
-        }`}
-      </p>
+      {isAdmin && (
+        <p className="ts-page-sub" style={{ marginTop: "-18px", marginBottom: "18px" }}>
+          {`Seats active: ${showSeatRatio ? `${seatCount}/${purchasedSeatCount}` : seatCount}${billingEstimate ? ` — ₹${billingEstimate}/month` : ""}${
+            memberLimit != null ? ` • Member limit: ${memberLimit}` : ""
+          }`}
+        </p>
+      )}
 
       {message && (
         <div className="ts-feedback success">

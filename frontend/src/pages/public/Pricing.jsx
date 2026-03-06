@@ -4,6 +4,7 @@ import { CheckCircle2, ArrowRight } from "lucide-react";
 import Navbar from "../../components/Navbar";
 import Footer from "../../components/Footer";
 import useRazorpayCheckout from "../../hooks/useRazorpayCheckout";
+import CheckoutSummaryModal from "../../components/payments/CheckoutSummaryModal";
 import PaymentSuccessOverlay from "../../components/payments/PaymentSuccessOverlay";
 import { useAuth } from "../../contexts/AuthContext";
 
@@ -60,10 +61,10 @@ const plans = [
       "Overage toggle: ₹4/credit",
       "Real-time co-editing + governance",
       "Version history (90 days)",
-      "Unlimited members",
+      "Invite members up to purchased seat count",
       "Priority email support",
     ],
-    note: "Typically ₹698+/month for a 2-person team",
+    note: "Starts at ₹698/month for 2 prepaid seats",
   },
   {
     name: "ENTERPRISE",
@@ -97,6 +98,9 @@ export default function Pricing() {
   } = useRazorpayCheckout();
   const [paymentStatus, setPaymentStatus] = useState("idle");
   const [statusMessage, setStatusMessage] = useState("");
+  const [isCheckoutSummaryOpen, setIsCheckoutSummaryOpen] = useState(false);
+  const [checkoutPlan, setCheckoutPlan] = useState(null);
+  const [checkoutQuantity, setCheckoutQuantity] = useState(2);
   const isAuthenticated = Boolean(localStorage.getItem("access"));
   const currentPlan = isAuthenticated
     ? (user?.current_plan || "CORE").toUpperCase()
@@ -105,6 +109,38 @@ export default function Pricing() {
   const closePaymentModal = () => {
     setPaymentStatus("idle");
     setStatusMessage("");
+  };
+
+  const openCheckoutSummary = (planName) => {
+    const normalizedPlan = (planName || "INDIVIDUAL").toUpperCase();
+    setCheckoutPlan(normalizedPlan);
+    setCheckoutQuantity(normalizedPlan === "TEAM" ? 2 : 1);
+    setPaymentStatus("idle");
+    setStatusMessage("");
+    setIsCheckoutSummaryOpen(true);
+  };
+
+  const closeCheckoutSummary = () => {
+    if (isCheckoutLoading) return;
+    setIsCheckoutSummaryOpen(false);
+  };
+
+  const handleProceedToPayment = async () => {
+    if (!checkoutPlan) return;
+    const resolvedQuantity =
+      checkoutPlan === "TEAM" ? Math.max(Number(checkoutQuantity) || 1, 1) : 1;
+
+    setIsCheckoutSummaryOpen(false);
+    setPaymentStatus("processing");
+    setStatusMessage("Opening secure checkout...");
+    const result = await startCheckout(checkoutPlan, resolvedQuantity);
+    if ((result?.status || "failed") === "failed") {
+      setPaymentStatus("failed");
+      setStatusMessage(result?.message || "Unable to complete checkout.");
+    } else {
+      setPaymentStatus("idle");
+      setStatusMessage("");
+    }
   };
 
   const handlePlanCta = async (planName) => {
@@ -128,17 +164,7 @@ export default function Pricing() {
         setStatusMessage("Please log in first to continue with payment.");
         return;
       }
-
-      setPaymentStatus("processing");
-      setStatusMessage("Opening secure checkout...");
-      const result = await startCheckout(normalizedPlan);
-      if ((result?.status || "failed") === "failed") {
-        setPaymentStatus("failed");
-        setStatusMessage(result?.message || "Unable to complete checkout.");
-      } else {
-        setPaymentStatus("idle");
-        setStatusMessage("");
-      }
+      openCheckoutSummary(normalizedPlan);
       return;
     }
 
@@ -291,8 +317,8 @@ export default function Pricing() {
                 How does Team billing work?
               </h4>
               <p className="mt-2 text-sm leading-relaxed text-slate-600">
-                Team bills per active seat. Pricing previews default to a
-                2-person estimate so expected monthly cost is visible upfront.
+                Team billing is prepaid. You choose seat quantity at checkout,
+                and invite capacity follows that purchased seat count.
               </p>
             </div>
             <div className="rounded-xl border border-slate-200 bg-slate-50 p-5">
@@ -377,6 +403,15 @@ export default function Pricing() {
       <PaymentSuccessOverlay
         open={showSuccessOverlay}
         message={successOverlayMessage}
+      />
+      <CheckoutSummaryModal
+        open={isCheckoutSummaryOpen}
+        planName={checkoutPlan}
+        quantity={checkoutQuantity}
+        onQuantityChange={setCheckoutQuantity}
+        onClose={closeCheckoutSummary}
+        onProceed={handleProceedToPayment}
+        isProcessing={isCheckoutLoading}
       />
 
       <Footer />

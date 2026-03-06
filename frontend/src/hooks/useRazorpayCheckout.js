@@ -48,7 +48,7 @@ export default function useRazorpayCheckout() {
   }, []);
 
   const startCheckout = useCallback(
-    async (planName = DEFAULT_PLAN_NAME) => {
+    async (planName = DEFAULT_PLAN_NAME, quantity = 1) => {
       if (isLoading) {
         return {
           status: "failed",
@@ -72,6 +72,7 @@ export default function useRazorpayCheckout() {
         const normalizedTargetPlan = normalizePlan(planName);
         const createCheckoutResponse = await api.post("payments/checkout/", {
           plan_name: normalizedTargetPlan,
+          quantity,
         });
 
         const {
@@ -99,7 +100,7 @@ export default function useRazorpayCheckout() {
             theme: {
               color: "#2563eb",
             },
-            handler: async () => {
+            handler: async (razorpayResponse) => {
               if (!settleOnce()) return;
 
               const overlayStartedAt = Date.now();
@@ -107,10 +108,34 @@ export default function useRazorpayCheckout() {
               setShowSuccessOverlay(true);
 
               try {
-                await Promise.all([
+                const verifyPayload = {
+                  razorpay_subscription_id:
+                    razorpayResponse?.razorpay_subscription_id || razorpaySubscriptionId,
+                  razorpay_payment_id: razorpayResponse?.razorpay_payment_id,
+                  razorpay_signature: razorpayResponse?.razorpay_signature,
+                };
+
+                if (verifyPayload.razorpay_payment_id && verifyPayload.razorpay_signature) {
+                  try {
+                    await api.post("payments/orders/verify/", verifyPayload);
+                  } catch {
+                    // Webhook may still finalize the plan; polling below handles eventual consistency.
+                  }
+                }
+
+                const upgraded = await Promise.all([
                   pollForPlanUpgrade(normalizedTargetPlan),
                   wait(OVERLAY_MIN_DURATION_MS),
-                ]);
+                ]).then(([matched]) => matched);
+
+                if (!upgraded) {
+                  resolve({
+                    status: "failed",
+                    message:
+                      "Payment received but subscription activation is still pending. Please refresh in a moment.",
+                  });
+                  return;
+                }
 
                 await Promise.allSettled([
                   refreshUserProfile(),
