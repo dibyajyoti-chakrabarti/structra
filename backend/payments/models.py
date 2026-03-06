@@ -79,4 +79,3 @@ class WebhookEventLog(models.Model):
 
     def __str__(self):
         return f"{self.razorpay_event_id}:{self.event_type}:{self.status}"
-w
