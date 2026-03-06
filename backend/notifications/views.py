@@ -13,6 +13,7 @@ from audit.services import record_workspace_event
 from core.constants import InvitationStatus, WorkspaceRole
 from core.pricing import (
     PLAN_CORE,
+    PLAN_TEAM,
     get_member_limit_for_workspace_plan,
     normalize_plan,
 )
@@ -94,6 +95,48 @@ def _send_invitation_email(invitation):
     )
     message.attach_alternative(html_message, "text/html")
     message.send(fail_silently=False)
+
+
+def _team_seat_limit_message(purchased_team_seats):
+    return (
+        "Seat limit reached. You have purchased "
+        f"{purchased_team_seats} total seats. Please upgrade your subscription quantity to invite more members."
+    )
+
+
+def _check_team_seat_capacity(
+    *,
+    workspace,
+    now,
+    pending_exclude_token=None,
+    active_exclude_user_id=None,
+):
+    purchased_team_seats = max(int(getattr(workspace.owner, "purchased_team_seats", 1) or 1), 1)
+    max_invited = purchased_team_seats - 1
+
+    active_members = (
+        WorkspaceMember.all_objects.filter(
+            workspace=workspace,
+            left_at__isnull=True,
+        )
+        .exclude(user=workspace.owner)
+    )
+    if active_exclude_user_id:
+        active_members = active_members.exclude(user_id=active_exclude_user_id)
+    active_invites = active_members.count()
+
+    pending_invites_qs = Invitation.objects.filter(
+        workspace=workspace,
+        status=InvitationStatus.PENDING,
+        expires_at__gt=now,
+    )
+    if pending_exclude_token:
+        pending_invites_qs = pending_invites_qs.exclude(token=pending_exclude_token)
+    pending_invites = pending_invites_qs.count()
+
+    if active_invites + pending_invites >= max_invited:
+        return _team_seat_limit_message(purchased_team_seats)
+    return None
 
 
 class WorkspaceInvitationCreateView(APIView):
@@ -193,6 +236,14 @@ class WorkspaceInvitationCreateView(APIView):
                 {"message": "Invitation already pending. Invitation email resent."},
                 status=status.HTTP_200_OK,
             )
+
+        if workspace_plan == PLAN_TEAM:
+            team_limit_error = _check_team_seat_capacity(
+                workspace=workspace,
+                now=timezone.now(),
+            )
+            if team_limit_error:
+                return Response({"error": team_limit_error}, status=status.HTTP_403_FORBIDDEN)
 
         if member_limit is not None:
             active_non_admin_members = WorkspaceMember.objects.filter(
@@ -345,6 +396,20 @@ class InvitationAcceptView(APIView):
             )
 
         workspace_plan = normalize_plan(invitation.workspace.owner.current_plan)
+        if workspace_plan == PLAN_TEAM:
+            team_limit_error = _check_team_seat_capacity(
+                workspace=invitation.workspace,
+                now=timezone.now(),
+                pending_exclude_token=invitation.token,
+                active_exclude_user_id=request.user.user_id,
+            )
+            if team_limit_error and not WorkspaceMember.objects.filter(
+                workspace=invitation.workspace,
+                user=request.user,
+                left_at__isnull=True,
+            ).exists():
+                return Response({"error": team_limit_error}, status=status.HTTP_403_FORBIDDEN)
+
         member_limit = get_member_limit_for_workspace_plan(workspace_plan)
         if member_limit is not None:
             active_non_admin_members = WorkspaceMember.objects.filter(

@@ -4,6 +4,7 @@ from permissions.models import WorkspaceMember
 from core.constants import WorkspaceRole
 from core.pricing import (
     PLAN_CORE,
+    PLAN_TEAM,
     get_member_limit_for_workspace_plan,
     get_workspace_monthly_cost_estimate,
     normalize_plan,
@@ -20,6 +21,7 @@ class WorkspaceSerializer(serializers.ModelSerializer):
     effective_plan = serializers.SerializerMethodField()
     member_limit = serializers.SerializerMethodField()
     seat_count = serializers.SerializerMethodField()
+    purchased_seat_count = serializers.SerializerMethodField()
     billing_estimate_inr = serializers.SerializerMethodField()
     active_evaluation_count = serializers.SerializerMethodField()
     total_evaluation_count = serializers.SerializerMethodField()
@@ -41,6 +43,7 @@ class WorkspaceSerializer(serializers.ModelSerializer):
             'effective_plan',
             'member_limit',
             'seat_count',
+            'purchased_seat_count',
             'billing_estimate_inr',
             'active_evaluation_count',
             'total_evaluation_count',
@@ -102,8 +105,18 @@ class WorkspaceSerializer(serializers.ModelSerializer):
         snapshot = get_billable_seat_snapshot(obj)
         return snapshot["total_occupied"]
 
+    def get_purchased_seat_count(self, obj):
+        plan = self._get_effective_plan(obj)
+        if plan != PLAN_TEAM:
+            return None
+        return max(int(getattr(obj.owner, "purchased_team_seats", 1) or 1), 1)
+
     def get_billing_estimate_inr(self, obj):
         plan = self._get_effective_plan(obj)
+        if plan == PLAN_TEAM:
+            purchased_team_seats = max(int(getattr(obj.owner, "purchased_team_seats", 1) or 1), 1)
+            amount = get_workspace_monthly_cost_estimate(plan, purchased_team_seats - 1)
+            return f"{amount:.2f}" if amount is not None else None
         snapshot = get_billable_seat_snapshot(obj)
         invited_member_count = snapshot["billable_invited_seats"]
         amount = get_workspace_monthly_cost_estimate(plan, invited_member_count)

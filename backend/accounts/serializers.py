@@ -74,6 +74,7 @@ class UserSerializer(serializers.ModelSerializer):
             'username',
             'current_plan',
             'plan_expires_at',
+            'purchased_team_seats',
             'razorpay_subscription_id',
             'user_role',
             'org_name',
@@ -86,6 +87,7 @@ class UserSerializer(serializers.ModelSerializer):
             'email',
             'current_plan',
             'plan_expires_at',
+            'purchased_team_seats',
             'created_at',
         )
 
@@ -119,6 +121,7 @@ class IdentifierTokenObtainPairSerializer(serializers.Serializer):
                 'full_name': user.full_name,
                 'current_plan': user.current_plan,
                 'plan_expires_at': user.plan_expires_at,
+                'purchased_team_seats': user.purchased_team_seats,
                 'razorpay_subscription_id': active_subscription_id,
                 'is_new': user.is_new,
             },

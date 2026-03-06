@@ -7,9 +7,7 @@ from django.db import transaction
 from django.db.models import Sum
 from django.utils import timezone
 
-from core.constants import WorkspaceRole
 from core.pricing import PLAN_CORE, PLAN_INDIVIDUAL, PLAN_TEAM, normalize_plan
-from permissions.models import WorkspaceMember
 from workspaces.models import Workspace, WorkspaceCreditConsumption
 
 
@@ -32,13 +30,6 @@ def get_workspace_plan(workspace: Workspace) -> str:
     return normalize_plan(getattr(owner, "current_plan", PLAN_CORE))
 
 
-def get_invited_billable_seat_count(workspace: Workspace) -> int:
-    return WorkspaceMember.objects.filter(
-        workspace=workspace,
-        role=WorkspaceRole.MEMBER,
-    ).count()
-
-
 def get_monthly_pool_credits(workspace: Workspace, plan: str | None = None) -> int:
     normalized = normalize_plan(plan or get_workspace_plan(workspace))
     if normalized == PLAN_CORE:
@@ -46,8 +37,9 @@ def get_monthly_pool_credits(workspace: Workspace, plan: str | None = None) -> i
     if normalized == PLAN_INDIVIDUAL:
         return INDIVIDUAL_MONTHLY_CREDITS
     if normalized == PLAN_TEAM:
-        # Team pool always includes admin's base seat.
-        return (get_invited_billable_seat_count(workspace) + 1) * TEAM_SEAT_MONTHLY_CREDITS
+        owner = getattr(workspace, "owner", None)
+        purchased_seats = max(int(getattr(owner, "purchased_team_seats", 1) or 1), 1)
+        return purchased_seats * TEAM_SEAT_MONTHLY_CREDITS
     # Enterprise falls back to currently configured workspace monthly capacity.
     return max(int(workspace.ai_credits_monthly or INDIVIDUAL_MONTHLY_CREDITS), 1)
 

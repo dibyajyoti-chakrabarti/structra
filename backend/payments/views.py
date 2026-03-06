@@ -15,14 +15,12 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from accounts.downgrade_service import validate_voluntary_downgrade_or_400
-from audit.models import AuditStatus
-from audit.services import record_workspace_event
 from .constants import PLAN_INDIVIDUAL, PLAN_PRICES
 from core.pricing import PLAN_CORE, PLAN_TEAM
 from .models import PaymentTransaction, WebhookEventLog
-from .seat_utils import get_billable_seat_snapshot
 from .serializers import (
     CancelSubscriptionRequestSerializer,
+    CheckoutSubscriptionRequestSerializer,
     CreateSubscriptionRequestSerializer,
     CreateSubscriptionResponseSerializer,
     VoluntaryDowngradeRequestSerializer,
@@ -214,12 +212,18 @@ class CheckoutSubscriptionView(APIView):
         return None
 
     def post(self, request):
-        request_serializer = CreateSubscriptionRequestSerializer(data=request.data)
+        request_serializer = CheckoutSubscriptionRequestSerializer(data=request.data)
         if not request_serializer.is_valid():
             plan_errors = request_serializer.errors.get("plan_name")
+            quantity_errors = request_serializer.errors.get("quantity")
             if plan_errors:
                 return Response(
                     {"error": str(plan_errors[0])},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            if quantity_errors:
+                return Response(
+                    {"error": str(quantity_errors[0])},
                     status=status.HTTP_400_BAD_REQUEST,
                 )
             return Response(
@@ -228,6 +232,7 @@ class CheckoutSubscriptionView(APIView):
             )
 
         plan_name = request_serializer.validated_data["plan_name"]
+        effective_quantity = int(request_serializer.validated_data.get("quantity") or 1)
         current_plan = (request.user.current_plan or PLAN_CORE).upper()
         transition_error = self._validate_checkout_transition(current_plan, plan_name)
         if transition_error:
@@ -253,7 +258,8 @@ class CheckoutSubscriptionView(APIView):
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
 
-        amount_inr = PLAN_PRICES[plan_name]
+        unit_amount_inr = PLAN_PRICES[plan_name]
+        amount_inr = (Decimal(unit_amount_inr) * Decimal(effective_quantity)).quantize(Decimal("0.01"))
         try:
             amount_paise = int((Decimal(amount_inr) * 100).quantize(Decimal("1"), rounding=ROUND_HALF_UP))
         except (InvalidOperation, TypeError, ValueError):
@@ -275,7 +281,7 @@ class CheckoutSubscriptionView(APIView):
             "customer_notify": 1,
         }
         if plan_name == PLAN_TEAM:
-            create_payload["quantity"] = 1
+            create_payload["quantity"] = effective_quantity
 
         try:
             subscription_payload = client.subscription.create(create_payload)
@@ -306,6 +312,7 @@ class CheckoutSubscriptionView(APIView):
             user=request.user,
             plan_name=plan_name,
             amount=amount_inr,
+            requested_seats=effective_quantity,
             status=PaymentTransaction.Status.PENDING,
             razorpay_subscription_id=razorpay_subscription_id,
         )
@@ -347,20 +354,20 @@ class VerifySubscriptionView(APIView):
         razorpay_payment_id = request_serializer.validated_data['razorpay_payment_id']
         razorpay_signature = request_serializer.validated_data['razorpay_signature']
 
-        transaction = PaymentTransaction.objects.filter(
+        payment_tx = PaymentTransaction.objects.filter(
             razorpay_subscription_id=razorpay_subscription_id,
             user=request.user,
         ).select_related('user').first()
-        if not transaction:
+        if not payment_tx:
             return Response(
                 {'error': 'Invalid transaction state'},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        if transaction.status == PaymentTransaction.Status.ACTIVE:
-            return self._success_response(transaction.user)
+        if payment_tx.status == PaymentTransaction.Status.ACTIVE:
+            return self._success_response(payment_tx.user)
 
-        if transaction.status != PaymentTransaction.Status.PENDING:
+        if payment_tx.status != PaymentTransaction.Status.PENDING:
             return Response(
                 {'error': 'Invalid transaction state'},
                 status=status.HTTP_400_BAD_REQUEST,
@@ -384,17 +391,24 @@ class VerifySubscriptionView(APIView):
                 }
             )
         except razorpay.errors.SignatureVerificationError:
-            transaction.status = PaymentTransaction.Status.FAILED
-            transaction.razorpay_payment_id = razorpay_payment_id
-            transaction.razorpay_signature = razorpay_signature
-            transaction.save(
-                update_fields=[
-                    'status',
-                    'razorpay_payment_id',
-                    'razorpay_signature',
-                    'updated_at',
-                ]
-            )
+            with transaction.atomic():
+                locked_tx = (
+                    PaymentTransaction.objects.select_for_update()
+                    .filter(id=payment_tx.id)
+                    .first()
+                )
+                if locked_tx:
+                    locked_tx.status = PaymentTransaction.Status.FAILED
+                    locked_tx.razorpay_payment_id = razorpay_payment_id
+                    locked_tx.razorpay_signature = razorpay_signature
+                    locked_tx.save(
+                        update_fields=[
+                            'status',
+                            'razorpay_payment_id',
+                            'razorpay_signature',
+                            'updated_at',
+                        ]
+                    )
             return Response(
                 {'error': 'Invalid payment signature'},
                 status=status.HTTP_400_BAD_REQUEST,
@@ -410,13 +424,49 @@ class VerifySubscriptionView(APIView):
                 status=status.HTTP_502_BAD_GATEWAY,
             )
 
-        user = _mark_transaction_active(
-            transaction,
-            payment_id=razorpay_payment_id,
-            payment_signature=razorpay_signature,
-            duration_days=30,
-            extend_from_existing=False,
-        )
+        with transaction.atomic():
+            locked_tx = (
+                PaymentTransaction.objects.select_related('user')
+                .select_for_update()
+                .filter(id=payment_tx.id, user=request.user)
+                .first()
+            )
+            if not locked_tx:
+                return Response(
+                    {'error': 'Invalid transaction state'},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            if locked_tx.status == PaymentTransaction.Status.ACTIVE:
+                return self._success_response(locked_tx.user)
+            if locked_tx.status != PaymentTransaction.Status.PENDING:
+                return Response(
+                    {'error': 'Invalid transaction state'},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            user = _mark_transaction_active(
+                locked_tx,
+                payment_id=razorpay_payment_id,
+                payment_signature=razorpay_signature,
+                duration_days=30,
+                extend_from_existing=False,
+            )
+
+            if locked_tx.plan_name == PLAN_TEAM:
+                purchased_team_seats = max(int(locked_tx.requested_seats or 1), 1)
+                if user.purchased_team_seats != purchased_team_seats:
+                    user.purchased_team_seats = purchased_team_seats
+                    user.save(update_fields=['purchased_team_seats'])
+
+                now = timezone.now()
+                workspaces = list(
+                    Workspace.objects.select_for_update()
+                    .select_related("owner")
+                    .filter(owner=user)
+                    .order_by("id")
+                )
+                for workspace in workspaces:
+                    ensure_workspace_credit_state(workspace, now=now, force_reset=True)
 
         return self._success_response(user)
 
@@ -643,6 +693,35 @@ class RazorpayWebhookView(APIView):
             event_type,
         )
 
+    def _parse_positive_quantity(self, raw_quantity):
+        try:
+            quantity = int(raw_quantity)
+        except (TypeError, ValueError):
+            raise self.InvalidWebhookPayload("Missing or invalid subscription quantity")
+        if quantity < 1:
+            raise self.InvalidWebhookPayload("Missing or invalid subscription quantity")
+        return quantity
+
+    @staticmethod
+    def _apply_team_pool_update(workspace, quantity):
+        old_monthly = int(workspace.ai_credits_monthly or 0)
+        old_remaining = int(workspace.ai_credits_remaining or 0)
+        consumed = max(old_monthly - old_remaining, 0)
+
+        new_monthly = int(quantity) * 80
+        new_remaining = max(new_monthly - consumed, 0)
+
+        update_fields = []
+        if workspace.ai_credits_monthly != new_monthly:
+            workspace.ai_credits_monthly = new_monthly
+            update_fields.append("ai_credits_monthly")
+        if workspace.ai_credits_remaining != new_remaining:
+            workspace.ai_credits_remaining = new_remaining
+            update_fields.append("ai_credits_remaining")
+
+        if update_fields:
+            workspace.save(update_fields=[*update_fields, "updated_at"])
+
     @staticmethod
     def _cancel_previous_active_subscriptions_after_commit(user_id, subscriptions_to_cancel):
         if not subscriptions_to_cancel:
@@ -695,9 +774,13 @@ class RazorpayWebhookView(APIView):
             self._warn_untracked_subscription(subscription_id, "subscription.charged")
             return {"message": "Event ignored", "subscription_id": subscription_id}
 
+        team_quantity = None
+        if payment_tx.plan_name == PLAN_TEAM:
+            team_quantity = self._parse_positive_quantity(subscription_entity.get("quantity"))
+
         user = (
             payment_tx.user.__class__.objects.select_for_update()
-            .only("user_id", "current_plan", "plan_expires_at")
+            .only("user_id", "current_plan", "plan_expires_at", "purchased_team_seats")
             .get(pk=payment_tx.user_id)
         )
 
@@ -710,7 +793,11 @@ class RazorpayWebhookView(APIView):
 
         user.current_plan = payment_tx.plan_name
         user.plan_expires_at = expires_at
-        user.save(update_fields=["current_plan", "plan_expires_at"])
+        user_update_fields = ["current_plan", "plan_expires_at"]
+        if team_quantity is not None and user.purchased_team_seats != team_quantity:
+            user.purchased_team_seats = team_quantity
+            user_update_fields.append("purchased_team_seats")
+        user.save(update_fields=user_update_fields)
 
         now = timezone.now()
         workspaces = list(
@@ -776,10 +863,7 @@ class RazorpayWebhookView(APIView):
         subscription_id = subscription_entity.get("id")
         if not subscription_id:
             raise self.InvalidWebhookPayload("Missing subscription id")
-        try:
-            payload_quantity = int(subscription_entity["quantity"])
-        except (TypeError, KeyError, ValueError):
-            raise self.InvalidWebhookPayload("Missing or invalid subscription quantity")
+        payload_quantity = self._parse_positive_quantity(subscription_entity.get("quantity"))
 
         payment_tx = (
             PaymentTransaction.objects.select_related("user")
@@ -791,54 +875,25 @@ class RazorpayWebhookView(APIView):
             self._warn_untracked_subscription(subscription_id, "subscription.updated")
             return {"message": "Event ignored", "subscription_id": subscription_id}
 
+        if payment_tx.plan_name != PLAN_TEAM:
+            return {"message": "Webhook processed", "subscription_id": subscription_id}
+
         user = (
             payment_tx.user.__class__.objects.select_for_update()
-            .only("user_id")
+            .only("user_id", "purchased_team_seats")
             .get(pk=payment_tx.user_id)
         )
+        if user.purchased_team_seats != payload_quantity:
+            user.purchased_team_seats = payload_quantity
+            user.save(update_fields=["purchased_team_seats"])
+
         workspaces = list(
             Workspace.objects.select_for_update()
             .filter(owner=user)
             .order_by("id")
         )
-
-        invited_seats_total = 0
-        workspace_snapshots = []
         for workspace in workspaces:
-            snapshot = get_billable_seat_snapshot(workspace)
-            invited_count = int(snapshot.get("billable_invited_seats", 0) or 0)
-            invited_seats_total += invited_count
-            workspace_snapshots.append((workspace, invited_count))
-
-        expected_quantity = 1 + invited_seats_total
-        is_match = payload_quantity == expected_quantity
-        status_value = AuditStatus.SUCCESS if is_match else AuditStatus.WARNING
-        message = (
-            "Razorpay subscription quantity matches internal seat snapshot."
-            if is_match
-            else "Razorpay subscription quantity mismatch detected."
-        )
-        metadata = {
-            "subscription_id": subscription_id,
-            "payload_quantity": payload_quantity,
-            "expected_quantity": expected_quantity,
-            "admin_base_seat": 1,
-            "invited_billable_seats_total": invited_seats_total,
-        }
-
-        for workspace, invited_count in workspace_snapshots:
-            record_workspace_event(
-                workspace=workspace,
-                action="billing.subscription_quantity_sync",
-                category="billing",
-                status=status_value,
-                message=message,
-                metadata={
-                    **metadata,
-                    "workspace_id": workspace.id,
-                    "workspace_invited_billable_seats": invited_count,
-                },
-            )
+            self._apply_team_pool_update(workspace, payload_quantity)
 
         return {"message": "Webhook processed", "subscription_id": subscription_id}
 
