@@ -4,6 +4,7 @@ import { Activity, AlertCircle, CheckCircle2, Clock3, RefreshCcw, X, XCircle } f
 import api from '../../api';
 import LoadingState from '../../components/LoadingState';
 import StructuredReport from '../../components/StructuredReport';
+import { useTheme } from '../../contexts/ThemeContext';
 
 const statusIcon = (status) => {
   if (status === 'completed') return <CheckCircle2 size={14} className="text-emerald-500" />;
@@ -33,6 +34,8 @@ export default function WorkspaceEvaluations() {
   const { workspaceId } = useParams();
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
+  const { theme } = useTheme();
+  const isDarkTheme = theme === 'dark';
 
   const [loading, setLoading] = useState(true);
   const [workspace, setWorkspace] = useState(null);
@@ -198,7 +201,9 @@ export default function WorkspaceEvaluations() {
 
       {isReportOpen && selectedRun && !isCorruptedRun(selectedRun) && (
         <div
-          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/45 p-4 backdrop-blur-sm"
+          className={`fixed inset-0 z-[100] flex items-start justify-center px-4 pb-4 pt-20 backdrop-blur-sm ${
+            isDarkTheme ? 'bg-black/45' : 'bg-slate-900/35'
+          }`}
           onClick={() => {
             setIsReportOpen(false);
             setSearchParams((prevParams) => {
@@ -209,13 +214,21 @@ export default function WorkspaceEvaluations() {
           }}
         >
           <div
-            className="max-h-[88vh] w-full max-w-5xl overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-2xl"
+            className={`max-h-[calc(100vh-6rem)] w-full max-w-6xl overflow-hidden rounded-2xl border shadow-2xl ${
+              isDarkTheme ? 'border-slate-700 bg-slate-900' : 'border-slate-200 bg-white'
+            }`}
             onClick={(event) => event.stopPropagation()}
           >
-            <div className="flex items-start justify-between border-b border-gray-200 px-5 py-4">
+            <div
+              className={`flex items-start justify-between border-b px-6 py-5 ${
+                isDarkTheme ? 'border-slate-700 bg-slate-900' : 'border-slate-200 bg-slate-50'
+              }`}
+            >
               <div>
-                <h2 className="text-lg font-semibold text-gray-900">Evaluation Report</h2>
-                <p className="text-xs text-gray-500">Run: {selectedRun.id}</p>
+                <h2 className={`text-xl font-semibold tracking-tight ${isDarkTheme ? 'text-slate-100' : 'text-slate-900'}`}>
+                  Evaluation Report
+                </h2>
+                <p className={`text-xs ${isDarkTheme ? 'text-slate-400' : 'text-slate-500'}`}>Run: {selectedRun.id}</p>
               </div>
               <button
                 type="button"
@@ -227,19 +240,23 @@ export default function WorkspaceEvaluations() {
                     return nextParams;
                   });
                 }}
-                className="rounded-lg border border-gray-200 p-1.5 text-gray-500 hover:bg-gray-50 hover:text-gray-700"
+                className={`rounded-lg border p-1.5 ${
+                  isDarkTheme
+                    ? 'border-slate-700 text-slate-400 hover:bg-slate-800 hover:text-slate-200'
+                    : 'border-gray-200 text-gray-500 hover:bg-gray-50 hover:text-gray-700'
+                }`}
                 aria-label="Close report modal"
               >
                 <X size={14} />
               </button>
             </div>
 
-            <div className="max-h-[calc(88vh-72px)] space-y-3 overflow-y-auto p-5">
-              <div className="grid grid-cols-2 gap-2 text-xs text-gray-700 md:grid-cols-4">
-                <div className="rounded-lg bg-gray-50 p-2">Status: <strong>{statusLabel(selectedRun.status)}</strong></div>
-                <div className="rounded-lg bg-gray-50 p-2">System: <strong>{selectedRun.systemId}</strong></div>
-                <div className="rounded-lg bg-gray-50 p-2">Score: <strong>{selectedRun.score ?? '—'}</strong></div>
-                <div className="rounded-lg bg-gray-50 p-2">Tier: <strong>{selectedRun.workspaceTier || '—'}</strong></div>
+            <div className="max-h-[calc(88vh-82px)] space-y-4 overflow-y-auto p-6">
+              <div className="grid grid-cols-2 gap-2 text-xs md:grid-cols-4">
+                <div className={`rounded-lg border px-3 py-2 ${isDarkTheme ? 'border-slate-700 bg-slate-800 text-slate-300' : 'border-slate-200 bg-slate-50 text-slate-700'}`}>Status: <strong className={isDarkTheme ? 'text-slate-100' : 'text-slate-900'}>{statusLabel(selectedRun.status)}</strong></div>
+                <div className={`rounded-lg border px-3 py-2 ${isDarkTheme ? 'border-slate-700 bg-slate-800 text-slate-300' : 'border-slate-200 bg-slate-50 text-slate-700'}`}>System: <strong className={isDarkTheme ? 'text-slate-100' : 'text-slate-900'}>{selectedRun.systemId}</strong></div>
+                <div className={`rounded-lg border px-3 py-2 ${isDarkTheme ? 'border-slate-700 bg-slate-800 text-slate-300' : 'border-slate-200 bg-slate-50 text-slate-700'}`}>Score: <strong className={isDarkTheme ? 'text-slate-100' : 'text-slate-900'}>{selectedRun.score ?? '—'}</strong></div>
+                <div className={`rounded-lg border px-3 py-2 ${isDarkTheme ? 'border-slate-700 bg-slate-800 text-slate-300' : 'border-slate-200 bg-slate-50 text-slate-700'}`}>Tier: <strong className={isDarkTheme ? 'text-slate-100' : 'text-slate-900'}>{selectedRun.workspaceTier || '—'}</strong></div>
               </div>
 
               {selectedRun.error && (
@@ -248,7 +265,7 @@ export default function WorkspaceEvaluations() {
                 </div>
               )}
 
-              <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
+              <div className={`rounded-xl border p-6 shadow-sm ${isDarkTheme ? 'border-slate-700 bg-slate-900' : 'border-slate-200 bg-white'}`}>
                 <StructuredReport text={selectedRun.suggestions || 'No AI report was generated for this evaluation run.'} />
               </div>
 
