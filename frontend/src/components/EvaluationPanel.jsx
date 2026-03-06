@@ -22,6 +22,9 @@ const formatTime = (value) => {
   return date.toLocaleString();
 };
 
+const isCorruptedRun = (run) =>
+  run?.status === 'failed' || Boolean(run?.geminiError) || (Boolean(run?.error) && !run?.suggestions);
+
 export default function EvaluationPanel({
   insightTokensRemaining,
   onClose,
@@ -77,7 +80,10 @@ export default function EvaluationPanel({
 
         <div className="space-y-2">
           {(runs || []).map((run) => {
-            const canOpen = !run.isLocalPending;
+            const isCorrupted = isCorruptedRun(run);
+            const canOpen = !run.isLocalPending && !isCorrupted;
+            const badgeClass = isCorrupted ? 'text-red-700 bg-red-50 border-red-200' : statusClass(run.status);
+            const badgeLabel = isCorrupted ? 'Corrupted' : statusLabel(run.status);
             return (
             <button
               key={run.id}
@@ -87,8 +93,8 @@ export default function EvaluationPanel({
               className="w-full rounded-lg border border-gray-200 bg-white p-3 text-left hover:border-gray-300 hover:bg-gray-50 disabled:cursor-default disabled:opacity-70"
             >
               <div className="flex items-center justify-between gap-2">
-                <span className={`rounded-md border px-2 py-0.5 text-[11px] font-semibold ${statusClass(run.status)}`}>
-                  {statusLabel(run.status)}
+                <span className={`rounded-md border px-2 py-0.5 text-[11px] font-semibold ${badgeClass}`}>
+                  {badgeLabel}
                 </span>
                 <span className="text-[11px] text-gray-500">{formatTime(run.createdAt)}</span>
               </div>
@@ -103,7 +109,7 @@ export default function EvaluationPanel({
                     Open full report <ExternalLink size={11} />
                   </>
                 ) : (
-                  <>Evaluating...</>
+                  <>{run.isLocalPending ? 'Evaluating...' : 'Corrupted - cannot open'}</>
                 )}
               </div>
             </button>

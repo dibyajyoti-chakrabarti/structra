@@ -26,6 +26,9 @@ const formatTime = (value) => {
   return date.toLocaleString();
 };
 
+const isCorruptedRun = (run) =>
+  run?.status === 'failed' || Boolean(run?.geminiError) || (Boolean(run?.error) && !run?.suggestions);
+
 export default function WorkspaceEvaluations() {
   const { workspaceId } = useParams();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -53,11 +56,20 @@ export default function WorkspaceEvaluations() {
       const requestedRunId = searchParams.get('runId');
       setSelectedRunId((prev) => {
         if (!nextRuns.length) return null;
-        if (requestedRunId && nextRuns.some((run) => run.id === requestedRunId)) return requestedRunId;
+        if (
+          requestedRunId &&
+          nextRuns.some((run) => run.id === requestedRunId && !isCorruptedRun(run))
+        ) {
+          return requestedRunId;
+        }
         if (prev && nextRuns.some((run) => run.id === prev)) return prev;
-        return nextRuns[0].id;
+        const firstOpenable = nextRuns.find((run) => !isCorruptedRun(run));
+        return firstOpenable ? firstOpenable.id : nextRuns[0].id;
       });
-      if (requestedRunId && nextRuns.some((run) => run.id === requestedRunId)) {
+      if (
+        requestedRunId &&
+        nextRuns.some((run) => run.id === requestedRunId && !isCorruptedRun(run))
+      ) {
         setIsReportOpen(true);
       }
     } catch {
@@ -142,11 +154,15 @@ export default function WorkspaceEvaluations() {
         </div>
       ) : (
         <div className="space-y-2">
-          {runs.map((run) => (
+          {runs.map((run) => {
+            const corrupted = isCorruptedRun(run);
+            const runStatusLabel = corrupted ? 'Corrupted' : statusLabel(run.status);
+            return (
             <button
               key={run.id}
               type="button"
               onClick={() => {
+                if (corrupted) return;
                 setSelectedRunId(run.id);
                 setIsReportOpen(true);
                 setSearchParams((prevParams) => {
@@ -155,12 +171,13 @@ export default function WorkspaceEvaluations() {
                   return nextParams;
                 });
               }}
-              className="w-full rounded-xl border border-gray-200 bg-white p-4 text-left transition-colors hover:border-gray-300 hover:bg-gray-50"
+              disabled={corrupted}
+              className="w-full rounded-xl border border-gray-200 bg-white p-4 text-left transition-colors hover:border-gray-300 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-65"
             >
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div className="inline-flex items-center gap-1.5 text-sm font-semibold text-gray-900">
                   {statusIcon(run.status)}
-                  {statusLabel(run.status)}
+                  {runStatusLabel}
                 </div>
                 <span className="text-xs text-gray-500">{formatTime(run.createdAt)}</span>
               </div>
@@ -170,12 +187,16 @@ export default function WorkspaceEvaluations() {
                 <span>Tier: <strong>{run.workspaceTier || '—'}</strong></span>
                 <span>Tokens: <strong>{run.insightTokensRemaining ?? run.creditsRemaining ?? '—'}</strong></span>
               </div>
+              {corrupted && (
+                <div className="mt-2 text-xs font-semibold text-red-600">Corrupted run. Report unavailable.</div>
+              )}
             </button>
-          ))}
+          );
+          })}
         </div>
       )}
 
-      {isReportOpen && selectedRun && (
+      {isReportOpen && selectedRun && !isCorruptedRun(selectedRun) && (
         <div
           className="fixed inset-0 z-[100] flex items-center justify-center bg-black/45 p-4 backdrop-blur-sm"
           onClick={() => {
