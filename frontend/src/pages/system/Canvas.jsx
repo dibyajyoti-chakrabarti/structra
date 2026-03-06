@@ -40,7 +40,6 @@ import api from '../../api';
 import LoadingState from '../../components/LoadingState';
 import EvaluationPanel from '../../components/EvaluationPanel';
 import EvaluationConfirmModal from '../../components/EvaluationConfirmModal';
-import { useEvaluation } from '../../hooks/useEvaluation';
 import { useTheme } from '../../contexts/ThemeContext';
 
 const NODE_WIDTH = 180;
@@ -1066,10 +1065,6 @@ const Canvas = () => {
   const isHistoryTraversalRef = useRef(false);
   const historyDragRef = useRef({ active: false, startState: null });
   const canvasStateRef = useRef(DEFAULT_CANVAS_STATE);
-  const evaluationHighlightTimeoutRef = useRef(null);
-
-  const evaluation = useEvaluation();
-  const refreshInsightTokens = evaluation.refreshInsightTokens;
 
   const [loading, setLoading] = useState(true);
   const [workspace, setWorkspace] = useState(null);
@@ -1112,10 +1107,12 @@ const Canvas = () => {
   const [isTextPlacementMode, setIsTextPlacementMode] = useState(false);
   const [isBoundsDrawingMode, setIsBoundsDrawingMode] = useState(false);
   const [showEvalPanel, setShowEvalPanel] = useState(false);
+  const [isEvaluationSubmitting, setIsEvaluationSubmitting] = useState(false);
+  const [isEvaluationRunsLoading, setIsEvaluationRunsLoading] = useState(false);
+  const [insightTokenStatus, setInsightTokenStatus] = useState(null);
+  const [canvasEvaluationRuns, setCanvasEvaluationRuns] = useState([]);
+  const [optimisticPendingRuns, setOptimisticPendingRuns] = useState([]);
   const [isEvaluationConfirmOpen, setIsEvaluationConfirmOpen] = useState(false);
-  const [isEvaluationConfirmSubmitting, setIsEvaluationConfirmSubmitting] = useState(false);
-  const [evaluationHighlightedNodes, setEvaluationHighlightedNodes] = useState(() => new Set());
-  const [evaluationHighlightedEdges, setEvaluationHighlightedEdges] = useState(() => new Set());
 
   const lastSavedSignatureRef = useRef('');
   const retryAttemptRef = useRef(0);
@@ -1167,9 +1164,22 @@ const Canvas = () => {
         setUser(userRes.data);
         setCanvasState(serverCanvasState);
         try {
-          await refreshInsightTokens(workspaceId);
+          const [tokenRes, evalRes] = await Promise.all([
+            api.get('evaluation/insight-tokens/', {
+              params: { workspaceId },
+              cache: false,
+            }),
+            api.get(`workspaces/${workspaceId}/evaluations/`, { cache: false }),
+          ]);
+          setInsightTokenStatus(tokenRes.data || null);
+          const runs = Array.isArray(evalRes.data?.runs) ? evalRes.data.runs : [];
+          setCanvasEvaluationRuns(
+            runs
+              .filter((run) => run.systemId === systemId)
+              .sort((left, right) => new Date(right.createdAt) - new Date(left.createdAt))
+          );
         } catch (tokenError) {
-          console.error('Failed to load insight tokens', tokenError);
+          console.error('Failed to load evaluation sidebar data', tokenError);
         }
         previousCanvasRef.current = cloneCanvasState(serverCanvasState);
         historyPastRef.current = [];
@@ -1184,7 +1194,7 @@ const Canvas = () => {
     };
 
     fetchData();
-  }, [isMobileViewport, refreshInsightTokens, workspaceId, systemId]);
+  }, [isMobileViewport, workspaceId, systemId]);
 
   const fetchComments = useCallback(async () => {
     setAreCommentsLoading(true);
@@ -1249,7 +1259,6 @@ const Canvas = () => {
       clearTimeout(autosaveDebounceRef.current);
       clearTimeout(retryTimeoutRef.current);
       clearTimeout(permissionNoticeTimeoutRef.current);
-      clearTimeout(evaluationHighlightTimeoutRef.current);
     };
   }, []);
 
@@ -1954,16 +1963,8 @@ const Canvas = () => {
     () => new Set(highlightedInsight?.relatedEdgeIds || []),
     [highlightedInsight]
   );
-  const highlightedNodeIds = useMemo(() => {
-    const combined = new Set(insightHighlightedNodeIds);
-    evaluationHighlightedNodes.forEach((id) => combined.add(id));
-    return combined;
-  }, [evaluationHighlightedNodes, insightHighlightedNodeIds]);
-  const highlightedEdgeIds = useMemo(() => {
-    const combined = new Set(insightHighlightedEdgeIds);
-    evaluationHighlightedEdges.forEach((id) => combined.add(id));
-    return combined;
-  }, [evaluationHighlightedEdges, insightHighlightedEdgeIds]);
+  const highlightedNodeIds = insightHighlightedNodeIds;
+  const highlightedEdgeIds = insightHighlightedEdgeIds;
   const insightsByCategory = useMemo(
     () =>
       Object.values(INSIGHT_CATEGORIES).map((category) => ({
@@ -1982,42 +1983,88 @@ const Canvas = () => {
     }
   }, [activeInsightId, hoveredInsightId, insightsById]);
 
-  const handleHighlight = useCallback((nodeIds = [], edgeIds = []) => {
-    setEvaluationHighlightedNodes(new Set(nodeIds));
-    setEvaluationHighlightedEdges(new Set(edgeIds));
-    clearTimeout(evaluationHighlightTimeoutRef.current);
-    evaluationHighlightTimeoutRef.current = setTimeout(() => {
-      setEvaluationHighlightedNodes(new Set());
-      setEvaluationHighlightedEdges(new Set());
-    }, 4000);
-  }, []);
-
-  const handleEvaluate = useCallback(async () => {
-    if (
-      canvasState.nodes.length === 0 ||
-      evaluation.status === 'scoring' ||
-      evaluation.status === 'awaiting_ai'
-    ) {
-      return;
-    }
-
-    const workspaceTier = (workspace?.tier || workspace?.effective_plan || 'core').toLowerCase();
-    setShowEvalPanel(true);
-    const prepared = await evaluation.runRuleEvaluation(canvasState, workspaceTier, workspaceId);
-    if (prepared) {
-      setIsEvaluationConfirmOpen(true);
-    }
-  }, [canvasState, evaluation, workspace, workspaceId]);
-
-  const handleConfirmAiEvaluation = useCallback(async () => {
-    setIsEvaluationConfirmSubmitting(true);
+  const fetchEvaluationPanelData = useCallback(async () => {
+    setIsEvaluationRunsLoading(true);
     try {
-      await evaluation.confirmAiEvaluation(canvasState, workspaceId, systemId);
+      const [tokenRes, evalRes] = await Promise.all([
+        api.get('evaluation/insight-tokens/', {
+          params: { workspaceId },
+          cache: false,
+        }),
+        api.get(`workspaces/${workspaceId}/evaluations/`, { cache: false }),
+      ]);
+      setInsightTokenStatus(tokenRes.data || null);
+      const runs = Array.isArray(evalRes.data?.runs) ? evalRes.data.runs : [];
+      setCanvasEvaluationRuns(
+        runs
+          .filter((run) => run.systemId === systemId)
+          .sort((left, right) => new Date(right.createdAt) - new Date(left.createdAt))
+      );
+    } catch (error) {
+      console.error('Failed to fetch canvas evaluations', error);
     } finally {
-      setIsEvaluationConfirmSubmitting(false);
-      setIsEvaluationConfirmOpen(false);
+      setIsEvaluationRunsLoading(false);
     }
-  }, [canvasState, evaluation, workspaceId, systemId]);
+  }, [systemId, workspaceId]);
+
+  useEffect(() => {
+    if (!showEvalPanel) return undefined;
+    fetchEvaluationPanelData();
+    const timer = setInterval(fetchEvaluationPanelData, 4000);
+    return () => clearInterval(timer);
+  }, [fetchEvaluationPanelData, showEvalPanel]);
+
+  const handleRequestEvaluate = useCallback(() => {
+    if (canvasState.nodes.length === 0 || isEvaluationSubmitting) return;
+    setIsEvaluationConfirmOpen(true);
+  }, [canvasState.nodes.length, isEvaluationSubmitting]);
+
+  const handleConfirmAiEvaluation = useCallback(() => {
+    if (canvasState.nodes.length === 0) return;
+
+    setIsEvaluationConfirmOpen(false);
+    setIsEvaluationSubmitting(true);
+
+    const optimisticId = `optimistic-${Date.now()}`;
+    setOptimisticPendingRuns((prev) => [
+      {
+        id: optimisticId,
+        status: 'running',
+        score: null,
+        createdAt: new Date().toISOString(),
+        isLocalPending: true,
+      },
+      ...prev,
+    ]);
+
+    api
+      .post('evaluation/ai/', {
+        workspaceId,
+        systemId,
+        canvasState,
+      })
+      .then(() => {
+        fetchEvaluationPanelData();
+      })
+      .catch((error) => {
+        const message = error?.response?.data?.message;
+        setPermissionNotice(message || 'Failed to queue evaluation.');
+        clearTimeout(permissionNoticeTimeoutRef.current);
+        permissionNoticeTimeoutRef.current = setTimeout(() => {
+          setPermissionNotice('');
+        }, 2600);
+        fetchEvaluationPanelData();
+      })
+      .finally(() => {
+        setOptimisticPendingRuns((prev) => prev.filter((run) => run.id !== optimisticId));
+        setIsEvaluationSubmitting(false);
+      });
+  }, [canvasState, fetchEvaluationPanelData, systemId, workspaceId]);
+
+  const panelRuns = useMemo(
+    () => [...optimisticPendingRuns, ...canvasEvaluationRuns],
+    [canvasEvaluationRuns, optimisticPendingRuns]
+  );
 
   const setNodeLabel = (label) => {
     if (!canEditStructure) return;
@@ -2966,31 +3013,15 @@ const Canvas = () => {
           </button>
           <button
             type="button"
-            onClick={handleEvaluate}
-            disabled={
-              canvasState.nodes.length === 0 ||
-              evaluation.status === 'scoring' ||
-              evaluation.status === 'awaiting_ai' ||
-              evaluation.status === 'awaiting_confirmation' ||
-              isEvaluationConfirmOpen
-            }
-            className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all shadow-sm disabled:opacity-60 disabled:cursor-not-allowed ${
-              evaluation.status === 'error'
-                ? 'border border-red-300 text-red-700 bg-white hover:bg-red-50'
-                : 'bg-gradient-to-r from-blue-600 to-cyan-600 text-white hover:from-blue-700 hover:to-cyan-700 ring-1 ring-blue-300'
-            }`}
-            title={canvasState.nodes.length === 0 ? 'Add components to your design first' : 'Run Evaluations'}
+            onClick={() => {
+              setShowEvalPanel(true);
+              fetchEvaluationPanelData();
+            }}
+            className="flex items-center gap-2 rounded-lg bg-gradient-to-r from-blue-600 to-cyan-600 px-3 py-1.5 text-xs font-semibold text-white ring-1 ring-blue-300 transition-all hover:from-blue-700 hover:to-cyan-700"
+            title="Open evaluation panel"
           >
             <Sparkles size={13} />
-            {evaluation.status === 'error'
-              ? 'Retry Evaluations'
-              : evaluation.status === 'complete'
-                ? 'Re-run Evaluations'
-                : evaluation.status === 'scoring' || evaluation.status === 'awaiting_ai'
-                  ? 'Evaluating...'
-                  : evaluation.status === 'awaiting_confirmation'
-                    ? 'Confirm AI Evaluation'
-                    : 'Evaluations'}
+            Evaluation
           </button>
           <div className="w-px h-5 bg-gray-200" />
           <button
@@ -4651,30 +4682,23 @@ const Canvas = () => {
 	          )}
           {showEvalPanel && (
             <EvaluationPanel
-              status={evaluation.status}
-              score={evaluation.score}
-              summary={evaluation.summary}
-              results={evaluation.results}
-              suggestions={evaluation.suggestions}
-              noTokens={evaluation.noTokens}
-              insightTokensRemaining={evaluation.insightTokensRemaining}
-              tokenConsumed={evaluation.tokenConsumed}
-              workspaceTier={evaluation.tier}
-              geminiError={evaluation.geminiError}
-              error={evaluation.error}
+              insightTokensRemaining={insightTokenStatus?.insightTokensRemaining ?? 0}
               onClose={() => setShowEvalPanel(false)}
-              onHighlight={handleHighlight}
+              onEvaluate={handleRequestEvaluate}
+              isEvaluateDisabled={canvasState.nodes.length === 0 || isEvaluationSubmitting}
+              isLoadingRuns={isEvaluationRunsLoading}
+              runs={panelRuns}
+              onOpenRun={(run) =>
+                navigate(`/app/ws/${workspaceId}/evaluations?runId=${encodeURIComponent(run.id)}`)
+              }
             />
           )}
           <EvaluationConfirmModal
             isOpen={isEvaluationConfirmOpen}
-            tokensRemaining={evaluation.insightTokensRemaining}
-            onCancel={() => {
-              setIsEvaluationConfirmOpen(false);
-              evaluation.dismissAiConfirmation();
-            }}
+            tokensRemaining={insightTokenStatus?.insightTokensRemaining ?? 0}
+            onCancel={() => setIsEvaluationConfirmOpen(false)}
             onConfirm={handleConfirmAiEvaluation}
-            isSubmitting={isEvaluationConfirmSubmitting}
+            isSubmitting={false}
           />
 	        </main>
 	      </div>

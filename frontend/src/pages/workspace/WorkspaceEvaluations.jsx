@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { Activity, AlertCircle, CheckCircle2, Clock3, RefreshCcw, X, XCircle } from 'lucide-react';
 import api from '../../api';
 import LoadingState from '../../components/LoadingState';
@@ -28,6 +28,7 @@ const formatTime = (value) => {
 
 export default function WorkspaceEvaluations() {
   const { workspaceId } = useParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
 
   const [loading, setLoading] = useState(true);
@@ -49,17 +50,22 @@ export default function WorkspaceEvaluations() {
       setWorkspace(workspaceRes.data);
       setRuns(nextRuns);
       setActiveCount(Number(evalRes.data?.activeCount || 0));
+      const requestedRunId = searchParams.get('runId');
       setSelectedRunId((prev) => {
         if (!nextRuns.length) return null;
+        if (requestedRunId && nextRuns.some((run) => run.id === requestedRunId)) return requestedRunId;
         if (prev && nextRuns.some((run) => run.id === prev)) return prev;
         return nextRuns[0].id;
       });
+      if (requestedRunId && nextRuns.some((run) => run.id === requestedRunId)) {
+        setIsReportOpen(true);
+      }
     } catch {
       setError('Failed to load evaluations.');
     } finally {
       setLoading(false);
     }
-  }, [workspaceId]);
+  }, [searchParams, workspaceId]);
 
   useEffect(() => {
     loadData();
@@ -143,6 +149,11 @@ export default function WorkspaceEvaluations() {
               onClick={() => {
                 setSelectedRunId(run.id);
                 setIsReportOpen(true);
+                setSearchParams((prevParams) => {
+                  const nextParams = new URLSearchParams(prevParams);
+                  nextParams.set('runId', run.id);
+                  return nextParams;
+                });
               }}
               className="w-full rounded-xl border border-gray-200 bg-white p-4 text-left transition-colors hover:border-gray-300 hover:bg-gray-50"
             >
@@ -167,7 +178,14 @@ export default function WorkspaceEvaluations() {
       {isReportOpen && selectedRun && (
         <div
           className="fixed inset-0 z-[100] flex items-center justify-center bg-black/45 p-4 backdrop-blur-sm"
-          onClick={() => setIsReportOpen(false)}
+          onClick={() => {
+            setIsReportOpen(false);
+            setSearchParams((prevParams) => {
+              const nextParams = new URLSearchParams(prevParams);
+              nextParams.delete('runId');
+              return nextParams;
+            });
+          }}
         >
           <div
             className="max-h-[88vh] w-full max-w-5xl overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-2xl"
@@ -180,7 +198,14 @@ export default function WorkspaceEvaluations() {
               </div>
               <button
                 type="button"
-                onClick={() => setIsReportOpen(false)}
+                onClick={() => {
+                  setIsReportOpen(false);
+                  setSearchParams((prevParams) => {
+                    const nextParams = new URLSearchParams(prevParams);
+                    nextParams.delete('runId');
+                    return nextParams;
+                  });
+                }}
                 className="rounded-lg border border-gray-200 p-1.5 text-gray-500 hover:bg-gray-50 hover:text-gray-700"
                 aria-label="Close report modal"
               >

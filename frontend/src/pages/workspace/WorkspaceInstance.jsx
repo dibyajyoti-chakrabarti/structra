@@ -98,7 +98,8 @@ const styles = `
   .wo-new-btn:active { transform: scale(0.98); }
 
   /* Stats */
-  .wo-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 28px; }
+  .wo-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 28px; }
+  @media (max-width: 980px) { .wo-stats { grid-template-columns: repeat(2, 1fr); } }
   @media (max-width: 640px) { .wo-stats { grid-template-columns: 1fr; } }
 
   .wo-stat {
@@ -114,6 +115,7 @@ const styles = `
   .wo-stat:hover::before { opacity: 1; }
   .wo-stat-label { font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-subtle); margin: 0 0 8px; }
   .wo-stat-value { font-size: 26px; font-weight: 800; letter-spacing: -0.8px; color: var(--text); margin: 0; }
+  .wo-stat-hint { margin-top: 6px; font-size: 11px; color: var(--text-subtle); }
 
   /* Systems section */
   .wo-systems-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; gap: 12px; }
@@ -419,6 +421,7 @@ export const WorkspaceOverview = () => {
   const [systemToDelete, setSystemToDelete] = useState(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [memberSearchQuery, setMemberSearchQuery] = useState("");
+  const [tokenStatus, setTokenStatus] = useState(null);
 
   useEffect(() => {
     const handleResize = () => setIsMobileViewport(window.innerWidth <= 767);
@@ -435,6 +438,16 @@ export const WorkspaceOverview = () => {
         ]);
         setWorkspace(wsRes.data);
         setSystems(sysRes.data);
+        try {
+          const tokenRes = await api.get('evaluation/insight-tokens/', {
+            params: { workspaceId },
+            cache: false,
+          });
+          setTokenStatus(tokenRes.data || null);
+        } catch (tokenError) {
+          console.error('Failed to load insight token status', tokenError);
+          setTokenStatus(null);
+        }
       } catch (e) {
         console.error(e);
       } finally {
@@ -521,6 +534,17 @@ export const WorkspaceOverview = () => {
   const purchasedSeatCount = Number(workspace.purchased_seat_count || 1);
   const stats = [
     { label: "Total Systems", value: systems.length },
+    {
+      label: "Insight Tokens Today",
+      value:
+        tokenStatus && Number.isFinite(Number(tokenStatus.insightTokensRemaining))
+          ? `${tokenStatus.insightTokensRemaining}/${tokenStatus.dailyInsightTokens || 0}`
+          : "—",
+      hint:
+        tokenStatus?.tokenScope === "owner"
+          ? "Shared across your workspaces"
+          : "Workspace token pool",
+    },
     { label: "Active Evaluations", value: workspace.active_evaluation_count || 0 },
     isTeamWorkspaceAdmin
       ? { label: "Seats Active", value: `${activeSeatCount}/${purchasedSeatCount}` }
@@ -606,6 +630,7 @@ export const WorkspaceOverview = () => {
           <div key={i} className="wo-stat">
             <p className="wo-stat-label">{s.label}</p>
             <p className="wo-stat-value">{s.value}</p>
+            {s.hint && <p className="wo-stat-hint">{s.hint}</p>}
           </div>
         ))}
       </div>
