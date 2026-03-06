@@ -37,10 +37,10 @@ class Migration(migrations.Migration):
         ),
         migrations.AddIndex(
             model_name="webhookeventlog",
-            index=models.Index(fields=["event_type", "created_at"], name="payment_webh_event_t_6f57ab_idx"),
+            index=models.Index(fields=["event_type", "created_at"], name="pay_wh_event_type_idx"),
         ),
         migrations.AddIndex(
             model_name="webhookeventlog",
-            index=models.Index(fields=["status", "created_at"], name="payment_webh_status_88ca78_idx"),
+            index=models.Index(fields=["status", "created_at"], name="pay_wh_status_idx"),
         ),
     ]
