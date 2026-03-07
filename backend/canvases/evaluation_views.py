@@ -9,6 +9,7 @@ from rest_framework.exceptions import PermissionDenied
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from audit.services import record_system_event
 from canvases.evaluation_service import (
     call_gemini_for_prompt,
     evaluate_canvas_state,
@@ -83,6 +84,23 @@ def _serialize_run(run):
         'completedAt': run.completed_at,
     }
 
+
+def _record_evaluation_audit_event(*, workspace, system, actor, run, action, request=None, status='success', message='', metadata=None):
+    record_system_event(
+        workspace=workspace,
+        system=system,
+        actor=actor,
+        request=request,
+        category='evaluation',
+        action=action,
+        status=status,
+        target_name=getattr(system, 'name', ''),
+        target_id=getattr(run, 'id', ''),
+        message=message,
+        metadata=metadata or {},
+    )
+
+
 class EvaluateAPIView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
@@ -149,6 +167,15 @@ class EvaluateAPIView(APIView):
                 {'error': 'credits_exhausted', 'message': 'Workspace AI credits are exhausted.'},
                 status=status.HTTP_402_PAYMENT_REQUIRED,
             )
+        _record_evaluation_audit_event(
+            workspace=workspace,
+            system=system,
+            actor=request.user,
+            run=run,
+            request=request,
+            action='Evaluation Queued',
+            metadata={'run_id': str(run.id), 'workspace_tier': workspace_tier},
+        )
 
         if settings.USE_SQS:
             published = publish_evaluation_job(
@@ -161,6 +188,17 @@ class EvaluateAPIView(APIView):
                 run.status = EvaluationRun.Status.FAILED
                 run.error_message = 'Failed to queue evaluation'
                 run.save(update_fields=['status', 'error_message'])
+                _record_evaluation_audit_event(
+                    workspace=workspace,
+                    system=system,
+                    actor=request.user,
+                    run=run,
+                    request=request,
+                    action='Evaluation Queue Failed',
+                    status='error',
+                    message='Failed to queue evaluation for processing.',
+                    metadata={'run_id': str(run.id)},
+                )
                 return Response(
                     {'error': 'Evaluation service temporarily unavailable'},
                     status=status.HTTP_503_SERVICE_UNAVAILABLE,
@@ -235,6 +273,15 @@ class AIEvaluationAPIView(APIView):
             status=EvaluationRun.Status.RUNNING,
             started_at=now,
         )
+        _record_evaluation_audit_event(
+            workspace=workspace,
+            system=system,
+            actor=request.user,
+            run=run,
+            request=request,
+            action='Evaluation Started',
+            metadata={'run_id': str(run.id), 'workspace_tier': workspace_tier},
+        )
 
         failed_count = int(summary.get('failed', 0) or 0)
         if failed_count == 0:
@@ -279,6 +326,21 @@ class AIEvaluationAPIView(APIView):
                     'error_message',
                     'completed_at',
                 ]
+            )
+            _record_evaluation_audit_event(
+                workspace=workspace,
+                system=system,
+                actor=request.user,
+                run=run,
+                request=request,
+                action='Evaluation Completed',
+                message='Rule evaluation completed without AI generation.',
+                metadata={
+                    'run_id': str(run.id),
+                    'score': score,
+                    'failed_rules': failed_count,
+                    'gemini_error': False,
+                },
             )
 
             return Response(
@@ -326,6 +388,17 @@ class AIEvaluationAPIView(APIView):
                     'completed_at',
                 ]
             )
+            _record_evaluation_audit_event(
+                workspace=workspace,
+                system=system,
+                actor=request.user,
+                run=run,
+                request=request,
+                action='Evaluation Failed',
+                status='error',
+                message=str(exc),
+                metadata={'run_id': str(run.id), 'score': score, 'failed_rules': failed_count},
+            )
             return Response(
                 {
                     'error': 'NO_TOKENS',
@@ -369,6 +442,17 @@ class AIEvaluationAPIView(APIView):
                     'error_message',
                     'completed_at',
                 ]
+            )
+            _record_evaluation_audit_event(
+                workspace=workspace,
+                system=system,
+                actor=request.user,
+                run=run,
+                request=request,
+                action='Evaluation Completed (AI Warning)',
+                status='warning',
+                message='Rule evaluation completed, but AI service response was unavailable.',
+                metadata={'run_id': str(run.id), 'score': score, 'failed_rules': failed_count, 'gemini_error': True},
             )
 
             return Response(
@@ -414,6 +498,17 @@ class AIEvaluationAPIView(APIView):
                     'error_message',
                     'completed_at',
                 ]
+            )
+            _record_evaluation_audit_event(
+                workspace=workspace,
+                system=system,
+                actor=request.user,
+                run=run,
+                request=request,
+                action='Evaluation Failed',
+                status='error',
+                message=str(exc),
+                metadata={'run_id': str(run.id), 'score': score, 'failed_rules': failed_count},
             )
             return Response(
                 {
@@ -466,6 +561,21 @@ class AIEvaluationAPIView(APIView):
                 'error_message',
                 'completed_at',
             ]
+        )
+        _record_evaluation_audit_event(
+            workspace=workspace,
+            system=system,
+            actor=request.user,
+            run=run,
+            request=request,
+            action='Evaluation Completed',
+            message='Rule evaluation and AI report generation completed.',
+            metadata={
+                'run_id': str(run.id),
+                'score': score,
+                'failed_rules': failed_count,
+                'gemini_error': False,
+            },
         )
 
         return Response(

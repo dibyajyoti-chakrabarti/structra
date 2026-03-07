@@ -9,6 +9,7 @@ from urllib import request as urllib_request
 from django.db import close_old_connections
 from django.utils import timezone
 
+from audit.services import record_system_event
 from canvases.models import Canvas
 from workspaces.models import EvaluationLog, EvaluationRun
 
@@ -122,9 +123,28 @@ def mark_run_failed(run_id, exc):
     )
 
 
+def _record_evaluation_event(*, workspace, system, actor, run, action, status='success', message='', metadata=None):
+    if workspace is None:
+        return
+    record_system_event(
+        workspace=workspace,
+        system=system,
+        actor=actor,
+        category='evaluation',
+        action=action,
+        target_name=getattr(system, 'name', '') or str(getattr(run, 'system_id', '')),
+        target_id=getattr(run, 'id', ''),
+        status=status,
+        message=message,
+        metadata=metadata or {},
+    )
+
+
 def run_evaluation_job(run, canvas_state):
     close_old_connections()
     run_instance = None
+    workspace = None
+    system = None
     try:
         run_instance = EvaluationRun.objects.select_related('workspace__owner', 'user').get(pk=run.pk)
         run_instance.status = EvaluationRun.Status.RUNNING
@@ -143,6 +163,14 @@ def run_evaluation_job(run, canvas_state):
         system = Canvas.objects.filter(id=run.system_id, workspace=workspace).first()
         if system is None:
             raise RuntimeError('System not found for this evaluation run.')
+        _record_evaluation_event(
+            workspace=workspace,
+            system=system,
+            actor=run.user,
+            run=run,
+            action='Evaluation Started',
+            metadata={'run_id': str(run.id), 'workspace_tier': run.workspace_tier},
+        )
 
         workspace_tier = run.workspace_tier or resolve_workspace_tier(workspace)
         engine_payload = evaluate_canvas_state(canvas_state or run.canvas_state or {}, workspace_tier)
@@ -196,6 +224,29 @@ def run_evaluation_job(run, canvas_state):
                 'completed_at',
             ]
         )
+        completion_status = 'warning' if gemini_error else 'success'
+        completion_action = 'Evaluation Completed (AI Warning)' if gemini_error else 'Evaluation Completed'
+        completion_message = (
+            'Rule evaluation completed, but AI narrative generation failed.'
+            if gemini_error else
+            'Rule evaluation and report generation completed.'
+        )
+        _record_evaluation_event(
+            workspace=workspace,
+            system=system,
+            actor=run.user,
+            run=run,
+            action=completion_action,
+            status=completion_status,
+            message=completion_message,
+            metadata={
+                'run_id': str(run.id),
+                'score': score,
+                'failed_rules': failed_count,
+                'gemini_error': gemini_error,
+                'workspace_tier': workspace_tier,
+            },
+        )
 
         logger.info(
             'evaluation completed run_id=%s workspace_id=%s system_id=%s',
@@ -204,6 +255,19 @@ def run_evaluation_job(run, canvas_state):
             run.system_id,
         )
     except Exception as exc:
+        _record_evaluation_event(
+            workspace=workspace,
+            system=system,
+            actor=getattr(run_instance, 'user', None),
+            run=run_instance or run,
+            action='Evaluation Failed',
+            status='error',
+            message=str(exc),
+            metadata={
+                'run_id': str(getattr(run_instance, 'id', getattr(run, 'id', ''))),
+                'workspace_tier': getattr(run_instance, 'workspace_tier', None),
+            },
+        )
         if run_instance is not None:
             mark_run_failed(run_instance.id, exc)
         raise
