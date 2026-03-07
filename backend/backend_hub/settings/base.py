@@ -8,8 +8,12 @@ BASE_DIR = Path(__file__).resolve().parent.parent.parent
 PROJECT_DIR = BASE_DIR.parent
 
 # Load environment files.
-load_dotenv(BASE_DIR / '.env')
-load_dotenv(PROJECT_DIR / '.env')
+django_env = os.getenv('DJANGO_ENV', 'local')
+if django_env == 'production':
+    load_dotenv(BASE_DIR / '.env.production', override=True)
+else:
+    load_dotenv(BASE_DIR / '.env.local', override=True)
+load_dotenv(PROJECT_DIR / '.env')  # fallback, keep as is for backward compatibility
 
 # SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = os.getenv('DJANGO_SECRET_KEY', 'django-insecure-change-me')
