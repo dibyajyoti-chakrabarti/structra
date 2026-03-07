@@ -16,6 +16,7 @@ logger = logging.getLogger(__name__)
 
 RUNNER_PATH = Path(__file__).resolve().parent / 'evaluation' / 'runner.mjs'
 DEFAULT_GEMINI_MODEL = 'gemini-2.5-flash'
+DEFAULT_GEMINI_TIMEOUT_SECONDS = 60
 TIER_MAP = {
     'CORE': 'core',
     'INDIVIDUAL': 'individual',
@@ -85,24 +86,29 @@ def _call_gemini(prompt, api_key, model_name):
         headers={'Content-Type': 'application/json'},
         method='POST',
     )
+    try:
+        timeout_seconds = float(os.getenv('GEMINI_TIMEOUT_SECONDS', DEFAULT_GEMINI_TIMEOUT_SECONDS))
+    except (TypeError, ValueError):
+        timeout_seconds = DEFAULT_GEMINI_TIMEOUT_SECONDS
 
     try:
-        with urllib_request.urlopen(request, timeout=25) as response:
+        with urllib_request.urlopen(request, timeout=timeout_seconds) as response:
             data = json.loads(response.read().decode('utf-8'))
     except (urllib_error.URLError, urllib_error.HTTPError, TimeoutError, json.JSONDecodeError):
         return None, True
 
-    suggestions = (
-        data.get('candidates', [{}])[0]
-        .get('content', {})
-        .get('parts', [{}])[0]
-        .get('text')
-    )
-    return suggestions, False
+    candidates = data.get('candidates') or []
+    for candidate in candidates:
+        parts = (candidate.get('content') or {}).get('parts') or []
+        for part in parts:
+            text = part.get('text')
+            if isinstance(text, str) and text.strip():
+                return text.strip(), False
+    return None, True
 
 
 def call_gemini_for_prompt(prompt):
-    api_key = os.getenv('GEMINI_API_KEY', '')
+    api_key = os.getenv('GEMINI_API_KEY') or os.getenv('GOOGLE_API_KEY') or ''
     gemini_model = os.getenv('GEMINI_MODEL', DEFAULT_GEMINI_MODEL)
     return _call_gemini(prompt, api_key, gemini_model)
 
