@@ -108,7 +108,88 @@ export default function WorkspaceEvaluations() {
     [runs, selectedRunId]
   );
 
+  const closeReport = useCallback(() => {
+    setIsReportOpen(false);
+    setSearchParams((prevParams) => {
+      const nextParams = new URLSearchParams(prevParams);
+      nextParams.delete('runId');
+      return nextParams;
+    });
+  }, [setSearchParams]);
+
   if (loading) return <LoadingState message="Loading evaluations" minHeight={360} />;
+
+  if (isReportOpen && selectedRun && !isCorruptedRun(selectedRun)) {
+    return (
+      <div className="pb-0">
+        <div
+          className={`flex min-h-[calc(100vh-9rem)] flex-col overflow-hidden rounded-2xl border shadow-sm ${
+            isDarkTheme ? 'border-slate-700 bg-slate-900' : 'border-slate-200 bg-white'
+          }`}
+        >
+          <div
+            className={`flex items-start justify-between border-b px-6 py-5 ${
+              isDarkTheme ? 'border-slate-700 bg-slate-900' : 'border-slate-200 bg-slate-50'
+            }`}
+          >
+            <div>
+              <h2 className={`text-xl font-semibold tracking-tight ${isDarkTheme ? 'text-slate-100' : 'text-slate-900'}`}>
+                Evaluation Report
+              </h2>
+              <p className={`text-xs ${isDarkTheme ? 'text-slate-400' : 'text-slate-500'}`}>Run: {selectedRun.id}</p>
+            </div>
+            <button
+              type="button"
+              onClick={closeReport}
+              className={`rounded-lg border p-1.5 ${
+                isDarkTheme
+                  ? 'border-slate-700 text-slate-400 hover:bg-slate-800 hover:text-slate-200'
+                  : 'border-gray-200 text-gray-500 hover:bg-gray-50 hover:text-gray-700'
+              }`}
+              aria-label="Close report"
+            >
+              <X size={14} />
+            </button>
+          </div>
+
+          <div className="flex-1 space-y-4 overflow-y-auto p-6">
+            <div className="grid grid-cols-2 gap-2 text-xs md:grid-cols-4">
+              <div className={`rounded-lg border px-3 py-2 ${isDarkTheme ? 'border-slate-700 bg-slate-800 text-slate-300' : 'border-slate-200 bg-slate-50 text-slate-700'}`}>Status: <strong className={isDarkTheme ? 'text-slate-100' : 'text-slate-900'}>{statusLabel(selectedRun.status)}</strong></div>
+              <div className={`rounded-lg border px-3 py-2 ${isDarkTheme ? 'border-slate-700 bg-slate-800 text-slate-300' : 'border-slate-200 bg-slate-50 text-slate-700'}`}>System: <strong className={isDarkTheme ? 'text-slate-100' : 'text-slate-900'}>{selectedRun.systemId}</strong></div>
+              <div className={`rounded-lg border px-3 py-2 ${isDarkTheme ? 'border-slate-700 bg-slate-800 text-slate-300' : 'border-slate-200 bg-slate-50 text-slate-700'}`}>Score: <strong className={isDarkTheme ? 'text-slate-100' : 'text-slate-900'}>{selectedRun.score ?? '—'}</strong></div>
+              <div className={`rounded-lg border px-3 py-2 ${isDarkTheme ? 'border-slate-700 bg-slate-800 text-slate-300' : 'border-slate-200 bg-slate-50 text-slate-700'}`}>Tier: <strong className={isDarkTheme ? 'text-slate-100' : 'text-slate-900'}>{selectedRun.workspaceTier || '—'}</strong></div>
+            </div>
+
+            {selectedRun.error && (
+              <div className="rounded-lg border border-red-200 bg-red-50 p-2.5 text-xs text-red-700">
+                {selectedRun.error}
+              </div>
+            )}
+
+            <div className={`rounded-xl border p-6 shadow-sm ${isDarkTheme ? 'border-slate-700 bg-slate-900' : 'border-slate-200 bg-white'}`}>
+              <StructuredReport text={selectedRun.suggestions || 'No AI report was generated for this evaluation run.'} />
+            </div>
+
+            <div className="flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={closeReport}
+                className="inline-flex items-center rounded-md border border-gray-200 px-3 py-2 text-xs font-semibold text-gray-700 hover:bg-gray-50"
+              >
+                Back to Runs
+              </button>
+              <Link
+                to={`/app/ws/${workspaceId}/systems/${selectedRun.systemId}`}
+                className="inline-flex items-center rounded-md border border-gray-200 px-3 py-2 text-xs font-semibold text-gray-700 hover:bg-gray-50"
+              >
+                Open System
+              </Link>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-4 pb-10">
@@ -205,88 +286,6 @@ export default function WorkspaceEvaluations() {
         </div>
       )}
 
-      {isReportOpen && selectedRun && !isCorruptedRun(selectedRun) && (
-        <div
-          className={`fixed inset-0 z-[100] flex items-start justify-center px-4 pb-4 pt-20 backdrop-blur-sm ${
-            isDarkTheme ? 'bg-black/45' : 'bg-slate-900/35'
-          }`}
-          onClick={() => {
-            setIsReportOpen(false);
-            setSearchParams((prevParams) => {
-              const nextParams = new URLSearchParams(prevParams);
-              nextParams.delete('runId');
-              return nextParams;
-            });
-          }}
-        >
-          <div
-            className={`max-h-[calc(100vh-6rem)] w-full max-w-6xl overflow-hidden rounded-2xl border shadow-2xl ${
-              isDarkTheme ? 'border-slate-700 bg-slate-900' : 'border-slate-200 bg-white'
-            }`}
-            onClick={(event) => event.stopPropagation()}
-          >
-            <div
-              className={`flex items-start justify-between border-b px-6 py-5 ${
-                isDarkTheme ? 'border-slate-700 bg-slate-900' : 'border-slate-200 bg-slate-50'
-              }`}
-            >
-              <div>
-                <h2 className={`text-xl font-semibold tracking-tight ${isDarkTheme ? 'text-slate-100' : 'text-slate-900'}`}>
-                  Evaluation Report
-                </h2>
-                <p className={`text-xs ${isDarkTheme ? 'text-slate-400' : 'text-slate-500'}`}>Run: {selectedRun.id}</p>
-              </div>
-              <button
-                type="button"
-                onClick={() => {
-                  setIsReportOpen(false);
-                  setSearchParams((prevParams) => {
-                    const nextParams = new URLSearchParams(prevParams);
-                    nextParams.delete('runId');
-                    return nextParams;
-                  });
-                }}
-                className={`rounded-lg border p-1.5 ${
-                  isDarkTheme
-                    ? 'border-slate-700 text-slate-400 hover:bg-slate-800 hover:text-slate-200'
-                    : 'border-gray-200 text-gray-500 hover:bg-gray-50 hover:text-gray-700'
-                }`}
-                aria-label="Close report modal"
-              >
-                <X size={14} />
-              </button>
-            </div>
-
-            <div className="max-h-[calc(88vh-82px)] space-y-4 overflow-y-auto p-6">
-              <div className="grid grid-cols-2 gap-2 text-xs md:grid-cols-4">
-                <div className={`rounded-lg border px-3 py-2 ${isDarkTheme ? 'border-slate-700 bg-slate-800 text-slate-300' : 'border-slate-200 bg-slate-50 text-slate-700'}`}>Status: <strong className={isDarkTheme ? 'text-slate-100' : 'text-slate-900'}>{statusLabel(selectedRun.status)}</strong></div>
-                <div className={`rounded-lg border px-3 py-2 ${isDarkTheme ? 'border-slate-700 bg-slate-800 text-slate-300' : 'border-slate-200 bg-slate-50 text-slate-700'}`}>System: <strong className={isDarkTheme ? 'text-slate-100' : 'text-slate-900'}>{selectedRun.systemId}</strong></div>
-                <div className={`rounded-lg border px-3 py-2 ${isDarkTheme ? 'border-slate-700 bg-slate-800 text-slate-300' : 'border-slate-200 bg-slate-50 text-slate-700'}`}>Score: <strong className={isDarkTheme ? 'text-slate-100' : 'text-slate-900'}>{selectedRun.score ?? '—'}</strong></div>
-                <div className={`rounded-lg border px-3 py-2 ${isDarkTheme ? 'border-slate-700 bg-slate-800 text-slate-300' : 'border-slate-200 bg-slate-50 text-slate-700'}`}>Tier: <strong className={isDarkTheme ? 'text-slate-100' : 'text-slate-900'}>{selectedRun.workspaceTier || '—'}</strong></div>
-              </div>
-
-              {selectedRun.error && (
-                <div className="rounded-lg border border-red-200 bg-red-50 p-2.5 text-xs text-red-700">
-                  {selectedRun.error}
-                </div>
-              )}
-
-              <div className={`rounded-xl border p-6 shadow-sm ${isDarkTheme ? 'border-slate-700 bg-slate-900' : 'border-slate-200 bg-white'}`}>
-                <StructuredReport text={selectedRun.suggestions || 'No AI report was generated for this evaluation run.'} />
-              </div>
-
-              <div className="flex justify-end">
-                <Link
-                  to={`/app/ws/${workspaceId}/systems/${selectedRun.systemId}`}
-                  className="inline-flex items-center rounded-md border border-gray-200 px-3 py-2 text-xs font-semibold text-gray-700 hover:bg-gray-50"
-                >
-                  Open System
-                </Link>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
