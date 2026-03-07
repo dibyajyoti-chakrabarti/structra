@@ -1497,35 +1497,44 @@ ${passedList || 'None'}
 
 REPORT FORMAT REQUIREMENTS (MANDATORY):
 1. Output valid Markdown only.
-2. Use exactly these sections in this order:
+2. Start with this title line before all sections:
+   # Structra Architecture Evaluation Report
+3. Use exactly these sections in this order:
    - ## Executive Summary
    - ## Risk Register
    - ## Findings By Domain
    - ## Remediation Roadmap
    - ## Verification Checklist
    - ## Overall Assessment
-3. In "Risk Register", provide a table with columns:
+4. In "Risk Register", provide a table with columns:
    | Risk ID | Domain | Severity | Evidence | Business Impact | Recommended Fix |
-4. In "Findings By Domain", create subsections:
+5. In "Findings By Domain", create subsections:
    ### Connectivity
    ### Compute
    ### Data
    ### Security
    ### Reliability
    ### Observability
-5. For each failed rule, include:
+6. For each failed rule, include:
    - the concrete architecture gap,
    - why it matters for this specific system,
    - implementation-level remediation steps,
    - expected measurable outcome after remediation.
-6. In "Remediation Roadmap", provide phases:
+7. In "Remediation Roadmap", provide phases:
    - Immediate (0-2 weeks)
    - Near-term (2-6 weeks)
    - Mid-term (6-12 weeks)
-7. In "Verification Checklist", provide actionable checkboxes with acceptance criteria.
-8. Keep language precise and technical, avoid fluff.
-9. If system goal is unclear, explicitly state this as a material limitation.
-${coreTierNote ? `10. ${coreTierNote}` : ''}
+   Within each phase, use hierarchical numeric action numbering:
+   - top-level actions as 1., 2., 3.
+   - sub-actions as 1.1., 1.2., 2.1.
+   - each sub-action should be implementation-specific and measurable.
+8. In "Verification Checklist", provide actionable markdown checkboxes with acceptance criteria using this exact syntax:
+   - [ ] Item text...
+9. Highlight key technical terms, components, protocols, metrics, rule IDs, and risk labels using inline code ticks, e.g. \`API Gateway\`, \`F-10\`, \`p95 latency\`.
+10. Keep language precise and technical, avoid fluff.
+11. Use concise bulleting, clear table evidence, and measurable acceptance criteria (SLO/SLA/threshold style where possible).
+12. If system goal is unclear, explicitly state this as a material limitation.
+${coreTierNote ? `13. ${coreTierNote}` : ''}
 
 Do not output any preface or disclaimer. Output the report only.`;
 }

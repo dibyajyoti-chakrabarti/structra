@@ -79,7 +79,16 @@ def _call_gemini(prompt, api_key, model_name):
         'https://generativelanguage.googleapis.com/v1beta/models/'
         f'{model}:generateContent?key={api_key}'
     )
-    payload = json.dumps({'contents': [{'parts': [{'text': prompt}]}]}).encode('utf-8')
+    payload = json.dumps(
+        {
+            'contents': [{'parts': [{'text': prompt}]}],
+            'generationConfig': {
+                'temperature': 0.2,
+                'topP': 0.9,
+                'responseMimeType': 'text/plain',
+            },
+        }
+    ).encode('utf-8')
 
     request = urllib_request.Request(
         url,
