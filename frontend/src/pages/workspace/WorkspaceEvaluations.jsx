@@ -27,8 +27,14 @@ const formatTime = (value) => {
   return date.toLocaleString();
 };
 
+const hasReportData = (run) =>
+  Boolean(run?.suggestions) ||
+  (Array.isArray(run?.results) && run.results.length > 0) ||
+  (run?.summary && typeof run.summary === 'object' && Object.keys(run.summary).length > 0) ||
+  Number.isFinite(run?.score);
+
 const isCorruptedRun = (run) =>
-  run?.status === 'failed' || Boolean(run?.geminiError) || (Boolean(run?.error) && !run?.suggestions);
+  run?.status === 'failed' || (Boolean(run?.error) && !hasReportData(run));
 
 export default function WorkspaceEvaluations() {
   const { workspaceId } = useParams();
