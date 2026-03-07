@@ -1,4 +1,5 @@
 from datetime import timedelta
+import logging
 
 from django.conf import settings
 from django.db import transaction
@@ -37,6 +38,7 @@ from workspaces.services.insight_token_service import (
     get_workspace_insight_token_status,
 )
 HOURLY_WORKSPACE_EVALUATION_LIMIT = 10
+logger = logging.getLogger(__name__)
 
 
 class EvaluateRequestSerializer(serializers.Serializer):
@@ -86,19 +88,28 @@ def _serialize_run(run):
 
 
 def _record_evaluation_audit_event(*, workspace, system, actor, run, action, request=None, status='success', message='', metadata=None):
-    record_system_event(
-        workspace=workspace,
-        system=system,
-        actor=actor,
-        request=request,
-        category='evaluation',
-        action=action,
-        status=status,
-        target_name=getattr(system, 'name', ''),
-        target_id=getattr(run, 'id', ''),
-        message=message,
-        metadata=metadata or {},
-    )
+    try:
+        record_system_event(
+            workspace=workspace,
+            system=system,
+            actor=actor,
+            request=request,
+            category='evaluation',
+            action=action,
+            status=status,
+            target_name=getattr(system, 'name', ''),
+            target_id=getattr(run, 'id', ''),
+            message=message,
+            metadata=metadata or {},
+        )
+    except Exception:
+        logger.exception(
+            'evaluation audit logging failed workspace_id=%s system_id=%s run_id=%s action=%s',
+            getattr(workspace, 'id', None),
+            getattr(system, 'id', None),
+            getattr(run, 'id', None),
+            action,
+        )
 
 
 class EvaluateAPIView(APIView):
@@ -114,6 +125,11 @@ class EvaluateAPIView(APIView):
 
         workspace = get_object_or_404(Workspace.objects.select_related('owner'), id=workspace_id)
         system = get_object_or_404(Canvas, id=system_id, workspace=workspace)
+        logger.info(
+            'ai evaluation context resolved workspace_id=%s system_id=%s',
+            workspace.id,
+            system.id,
+        )
 
         now = timezone.now()
         one_hour_ago = now - timedelta(hours=1)
@@ -240,6 +256,12 @@ class AIEvaluationAPIView(APIView):
         workspace_id = serializer.validated_data['workspaceId']
         system_id = serializer.validated_data['systemId']
         canvas_state = serializer.validated_data['canvasState']
+        logger.info(
+            'ai evaluation request received workspace_id=%s system_id=%s user_id=%s',
+            workspace_id,
+            system_id,
+            request.user.user_id,
+        )
 
         workspace = get_object_or_404(Workspace.objects.select_related('owner'), id=workspace_id)
         system = get_object_or_404(Canvas, id=system_id, workspace=workspace)
@@ -258,7 +280,22 @@ class AIEvaluationAPIView(APIView):
             )
 
         workspace_tier = resolve_workspace_tier(workspace)
-        engine_payload = evaluate_canvas_state(canvas_state, workspace_tier)
+        try:
+            engine_payload = evaluate_canvas_state(canvas_state, workspace_tier)
+        except Exception as exc:
+            logger.exception(
+                'ai evaluation rule engine failed workspace_id=%s system_id=%s user_id=%s',
+                workspace.id,
+                system.id,
+                request.user.user_id,
+            )
+            return Response(
+                {
+                    'error': 'RULE_ENGINE_FAILED',
+                    'message': str(exc),
+                },
+                status=status.HTTP_503_SERVICE_UNAVAILABLE,
+            )
         results = engine_payload['results']
         summary = engine_payload['summary']
         score = engine_payload['score']
@@ -272,6 +309,12 @@ class AIEvaluationAPIView(APIView):
             canvas_state=canvas_state,
             status=EvaluationRun.Status.RUNNING,
             started_at=now,
+        )
+        logger.info(
+            'ai evaluation run created run_id=%s workspace_id=%s system_id=%s',
+            run.id,
+            workspace.id,
+            system.id,
         )
         _record_evaluation_audit_event(
             workspace=workspace,
@@ -412,7 +455,9 @@ class AIEvaluationAPIView(APIView):
                 status=status.HTTP_402_PAYMENT_REQUIRED,
             )
 
+        logger.info('ai evaluation invoking gemini run_id=%s', run.id)
         suggestions, gemini_error = call_gemini_for_prompt(prompt)
+        logger.info('ai evaluation gemini completed run_id=%s gemini_error=%s', run.id, gemini_error)
         if gemini_error or not suggestions:
             token_state = get_workspace_insight_token_status(workspace_id=workspace.id, now=timezone.now())
             run.status = EvaluationRun.Status.COMPLETED

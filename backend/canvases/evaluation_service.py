@@ -45,6 +45,10 @@ def _run_rule_engine(canvas_state, workspace_tier):
             check=True,
             timeout=25,
         )
+    except FileNotFoundError as exc:
+        raise RuntimeError('Rule engine runtime is unavailable (`node` not found).') from exc
+    except OSError as exc:
+        raise RuntimeError(f'Rule engine could not be started: {exc}.') from exc
     except subprocess.TimeoutExpired as exc:
         raise RuntimeError('Rule engine timed out.') from exc
     except subprocess.CalledProcessError as exc:
@@ -114,6 +118,10 @@ def _call_gemini(prompt, api_key, model_name):
             text = part.get('text')
             if isinstance(text, str) and text.strip():
                 return text.strip(), False
+    logger.warning(
+        'gemini response missing text candidates keys=%s',
+        sorted(data.keys()) if isinstance(data, dict) else 'non-dict',
+    )
     return None, True
 
 
