@@ -122,6 +122,28 @@ const styles = `
   .wo-systems-title { font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em; color: var(--text-muted); }
 
   .wo-search-wrap { position: relative; }
+  .wo-evals-btn {
+    height: 34px;
+    padding: 0 12px;
+    background: var(--surface);
+    border: 1.5px solid var(--border);
+    border-radius: 8px;
+    font-size: 12.5px;
+    font-weight: 650;
+    font-family: inherit;
+    color: var(--text);
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: border-color 0.12s, background 0.12s, color 0.12s;
+  }
+  .wo-evals-btn:hover {
+    border-color: var(--border-strong);
+    background: var(--surface-2);
+    color: var(--text);
+  }
   .wo-search-input {
     height: 34px; width: 200px; padding: 0 12px 0 34px;
     border: 1.5px solid var(--border); border-radius: 8px;
@@ -645,10 +667,11 @@ export const WorkspaceOverview = () => {
             <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
               <button
                 type="button"
-                className="wo-icon-btn"
+                className="wo-evals-btn"
                 onClick={() => navigate(`/app/ws/${workspaceId}/evaluations`)}
                 title="View workspace evaluations"
               >
+                Evaluations
                 <Activity size={15} />
               </button>
               <div className="wo-search-wrap">
