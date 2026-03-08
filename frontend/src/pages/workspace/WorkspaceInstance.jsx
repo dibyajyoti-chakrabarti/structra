@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { Outlet, useLocation, useNavigate, useOutletContext, useParams } from "react-router-dom";
 import {
   LayoutGrid, Settings, Trash2, X, CheckCircle, AlertCircle,
-  Search, Users, Star, Plus, Activity,
+  Search, Users, Star, Plus, Activity, Coins,
 } from "lucide-react";
 import AuthenticatedNavbar from "../../components/AuthenticatedNavbar";
 import WorkspaceNavbar from "../../components/WorkspaceNavbar";
@@ -115,6 +115,7 @@ const styles = `
   .wo-stat:hover::before { opacity: 1; }
   .wo-stat-label { font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-subtle); margin: 0 0 8px; }
   .wo-stat-value { font-size: 26px; font-weight: 800; letter-spacing: -0.8px; color: var(--text); margin: 0; }
+  .wo-token-value { display: inline-flex; align-items: center; gap: 8px; }
   .wo-stat-hint { margin-top: 6px; font-size: 11px; color: var(--text-subtle); }
 
   /* Systems section */
@@ -560,7 +561,12 @@ export const WorkspaceOverview = () => {
       label: "Insight Tokens Today",
       value:
         tokenStatus && Number.isFinite(Number(tokenStatus.insightTokensRemaining))
-          ? `${tokenStatus.insightTokensRemaining}/${tokenStatus.dailyInsightTokens || 0}`
+          ? (
+            <span className="wo-token-value">
+              <Coins size={18} style={{ color: '#f59e0b' }} />
+              {`${tokenStatus.insightTokensRemaining}/${tokenStatus.dailyInsightTokens || 0}`}
+            </span>
+          )
           : "—",
       hint:
         tokenStatus?.tokenScope === "owner"

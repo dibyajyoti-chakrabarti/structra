@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { Activity, AlertCircle, CheckCircle2, Clock3, RefreshCcw, X, XCircle } from 'lucide-react';
+import { Activity, AlertCircle, CheckCircle2, Clock3, Coins, RefreshCcw, X, XCircle } from 'lucide-react';
 import api from '../../api';
 import LoadingState from '../../components/LoadingState';
 import StructuredReport from '../../components/StructuredReport';
@@ -319,7 +319,10 @@ export default function WorkspaceEvaluations() {
                 <span>System: <strong>{run.systemId}</strong></span>
                 <span>Score: <strong>{run.score ?? '—'}</strong></span>
                 <span>Tier: <strong>{run.workspaceTier || '—'}</strong></span>
-                <span>Tokens: <strong>{run.insightTokensRemaining ?? run.creditsRemaining ?? '—'}</strong></span>
+                <span className="inline-flex items-center gap-1">
+                  <Coins size={12} className="text-amber-500" />
+                  Tokens: <strong>{run.insightTokensRemaining ?? run.creditsRemaining ?? '—'}</strong>
+                </span>
               </div>
               {corrupted && (
                 <div className="mt-2 text-xs font-semibold text-red-600">Corrupted run. Report unavailable.</div>
