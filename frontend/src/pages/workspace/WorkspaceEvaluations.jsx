@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { Activity, AlertCircle, CheckCircle2, Clock3, RefreshCcw, X, XCircle } from 'lucide-react';
 import api from '../../api';
@@ -36,6 +36,48 @@ const hasReportData = (run) =>
 const isCorruptedRun = (run) =>
   run?.status === 'failed' || (Boolean(run?.error) && !hasReportData(run));
 
+const buildFallbackReport = (run) => {
+  const summary = run?.summary && typeof run.summary === 'object' ? run.summary : {};
+  const score = Number.isFinite(run?.score) ? run.score : Number(summary?.score);
+  const applicable = Number(summary?.applicable || 0);
+  const passed = Number(summary?.passed || 0);
+  const failed = Number(summary?.failed || 0);
+
+  const failedRules = Array.isArray(summary?.failedRules)
+    ? summary.failedRules
+    : (Array.isArray(run?.results)
+        ? run.results.filter((item) => item?.passed === false)
+        : []);
+  const topFailedRules = failedRules.slice(0, 8);
+  const failedSection = topFailedRules.length
+    ? topFailedRules
+        .map((item) => {
+          const id = item?.id || 'UNKNOWN';
+          const confidence = item?.confidence ? ` (confidence: ${item.confidence})` : '';
+          const reason = item?.reason || 'No reason provided.';
+          return `- **Rule Failed:** \`${id}\`${confidence} ${reason}`;
+        })
+        .join('\n')
+    : '- No failed rules were recorded.';
+
+  return [
+    '# Evaluation Summary',
+    '',
+    `- **Status:** ${run?.status || 'completed'}`,
+    `- **Score:** ${Number.isFinite(score) ? score : 'N/A'}`,
+    `- **Applicable Rules:** ${applicable}`,
+    `- **Passed:** ${passed}`,
+    `- **Failed:** ${failed}`,
+    '',
+    '## Rule Findings',
+    failedSection,
+    '',
+    run?.geminiError
+      ? '> [!WARNING]\n> AI narrative generation is unavailable in this environment. Showing rule-engine output only.'
+      : '> [!NOTE]\n> AI report text was not available for this run. Showing rule-engine output only.',
+  ].join('\n');
+};
+
 export default function WorkspaceEvaluations() {
   const { workspaceId } = useParams();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -50,6 +92,7 @@ export default function WorkspaceEvaluations() {
   const [selectedRunId, setSelectedRunId] = useState(null);
   const [isReportOpen, setIsReportOpen] = useState(false);
   const [error, setError] = useState('');
+  const queryHydratedRef = useRef(false);
 
   const loadData = useCallback(async () => {
     try {
@@ -76,11 +119,13 @@ export default function WorkspaceEvaluations() {
         return firstOpenable ? firstOpenable.id : nextRuns[0].id;
       });
       if (
+        !queryHydratedRef.current &&
         requestedRunId &&
         nextRuns.some((run) => run.id === requestedRunId && !isCorruptedRun(run))
       ) {
         setIsReportOpen(true);
       }
+      queryHydratedRef.current = true;
     } catch {
       setError('Failed to load evaluations.');
     } finally {
@@ -110,12 +155,10 @@ export default function WorkspaceEvaluations() {
 
   const closeReport = useCallback(() => {
     setIsReportOpen(false);
-    setSearchParams((prevParams) => {
-      const nextParams = new URLSearchParams(prevParams);
-      nextParams.delete('runId');
-      return nextParams;
-    });
-  }, [setSearchParams]);
+    const nextParams = new URLSearchParams(searchParams);
+    nextParams.delete('runId');
+    setSearchParams(nextParams, { replace: true });
+  }, [searchParams, setSearchParams]);
 
   if (loading) return <LoadingState message="Loading evaluations" minHeight={360} />;
 
@@ -167,7 +210,7 @@ export default function WorkspaceEvaluations() {
             )}
 
             <div className={`rounded-xl border p-6 shadow-sm ${isDarkTheme ? 'border-slate-700 bg-slate-900' : 'border-slate-200 bg-white'}`}>
-              <StructuredReport text={selectedRun.suggestions || 'No AI report was generated for this evaluation run.'} />
+              <StructuredReport text={selectedRun.suggestions || buildFallbackReport(selectedRun)} />
             </div>
 
             <div className="flex justify-end gap-2">
@@ -253,6 +296,7 @@ export default function WorkspaceEvaluations() {
               type="button"
               onClick={() => {
                 if (corrupted) return;
+                queryHydratedRef.current = true;
                 setSelectedRunId(run.id);
                 setIsReportOpen(true);
                 setSearchParams((prevParams) => {
