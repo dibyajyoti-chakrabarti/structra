@@ -197,7 +197,7 @@ export default function Pricing() {
 
       <section className="py-12 sm:py-16">
         <div className="mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8">
-          <div className="grid gap-6 lg:grid-cols-4">
+          <div className="grid gap-6 lg:grid-cols-4 lg:items-stretch">
           {plans.map((plan) => {
             const isCurrentPlan =
               plan.name.toUpperCase() === currentPlan;
@@ -220,7 +220,7 @@ export default function Pricing() {
             return (
               <article
                 key={plan.name}
-                className={`relative rounded-2xl border p-6 shadow-sm transition ${
+                className={`relative flex flex-col rounded-2xl border p-6 shadow-sm transition ${
                   isCurrentPlan
                     ? "border-emerald-400 bg-white shadow-xl shadow-emerald-100 ring-2 ring-emerald-100"
                     : plan.highlighted
@@ -228,52 +228,65 @@ export default function Pricing() {
                       : "border-slate-200 bg-white hover:border-blue-200 hover:shadow-md"
                 }`}
               >
-              {isCurrentPlan && (
-                <span className="absolute left-1/2 top-0 -translate-x-1/2 -translate-y-1/2 rounded-full bg-emerald-600 px-3 py-1 text-[11px] font-black uppercase tracking-wider text-white shadow-sm">
-                  Current Plan
-                </span>
-              )}
-              {plan.highlighted && (
-                <p className={`mb-4 inline-flex rounded-full bg-blue-100 px-3 py-1 text-xs font-black uppercase tracking-wider text-blue-700 ${isCurrentPlan ? "mt-8" : ""}`}>
-                  Most Popular
-                </p>
-              )}
-              <h2 className="text-2xl font-black text-slate-900">{plan.label || plan.name}</h2>
-              <p className="mt-2 text-sm text-slate-600">{plan.subtitle}</p>
+              {/* Badge row — always reserves the same height */}
+              <div className="mb-4 flex h-7 items-center">
+                {isCurrentPlan ? (
+                  <span className="inline-flex rounded-full bg-emerald-600 px-3 py-1 text-[11px] font-black uppercase tracking-wider text-white shadow-sm">
+                    Current Plan
+                  </span>
+                ) : plan.highlighted ? (
+                  <span className="inline-flex rounded-full bg-blue-100 px-3 py-1 text-xs font-black uppercase tracking-wider text-blue-700">
+                    Most Popular
+                  </span>
+                ) : null}
+              </div>
 
-              <div className="mt-6 flex items-end gap-1">
+              {/* Plan name + subtitle — fixed height so price row stays aligned */}
+              <div className="min-h-[80px]">
+                <h2 className="text-2xl font-black text-slate-900">{plan.label || plan.name}</h2>
+                <p className="mt-1.5 text-sm leading-5 text-slate-500">{plan.subtitle}</p>
+              </div>
+
+              {/* Price row — fixed height so feature lists start at the same Y */}
+              <div className="mt-3 flex min-h-[60px] items-end gap-1 border-b border-slate-100 pb-5">
                 <span className="text-4xl font-black tracking-tight text-slate-900">
                   {plan.price}
                 </span>
-                <span className="pb-1 text-sm font-semibold text-slate-500">
-                  {plan.interval}
-                </span>
+                {plan.interval && (
+                  <span className="pb-1 text-sm font-semibold text-slate-400">
+                    {plan.interval}
+                  </span>
+                )}
               </div>
 
-              <ul className="mt-6 space-y-3">
-                {plan.features.map((feature) => (
-                  <li
-                    key={feature}
-                    className="flex items-start gap-2 text-sm text-slate-700"
-                  >
-                    <CheckCircle2
-                      size={16}
-                      className="mt-0.5 flex-shrink-0 text-blue-600"
-                    />
-                    {feature}
-                  </li>
-                ))}
-              </ul>
-              {plan.note ? (
-                <p className="mt-4 rounded-lg bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-800">
-                  {plan.note}
-                </p>
-              ) : null}
+              {/* Feature list — grows to fill available space, pushing CTA to the bottom */}
+              <div className="mt-5 flex flex-1 flex-col">
+                <ul className="space-y-2.5">
+                  {plan.features.map((feature) => (
+                    <li
+                      key={feature}
+                      className="flex items-start gap-2 text-sm text-slate-700"
+                    >
+                      <CheckCircle2
+                        size={15}
+                        className="mt-0.5 flex-shrink-0 text-blue-500"
+                      />
+                      {feature}
+                    </li>
+                  ))}
+                </ul>
+                {plan.note ? (
+                  <p className="mt-4 rounded-lg bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-800">
+                    {plan.note}
+                  </p>
+                ) : null}
+              </div>
 
+              {/* CTA — always pinned to the bottom */}
               <button
                 onClick={() => handlePlanCta(plan.name)}
                 disabled={isPlanButtonDisabled}
-                className={`mt-8 inline-flex w-full items-center justify-center gap-2 rounded-xl px-5 py-3 text-sm font-bold transition ${
+                className={`mt-6 inline-flex w-full items-center justify-center gap-2 rounded-xl px-5 py-3 text-sm font-bold transition ${
                   isCurrentPlan
                     ? (plan.name === "INDIVIDUAL" || plan.name === "TEAM")
                       ? "bg-blue-600 text-white hover:bg-blue-700"
