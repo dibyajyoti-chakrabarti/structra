@@ -26,7 +26,12 @@ from workspaces.credit_service import (
     TeamSoftThrottleError,
     claim_ai_credit,
 )
-from workspaces.services.insight_token_service import get_workspace_insight_token_status
+from workspaces.services.insight_token_service import (
+    NoInsightTokensError,
+    consume_insight_token_on_confirmation,
+    get_workspace_insight_token_status,
+    refund_insight_token,
+)
 HOURLY_WORKSPACE_EVALUATION_LIMIT = 10
 logger = logging.getLogger(__name__)
 
@@ -201,6 +206,12 @@ class EvaluateAPIView(APIView):
                     canvas_state=canvas_state,
                     status=EvaluationRun.Status.PENDING,
                 )
+                token_state = consume_insight_token_on_confirmation(
+                    workspace_id=workspace.id,
+                    now=now,
+                )
+                run.insight_token_consumed = True
+                run.insight_tokens_remaining = token_state['insightTokensRemaining']
                 claim_result = claim_ai_credit(
                     workspace_id=workspace.id,
                     user_id=request.user.user_id,
@@ -208,7 +219,18 @@ class EvaluateAPIView(APIView):
                     now=now,
                 )
                 run.credits_remaining = claim_result['credits_remaining']
-                run.save(update_fields=['credits_remaining'])
+                run.save(
+                    update_fields=[
+                        'insight_token_consumed',
+                        'insight_tokens_remaining',
+                        'credits_remaining',
+                    ]
+                )
+        except NoInsightTokensError as exc:
+            return Response(
+                {'error': 'NO_TOKENS', 'message': str(exc)},
+                status=status.HTTP_402_PAYMENT_REQUIRED,
+            )
         except TeamSoftThrottleError as exc:
             return Response(
                 {'error': 'user_throttle', 'message': str(exc)},
@@ -235,6 +257,12 @@ class EvaluateAPIView(APIView):
             system=system,
             canvas_state=canvas_state,
         ):
+            token_state = None
+            if run.insight_token_consumed:
+                token_state = refund_insight_token(workspace_id=workspace.id)
+                run.insight_token_consumed = False
+                run.insight_tokens_remaining = token_state['insightTokensRemaining']
+                run.save(update_fields=['insight_token_consumed', 'insight_tokens_remaining'])
             _record_evaluation_audit_event(
                 workspace=workspace,
                 system=system,
@@ -247,7 +275,10 @@ class EvaluateAPIView(APIView):
                 metadata={'run_id': str(run.id)},
             )
             return Response(
-                {'error': 'Evaluation service temporarily unavailable'},
+                {
+                    'error': 'Evaluation service temporarily unavailable',
+                    'insightTokensRemaining': token_state['insightTokensRemaining'] if token_state else None,
+                },
                 status=status.HTTP_503_SERVICE_UNAVAILABLE,
             )
 

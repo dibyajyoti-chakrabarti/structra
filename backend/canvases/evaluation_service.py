@@ -12,6 +12,7 @@ from django.utils import timezone
 from audit.services import record_system_event
 from canvases.models import Canvas
 from workspaces.models import EvaluationLog, EvaluationRun
+from workspaces.services.insight_token_service import refund_insight_token
 
 logger = logging.getLogger(__name__)
 
@@ -172,6 +173,16 @@ def _record_evaluation_event(*, workspace, system, actor, run, action, status='s
     )
 
 
+def _refund_run_token_if_needed(run):
+    if not run or not getattr(run, 'insight_token_consumed', False):
+        return None
+
+    token_state = refund_insight_token(workspace_id=run.workspace_id)
+    run.insight_token_consumed = False
+    run.insight_tokens_remaining = token_state['insightTokensRemaining']
+    return token_state
+
+
 def run_evaluation_job(run, canvas_state):
     close_old_connections()
     run_instance = None
@@ -223,6 +234,12 @@ def run_evaluation_job(run, canvas_state):
             suggestions, gemini_error = call_gemini_for_prompt(prompt)
             logger.info('gemini completed run_id=%s gemini_error=%s', run.id, gemini_error)
 
+        token_refunded = False
+        if gemini_error:
+            token_state = _refund_run_token_if_needed(run)
+            if token_state:
+                token_refunded = True
+
         EvaluationLog.objects.create(
             workspace=workspace,
             system_id=system.id,
@@ -242,7 +259,7 @@ def run_evaluation_job(run, canvas_state):
         run.credits_exhausted = False
         run.credits_remaining = credits_remaining
         run.gemini_error = gemini_error
-        run.error_message = ''
+        run.error_message = 'Insight Token refunded because Gemini returned no response.' if token_refunded else ''
         run.completed_at = timezone.now()
         run.save(
             update_fields=[
@@ -256,6 +273,8 @@ def run_evaluation_job(run, canvas_state):
                 'gemini_error',
                 'error_message',
                 'completed_at',
+                'insight_token_consumed',
+                'insight_tokens_remaining',
             ]
         )
         completion_status = 'warning' if gemini_error else 'success'
@@ -278,6 +297,7 @@ def run_evaluation_job(run, canvas_state):
                 'score': score,
                 'failed_rules': failed_count,
                 'gemini_error': gemini_error,
+                'insight_token_refunded': token_refunded,
                 'workspace_tier': workspace_tier,
             },
         )
@@ -289,6 +309,9 @@ def run_evaluation_job(run, canvas_state):
             run.system_id,
         )
     except Exception as exc:
+        token_state = None
+        if run_instance is not None:
+            token_state = _refund_run_token_if_needed(run_instance)
         _record_evaluation_event(
             workspace=workspace,
             system=system,
@@ -300,10 +323,24 @@ def run_evaluation_job(run, canvas_state):
             metadata={
                 'run_id': str(getattr(run_instance, 'id', getattr(run, 'id', ''))),
                 'workspace_tier': getattr(run_instance, 'workspace_tier', None),
+                'insight_token_refunded': bool(token_state),
             },
         )
         if run_instance is not None:
-            mark_run_failed(run_instance.id, exc)
+            run_instance.error_message = str(exc)
+            run_instance.completed_at = timezone.now()
+            run_instance.status = EvaluationRun.Status.FAILED
+            run_instance.save(
+                update_fields=[
+                    'status',
+                    'error_message',
+                    'completed_at',
+                    'insight_token_consumed',
+                    'insight_tokens_remaining',
+                ]
+            )
+        else:
+            mark_run_failed(run.id, exc)
         raise
     finally:
         close_old_connections()

@@ -202,3 +202,41 @@ def consume_insight_token_after_success(*, workspace_id, now=None):
             'insightTokensRemaining': int(workspace.insight_tokens_remaining or 0),
             'lastTokenResetDate': workspace.last_token_reset_date,
         }
+
+
+def consume_insight_token_on_confirmation(*, workspace_id, now=None):
+    # Token is debited at evaluation confirmation time to prevent repeated enqueue abuse.
+    return consume_insight_token_after_success(workspace_id=workspace_id, now=now)
+
+
+def refund_insight_token(*, workspace_id, now=None):
+    now = now or timezone.now()
+    with transaction.atomic():
+        workspace = (
+            Workspace.all_objects.select_related('owner').select_for_update().get(id=workspace_id)
+        )
+        if _uses_owner_shared_pool(workspace):
+            list(Workspace.all_objects.select_for_update().filter(owner_id=workspace.owner_id).only('id'))
+        workspace = ensure_workspace_insight_token_state(workspace, now=now)
+
+        remaining = int(workspace.insight_tokens_remaining or 0)
+        allocation = int(workspace.daily_insight_tokens or get_daily_insight_tokens(workspace))
+        next_remaining = min(remaining + 1, allocation)
+
+        if _uses_owner_shared_pool(workspace):
+            Workspace.all_objects.filter(owner_id=workspace.owner_id).update(
+                insight_tokens_remaining=next_remaining
+            )
+            workspace.insight_tokens_remaining = next_remaining
+        else:
+            workspace.insight_tokens_remaining = next_remaining
+            workspace.save(update_fields=['insight_tokens_remaining', 'updated_at'])
+
+        return {
+            'tier': get_workspace_tier(workspace),
+            'tokenScope': 'owner' if _uses_owner_shared_pool(workspace) else 'workspace',
+            'seatCount': get_workspace_seat_count(workspace),
+            'dailyInsightTokens': allocation,
+            'insightTokensRemaining': int(workspace.insight_tokens_remaining or 0),
+            'lastTokenResetDate': workspace.last_token_reset_date,
+        }
