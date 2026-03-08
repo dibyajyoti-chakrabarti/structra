@@ -1,5 +1,6 @@
 from datetime import timedelta
 import logging
+import os
 
 from django.conf import settings
 from django.db import transaction
@@ -12,8 +13,6 @@ from rest_framework.views import APIView
 
 from audit.services import record_system_event
 from canvases.evaluation_service import (
-    call_gemini_for_prompt,
-    evaluate_canvas_state,
     resolve_workspace_tier,
     run_evaluation_job,
 )
@@ -21,22 +20,13 @@ from canvases.models import Canvas
 from canvases.sqs_publisher import publish_evaluation_job
 from permissions.checks import user_has_system_read_access
 from permissions.models import WorkspaceMember
-from workspaces.models import EvaluationLog, EvaluationRun, Workspace
+from workspaces.models import EvaluationRun, Workspace
 from workspaces.credit_service import (
     CreditExhaustedError,
     TeamSoftThrottleError,
     claim_ai_credit,
 )
-from workspaces.middleware.check_insight_tokens import (
-    WorkspaceAiRateLimitError,
-    enforce_workspace_hourly_ai_limit,
-)
-from workspaces.services.insight_token_service import (
-    NoInsightTokensError,
-    consume_insight_token_after_success,
-    ensure_workspace_has_insight_tokens,
-    get_workspace_insight_token_status,
-)
+from workspaces.services.insight_token_service import get_workspace_insight_token_status
 HOURLY_WORKSPACE_EVALUATION_LIMIT = 10
 logger = logging.getLogger(__name__)
 
@@ -62,6 +52,52 @@ class InsightTokenStatusRequestSerializer(serializers.Serializer):
 
 class AIEvaluationRequestSerializer(EvaluateRequestSerializer):
     pass
+
+
+def _is_local_execution_mode():
+    env_name = (os.getenv('DJANGO_ENV') or os.getenv('ENV') or '').strip().lower()
+    return settings.DEBUG or env_name == 'local'
+
+
+def _dispatch_evaluation_job(*, run, workspace, system, canvas_state):
+    if not _is_local_execution_mode():
+        published = publish_evaluation_job(
+            run_id=str(run.id),
+            workspace_id=str(workspace.id),
+            system_id=str(system.id),
+            canvas_state=canvas_state,
+        )
+        if not published:
+            run.status = EvaluationRun.Status.FAILED
+            run.error_message = 'Failed to queue evaluation'
+            run.save(update_fields=['status', 'error_message'])
+            logger.error(
+                'evaluation queue publish failed run_id=%s workspace_id=%s system_id=%s',
+                run.id,
+                workspace.id,
+                system.id,
+            )
+            return False
+
+        logger.info(
+            'evaluation job queued run_id=%s workspace_id=%s system_id=%s transport=sqs',
+            run.id,
+            workspace.id,
+            system.id,
+        )
+        return True
+
+    import threading
+
+    worker = threading.Thread(target=run_evaluation_job, args=(run, canvas_state), daemon=True)
+    worker.start()
+    logger.info(
+        'evaluation job queued run_id=%s workspace_id=%s system_id=%s transport=thread',
+        run.id,
+        workspace.id,
+        system.id,
+    )
+    return True
 
 
 def _serialize_run(run):
@@ -193,37 +229,27 @@ class EvaluateAPIView(APIView):
             metadata={'run_id': str(run.id), 'workspace_tier': workspace_tier},
         )
 
-        if settings.USE_SQS:
-            published = publish_evaluation_job(
-                run_id=str(run.id),
-                workspace_id=str(workspace.id),
-                system_id=str(system_id),
-                canvas_state=canvas_state,
+        if not _dispatch_evaluation_job(
+            run=run,
+            workspace=workspace,
+            system=system,
+            canvas_state=canvas_state,
+        ):
+            _record_evaluation_audit_event(
+                workspace=workspace,
+                system=system,
+                actor=request.user,
+                run=run,
+                request=request,
+                action='Evaluation Queue Failed',
+                status='error',
+                message='Failed to queue evaluation for processing.',
+                metadata={'run_id': str(run.id)},
             )
-            if not published:
-                run.status = EvaluationRun.Status.FAILED
-                run.error_message = 'Failed to queue evaluation'
-                run.save(update_fields=['status', 'error_message'])
-                _record_evaluation_audit_event(
-                    workspace=workspace,
-                    system=system,
-                    actor=request.user,
-                    run=run,
-                    request=request,
-                    action='Evaluation Queue Failed',
-                    status='error',
-                    message='Failed to queue evaluation for processing.',
-                    metadata={'run_id': str(run.id)},
-                )
-                return Response(
-                    {'error': 'Evaluation service temporarily unavailable'},
-                    status=status.HTTP_503_SERVICE_UNAVAILABLE,
-                )
-        else:
-            import threading
-
-            worker = threading.Thread(target=run_evaluation_job, args=(run, canvas_state), daemon=True)
-            worker.start()
+            return Response(
+                {'error': 'Evaluation service temporarily unavailable'},
+                status=status.HTTP_503_SERVICE_UNAVAILABLE,
+            )
 
         return Response({'runId': str(run.id)}, status=status.HTTP_202_ACCEPTED)
 
@@ -250,392 +276,8 @@ class AIEvaluationAPIView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def post(self, request):
-        serializer = AIEvaluationRequestSerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-
-        workspace_id = serializer.validated_data['workspaceId']
-        system_id = serializer.validated_data['systemId']
-        canvas_state = serializer.validated_data['canvasState']
-        logger.info(
-            'ai evaluation request received workspace_id=%s system_id=%s user_id=%s',
-            workspace_id,
-            system_id,
-            request.user.user_id,
-        )
-
-        workspace = get_object_or_404(Workspace.objects.select_related('owner'), id=workspace_id)
-        system = get_object_or_404(Canvas, id=system_id, workspace=workspace)
-
-        is_member = WorkspaceMember.objects.filter(workspace=workspace, user=request.user).exists()
-        if not is_member or not user_has_system_read_access(system, request.user):
-            raise PermissionDenied('You do not have permission to evaluate this system.')
-
-        now = timezone.now()
-        try:
-            enforce_workspace_hourly_ai_limit(workspace_id=workspace.id, now=now)
-        except WorkspaceAiRateLimitError as exc:
-            return Response(
-                {'error': 'RATE_LIMIT', 'retryAfterSeconds': exc.retry_after_seconds},
-                status=status.HTTP_429_TOO_MANY_REQUESTS,
-            )
-
-        workspace_tier = resolve_workspace_tier(workspace)
-        try:
-            engine_payload = evaluate_canvas_state(canvas_state, workspace_tier)
-        except Exception as exc:
-            logger.exception(
-                'ai evaluation rule engine failed workspace_id=%s system_id=%s user_id=%s',
-                workspace.id,
-                system.id,
-                request.user.user_id,
-            )
-            return Response(
-                {
-                    'error': 'RULE_ENGINE_FAILED',
-                    'message': str(exc),
-                },
-                status=status.HTTP_503_SERVICE_UNAVAILABLE,
-            )
-        results = engine_payload['results']
-        summary = engine_payload['summary']
-        score = engine_payload['score']
-        prompt = engine_payload['prompt']
-
-        run = EvaluationRun.objects.create(
-            workspace=workspace,
-            system_id=system.id,
-            user=request.user,
-            workspace_tier=workspace_tier,
-            canvas_state=canvas_state,
-            status=EvaluationRun.Status.RUNNING,
-            started_at=now,
-        )
-        logger.info(
-            'ai evaluation run created run_id=%s workspace_id=%s system_id=%s',
-            run.id,
-            workspace.id,
-            system.id,
-        )
-        _record_evaluation_audit_event(
-            workspace=workspace,
-            system=system,
-            actor=request.user,
-            run=run,
-            request=request,
-            action='Evaluation Started',
-            metadata={'run_id': str(run.id), 'workspace_tier': workspace_tier},
-        )
-
-        failed_count = int(summary.get('failed', 0) or 0)
-        if failed_count == 0:
-            token_state = get_workspace_insight_token_status(workspace_id=workspace.id, now=now)
-            suggestions = 'Your architecture passes all applicable rules. No improvements to suggest.'
-
-            EvaluationLog.objects.create(
-                workspace=workspace,
-                system_id=system.id,
-                user=request.user,
-                workspace_tier=workspace_tier,
-                score=score,
-                rules_evaluated=int(summary.get('applicable', 0) or 0),
-                rules_passed=int(summary.get('passed', 0) or 0),
-                credit_consumed=False,
-            )
-
-            run.status = EvaluationRun.Status.COMPLETED
-            run.score = score
-            run.summary = summary
-            run.results = results
-            run.suggestions = suggestions
-            run.credits_exhausted = False
-            run.credits_remaining = token_state['insightTokensRemaining']
-            run.insight_token_consumed = False
-            run.insight_tokens_remaining = token_state['insightTokensRemaining']
-            run.gemini_error = False
-            run.error_message = ''
-            run.completed_at = timezone.now()
-            run.save(
-                update_fields=[
-                    'status',
-                    'score',
-                    'summary',
-                    'results',
-                    'suggestions',
-                    'credits_exhausted',
-                    'credits_remaining',
-                    'insight_token_consumed',
-                    'insight_tokens_remaining',
-                    'gemini_error',
-                    'error_message',
-                    'completed_at',
-                ]
-            )
-            _record_evaluation_audit_event(
-                workspace=workspace,
-                system=system,
-                actor=request.user,
-                run=run,
-                request=request,
-                action='Evaluation Completed',
-                message='Rule evaluation completed without AI generation.',
-                metadata={
-                    'run_id': str(run.id),
-                    'score': score,
-                    'failed_rules': failed_count,
-                    'gemini_error': False,
-                },
-            )
-
-            return Response(
-                {
-                    'runId': str(run.id),
-                    'workspaceTier': workspace_tier,
-                    'score': score,
-                    'summary': summary,
-                    'results': results,
-                    'suggestions': suggestions,
-                    'tokenConsumed': False,
-                    **token_state,
-                },
-                status=status.HTTP_200_OK,
-            )
-
-        try:
-            ensure_workspace_has_insight_tokens(workspace_id=workspace.id, now=now)
-        except NoInsightTokensError as exc:
-            run.status = EvaluationRun.Status.FAILED
-            run.score = score
-            run.summary = summary
-            run.results = results
-            run.suggestions = None
-            run.credits_exhausted = True
-            run.credits_remaining = 0
-            run.insight_token_consumed = False
-            run.insight_tokens_remaining = 0
-            run.gemini_error = False
-            run.error_message = str(exc)
-            run.completed_at = timezone.now()
-            run.save(
-                update_fields=[
-                    'status',
-                    'score',
-                    'summary',
-                    'results',
-                    'suggestions',
-                    'credits_exhausted',
-                    'credits_remaining',
-                    'insight_token_consumed',
-                    'insight_tokens_remaining',
-                    'gemini_error',
-                    'error_message',
-                    'completed_at',
-                ]
-            )
-            _record_evaluation_audit_event(
-                workspace=workspace,
-                system=system,
-                actor=request.user,
-                run=run,
-                request=request,
-                action='Evaluation Failed',
-                status='error',
-                message=str(exc),
-                metadata={'run_id': str(run.id), 'score': score, 'failed_rules': failed_count},
-            )
-            return Response(
-                {
-                    'error': 'NO_TOKENS',
-                    'message': str(exc),
-                    'workspaceTier': workspace_tier,
-                    'score': score,
-                    'summary': summary,
-                    'results': results,
-                    'insightTokensRemaining': 0,
-                },
-                status=status.HTTP_402_PAYMENT_REQUIRED,
-            )
-
-        logger.info('ai evaluation invoking gemini run_id=%s', run.id)
-        suggestions, gemini_error = call_gemini_for_prompt(prompt)
-        logger.info('ai evaluation gemini completed run_id=%s gemini_error=%s', run.id, gemini_error)
-        if gemini_error or not suggestions:
-            token_state = get_workspace_insight_token_status(workspace_id=workspace.id, now=timezone.now())
-            run.status = EvaluationRun.Status.COMPLETED
-            run.score = score
-            run.summary = summary
-            run.results = results
-            run.suggestions = None
-            run.credits_exhausted = False
-            run.credits_remaining = token_state['insightTokensRemaining']
-            run.insight_token_consumed = False
-            run.insight_tokens_remaining = token_state['insightTokensRemaining']
-            run.gemini_error = True
-            run.error_message = 'Could not reach AI service.'
-            run.completed_at = timezone.now()
-            run.save(
-                update_fields=[
-                    'status',
-                    'score',
-                    'summary',
-                    'results',
-                    'suggestions',
-                    'credits_exhausted',
-                    'credits_remaining',
-                    'insight_token_consumed',
-                    'insight_tokens_remaining',
-                    'gemini_error',
-                    'error_message',
-                    'completed_at',
-                ]
-            )
-            _record_evaluation_audit_event(
-                workspace=workspace,
-                system=system,
-                actor=request.user,
-                run=run,
-                request=request,
-                action='Evaluation Completed (AI Warning)',
-                status='warning',
-                message='Rule evaluation completed, but AI service response was unavailable.',
-                metadata={'run_id': str(run.id), 'score': score, 'failed_rules': failed_count, 'gemini_error': True},
-            )
-
-            return Response(
-                {
-                    'error': 'GEMINI_FAILED',
-                    'message': 'Could not reach AI service.',
-                    'workspaceTier': workspace_tier,
-                    'score': score,
-                    'summary': summary,
-                    'results': results,
-                    **token_state,
-                },
-                status=status.HTTP_503_SERVICE_UNAVAILABLE,
-            )
-
-        try:
-            token_state = consume_insight_token_after_success(workspace_id=workspace.id, now=timezone.now())
-        except NoInsightTokensError as exc:
-            run.status = EvaluationRun.Status.FAILED
-            run.score = score
-            run.summary = summary
-            run.results = results
-            run.suggestions = None
-            run.credits_exhausted = True
-            run.credits_remaining = 0
-            run.insight_token_consumed = False
-            run.insight_tokens_remaining = 0
-            run.gemini_error = False
-            run.error_message = str(exc)
-            run.completed_at = timezone.now()
-            run.save(
-                update_fields=[
-                    'status',
-                    'score',
-                    'summary',
-                    'results',
-                    'suggestions',
-                    'credits_exhausted',
-                    'credits_remaining',
-                    'insight_token_consumed',
-                    'insight_tokens_remaining',
-                    'gemini_error',
-                    'error_message',
-                    'completed_at',
-                ]
-            )
-            _record_evaluation_audit_event(
-                workspace=workspace,
-                system=system,
-                actor=request.user,
-                run=run,
-                request=request,
-                action='Evaluation Failed',
-                status='error',
-                message=str(exc),
-                metadata={'run_id': str(run.id), 'score': score, 'failed_rules': failed_count},
-            )
-            return Response(
-                {
-                    'error': 'NO_TOKENS',
-                    'message': str(exc),
-                    'workspaceTier': workspace_tier,
-                    'score': score,
-                    'summary': summary,
-                    'results': results,
-                    'insightTokensRemaining': 0,
-                },
-                status=status.HTTP_402_PAYMENT_REQUIRED,
-            )
-
-        EvaluationLog.objects.create(
-            workspace=workspace,
-            system_id=system.id,
-            user=request.user,
-            workspace_tier=workspace_tier,
-            score=score,
-            rules_evaluated=int(summary.get('applicable', 0) or 0),
-            rules_passed=int(summary.get('passed', 0) or 0),
-            credit_consumed=True,
-        )
-
-        run.status = EvaluationRun.Status.COMPLETED
-        run.score = score
-        run.summary = summary
-        run.results = results
-        run.suggestions = suggestions
-        run.credits_exhausted = False
-        run.credits_remaining = token_state['insightTokensRemaining']
-        run.insight_token_consumed = True
-        run.insight_tokens_remaining = token_state['insightTokensRemaining']
-        run.gemini_error = False
-        run.error_message = ''
-        run.completed_at = timezone.now()
-        run.save(
-            update_fields=[
-                'status',
-                'score',
-                'summary',
-                'results',
-                'suggestions',
-                'credits_exhausted',
-                'credits_remaining',
-                'insight_token_consumed',
-                'insight_tokens_remaining',
-                'gemini_error',
-                'error_message',
-                'completed_at',
-            ]
-        )
-        _record_evaluation_audit_event(
-            workspace=workspace,
-            system=system,
-            actor=request.user,
-            run=run,
-            request=request,
-            action='Evaluation Completed',
-            message='Rule evaluation and AI report generation completed.',
-            metadata={
-                'run_id': str(run.id),
-                'score': score,
-                'failed_rules': failed_count,
-                'gemini_error': False,
-            },
-        )
-
-        return Response(
-            {
-                'runId': str(run.id),
-                'workspaceTier': workspace_tier,
-                'score': score,
-                'summary': summary,
-                'results': results,
-                'suggestions': suggestions,
-                'tokenConsumed': True,
-                **token_state,
-            },
-            status=status.HTTP_200_OK,
-        )
+        # Keep endpoint compatibility while enforcing the same async execution path.
+        return EvaluateAPIView().post(request)
 
 
 class EvaluationRunStatusAPIView(APIView):

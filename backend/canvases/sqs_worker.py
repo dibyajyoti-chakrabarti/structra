@@ -34,6 +34,7 @@ def process_message(body):
         logger.info('run already terminal run_id=%s status=%s; acknowledging message', run_id, run.status)
         return
 
+    logger.info('processing evaluation run_id=%s', run_id)
     run_evaluation_job(run, canvas_state)
 
 
@@ -61,7 +62,7 @@ def main():
             body = json.loads(message.get('Body', '{}'))
             receipt_handle = message['ReceiptHandle']
 
-            logger.info('message received run_id=%s', body.get('runId'))
+            logger.info('received sqs message run_id=%s', body.get('runId'))
 
             try:
                 process_message(body)

@@ -108,7 +108,22 @@ def _call_gemini(prompt, api_key, model_name):
     try:
         with urllib_request.urlopen(request, timeout=timeout_seconds) as response:
             data = json.loads(response.read().decode('utf-8'))
-    except (urllib_error.URLError, urllib_error.HTTPError, TimeoutError, json.JSONDecodeError):
+    except urllib_error.HTTPError as exc:
+        body = ''
+        try:
+            body = exc.read().decode('utf-8')
+        except Exception:
+            pass
+        logger.error('gemini http error status=%s model=%s body=%s', exc.code, model, body[:500])
+        return None, True
+    except urllib_error.URLError as exc:
+        logger.error('gemini url error model=%s reason=%s', model, exc.reason)
+        return None, True
+    except TimeoutError:
+        logger.error('gemini request timed out model=%s timeout=%s', model, timeout_seconds)
+        return None, True
+    except json.JSONDecodeError as exc:
+        logger.error('gemini response json parse error model=%s: %s', model, exc)
         return None, True
 
     candidates = data.get('candidates') or []
@@ -204,7 +219,9 @@ def run_evaluation_job(run, canvas_state):
         if failed_count == 0:
             suggestions = 'Your architecture passes all applicable rules. No improvements to suggest.'
         else:
+            logger.info('processing evaluation run_id=%s phase=gemini', run.id)
             suggestions, gemini_error = call_gemini_for_prompt(prompt)
+            logger.info('gemini completed run_id=%s gemini_error=%s', run.id, gemini_error)
 
         EvaluationLog.objects.create(
             workspace=workspace,

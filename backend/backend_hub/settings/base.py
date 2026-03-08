@@ -198,6 +198,16 @@ LOGGING = {
             'level': 'INFO',
             'propagate': False,
         },
+        'canvases.sqs_worker': {
+            'handlers': ['console'],
+            'level': 'INFO',
+            'propagate': False,
+        },
+        'canvases.sqs_publisher': {
+            'handlers': ['console'],
+            'level': 'INFO',
+            'propagate': False,
+        },
     },
     'root': {
         'handlers': ['console'],
