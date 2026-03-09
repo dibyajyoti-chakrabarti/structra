@@ -567,6 +567,33 @@ class CreateOrderViewTests(APITestCase):
         )
 
     @patch('payments.views.razorpay.Client')
+    def test_cancel_legacy_non_subscription_id_marks_cancelled_without_gateway_call(self, mock_client_cls):
+        original_expiry = timezone.now() + timedelta(days=12)
+        self.user.current_plan = 'INDIVIDUAL'
+        self.user.plan_expires_at = original_expiry
+        self.user.save(update_fields=['current_plan', 'plan_expires_at'])
+        tx = PaymentTransaction.objects.create(
+            user=self.user,
+            plan_name='INDIVIDUAL',
+            amount='599.00',
+            status=PaymentTransaction.Status.ACTIVE,
+            razorpay_subscription_id='order_legacy_1',
+        )
+        self.client.force_authenticate(user=self.user)
+
+        response = self.client.post(
+            self.cancel_url,
+            {'razorpay_subscription_id': 'order_legacy_1'},
+            format='json',
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data['message'], 'Subscription cancelled')
+        tx.refresh_from_db()
+        self.assertEqual(tx.status, PaymentTransaction.Status.CANCELLED)
+        mock_client_cls.assert_not_called()
+
+    @patch('payments.views.razorpay.Client')
     def test_cancel_is_idempotent_for_cancelled_subscription(self, mock_client_cls):
         original_expiry = timezone.now() + timedelta(days=8)
         self.user.current_plan = 'INDIVIDUAL'

@@ -514,6 +514,16 @@ class CancelSubscriptionView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
+        if not razorpay_subscription_id.startswith('sub_'):
+            logger.warning(
+                'Skipping Razorpay cancellation for legacy non-subscription id %s for user %s',
+                razorpay_subscription_id,
+                request.user.user_id,
+            )
+            transaction.status = PaymentTransaction.Status.CANCELLED
+            transaction.save(update_fields=['status', 'updated_at'])
+            return self._success_response(transaction.user)
+
         try:
             client = _get_razorpay_client()
         except ValueError:
