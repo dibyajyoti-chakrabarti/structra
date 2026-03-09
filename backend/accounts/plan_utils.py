@@ -42,6 +42,7 @@ def get_active_razorpay_subscription_id(user):
             user=user,
             status=PaymentTransaction.Status.ACTIVE,
             razorpay_subscription_id__isnull=False,
+            razorpay_subscription_id__startswith='sub_',
         )
         .exclude(razorpay_subscription_id='')
         .order_by('-updated_at', '-created_at')
