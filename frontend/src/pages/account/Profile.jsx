@@ -222,10 +222,12 @@ export default function Profile() {
   };
 
   const handleCancelPlan = async () => {
-    const razorpaySubscriptionId = user?.razorpay_subscription_id || null;
-    if (!razorpaySubscriptionId) {
+    const razorpaySubscriptionId = typeof user?.razorpay_subscription_id === 'string'
+      ? user.razorpay_subscription_id.trim()
+      : '';
+    if (!razorpaySubscriptionId || !razorpaySubscriptionId.startsWith('sub_')) {
       setBillingMessageType('error');
-      setBillingMessage('No active subscription found for this account.');
+      setBillingMessage('This plan is already cancelled and cannot be cancelled again.');
       return;
     }
 
@@ -309,8 +311,13 @@ export default function Profile() {
   });
 
   const currentPlan = (user?.current_plan || 'CORE').toUpperCase();
-  const isPaidSelfServePlan = currentPlan === 'INDIVIDUAL' || currentPlan === 'TEAM';
-  const hasActiveAutopay = Boolean(user?.razorpay_subscription_id);
+  const isPaidPlan = currentPlan === 'INDIVIDUAL' || currentPlan === 'TEAM';
+  const isPaidSelfServePlan = isPaidPlan;
+  const activeSubscriptionId = typeof user?.razorpay_subscription_id === 'string'
+    ? user.razorpay_subscription_id.trim()
+    : '';
+  const hasActiveAutopay = activeSubscriptionId.startsWith('sub_');
+  const isCancelledPaidPlan = isPaidPlan && !hasActiveAutopay;
   const planDateLabel = formatDateLabel(user?.plan_expires_at);
   const primaryPlanStatus = hasActiveAutopay
     ? (planDateLabel ? `Auto-renews on ${planDateLabel}` : 'Auto-renewal is active.')
@@ -318,9 +325,9 @@ export default function Profile() {
   const autopayStatus = hasActiveAutopay
     ? (planDateLabel ? `Autopay expires on ${planDateLabel}` : 'Autopay active')
     : 'Autopay inactive';
-  const paidWindowLockoutMessage = planDateLabel
-    ? `Your plan will expire on ${planDateLabel}. You can resubscribe after your current billing period ends.`
-    : 'Your paid access is still active. You can resubscribe after your current billing period ends.';
+  const cancelledPlanMessage = planDateLabel
+    ? `Your plan remains active until ${planDateLabel}.`
+    : 'Your plan is cancelled and will remain active until the current billing cycle ends.';
 
   if (loading) return <LoadingState message="Loading profile" minHeight="100vh" />;
   if (!user) return <div className="h-screen flex items-center justify-center text-red-600">Failed to load profile.</div>;
@@ -679,9 +686,20 @@ export default function Profile() {
                         {isCancellingPlan ? 'Cancelling...' : 'Cancel Plan'}
                       </button>
                     ) : (
-                      <p className="mt-4 text-sm text-gray-600">
-                        {paidWindowLockoutMessage}
-                      </p>
+                      isCancelledPaidPlan ? (
+                        <div className="mt-4 space-y-2">
+                          <button
+                            type="button"
+                            disabled
+                            className="inline-flex w-full cursor-not-allowed items-center justify-center rounded-md border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm font-semibold text-slate-400"
+                          >
+                            Plan Cancelled
+                          </button>
+                          <p className="text-sm text-gray-600">
+                            {cancelledPlanMessage}
+                          </p>
+                        </div>
+                      ) : null
                     )}
                   </>
                 ) : (
