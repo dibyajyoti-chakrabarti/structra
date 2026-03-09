@@ -7,6 +7,7 @@ import useRazorpayCheckout from "../../hooks/useRazorpayCheckout";
 import CheckoutSummaryModal from "../../components/payments/CheckoutSummaryModal";
 import PaymentSuccessOverlay from "../../components/payments/PaymentSuccessOverlay";
 import { useAuth } from "../../contexts/AuthContext";
+import { formatDateLabel } from "../../utils/dateUtils";
 
 const plans = [
   {
@@ -105,6 +106,13 @@ export default function Pricing() {
   const currentPlan = isAuthenticated
     ? (user?.current_plan || "CORE").toUpperCase()
     : "CORE";
+  const isPaidPlan = currentPlan === "INDIVIDUAL" || currentPlan === "TEAM";
+  const activeSubscriptionId = typeof user?.razorpay_subscription_id === "string"
+    ? user.razorpay_subscription_id.trim()
+    : "";
+  const hasActiveAutopay = activeSubscriptionId.startsWith("sub_");
+  const isCancelledPaidPlan = isPaidPlan && !hasActiveAutopay;
+  const expiryLabel = formatDateLabel(user?.plan_expires_at);
 
   const closePaymentModal = () => {
     setPaymentStatus("idle");
@@ -201,21 +209,29 @@ export default function Pricing() {
           {plans.map((plan) => {
             const isCurrentPlan =
               plan.name.toUpperCase() === currentPlan;
+            const isCurrentPaidPlanCard =
+              isCurrentPlan && (plan.name === "INDIVIDUAL" || plan.name === "TEAM");
+            const isCurrentCancelledPlanCard = isCurrentPaidPlanCard && isCancelledPaidPlan;
             const isCheckoutProcessing =
               (plan.name === "INDIVIDUAL" || plan.name === "TEAM") &&
               (isCheckoutLoading || paymentStatus === "processing");
             const isPlanButtonDisabled = isCurrentPlan
-              ? currentPlan === "CORE" || isCheckoutProcessing
+              ? currentPlan === "CORE" || isCheckoutProcessing || isCurrentCancelledPlanCard
               : isCheckoutProcessing;
             const ctaLabel = isCurrentPlan
               ? currentPlan === "CORE"
                 ? "Current Plan"
-                : (plan.name === "INDIVIDUAL" || plan.name === "TEAM")
+                : isCurrentCancelledPlanCard
+                  ? "Plan Cancelled"
+                  : (plan.name === "INDIVIDUAL" || plan.name === "TEAM")
                   ? "Manage Billing"
                   : "Current Plan"
               : isCheckoutProcessing
                 ? "Processing..."
                 : plan.cta;
+            const cancelledPlanMessage = expiryLabel
+              ? `Active until ${expiryLabel}.`
+              : "Active until current billing cycle ends.";
 
             return (
               <article
@@ -283,11 +299,18 @@ export default function Pricing() {
               </div>
 
               {/* CTA — always pinned to the bottom */}
+              {isCurrentCancelledPlanCard ? (
+                <p className="mt-4 rounded-lg bg-slate-100 px-3 py-2 text-xs font-semibold text-slate-600">
+                  {cancelledPlanMessage}
+                </p>
+              ) : null}
               <button
                 onClick={() => handlePlanCta(plan.name)}
                 disabled={isPlanButtonDisabled}
                 className={`mt-6 inline-flex w-full items-center justify-center gap-2 rounded-xl px-5 py-3 text-sm font-bold transition ${
-                  isCurrentPlan
+                  isCurrentCancelledPlanCard
+                    ? "cursor-not-allowed border border-slate-200 bg-slate-100 text-slate-400"
+                    : isCurrentPlan
                     ? (plan.name === "INDIVIDUAL" || plan.name === "TEAM")
                       ? "bg-blue-600 text-white hover:bg-blue-700"
                       : "cursor-not-allowed border border-emerald-300 bg-emerald-50 text-emerald-700"
@@ -298,7 +321,7 @@ export default function Pricing() {
               >
                 {ctaLabel}
                 {!isCurrentPlan && <ArrowRight size={16} />}
-                {isCurrentPlan && (plan.name === "INDIVIDUAL" || plan.name === "TEAM") && !isCheckoutProcessing && (
+                {isCurrentPlan && !isCurrentCancelledPlanCard && (plan.name === "INDIVIDUAL" || plan.name === "TEAM") && !isCheckoutProcessing && (
                   <ArrowRight size={16} />
                 )}
               </button>
