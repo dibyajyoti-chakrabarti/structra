@@ -75,15 +75,14 @@ def evaluate_canvas_state(canvas_state, workspace_tier):
     }
 
 
-def _call_gemini(prompt, api_key, model_name):
-    if not api_key:
+def _call_gemini(prompt, api_keys, model_name):
+    if not api_keys:
+        logger.error('No Gemini API keys provided.')
         return None, True
 
     model = (model_name or DEFAULT_GEMINI_MODEL).strip()
-    url = (
-        'https://generativelanguage.googleapis.com/v1beta/models/'
-        f'{model}:generateContent?key={api_key}'
-    )
+    url_base = f'https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key='
+
     payload = json.dumps(
         {
             'contents': [{'parts': [{'text': prompt}]}],
@@ -95,56 +94,79 @@ def _call_gemini(prompt, api_key, model_name):
         }
     ).encode('utf-8')
 
-    request = urllib_request.Request(
-        url,
-        data=payload,
-        headers={'Content-Type': 'application/json'},
-        method='POST',
-    )
     try:
         timeout_seconds = float(os.getenv('GEMINI_TIMEOUT_SECONDS', DEFAULT_GEMINI_TIMEOUT_SECONDS))
     except (TypeError, ValueError):
         timeout_seconds = DEFAULT_GEMINI_TIMEOUT_SECONDS
 
-    try:
-        with urllib_request.urlopen(request, timeout=timeout_seconds) as response:
-            data = json.loads(response.read().decode('utf-8'))
-    except urllib_error.HTTPError as exc:
-        body = ''
-        try:
-            body = exc.read().decode('utf-8')
-        except Exception:
-            pass
-        logger.error('gemini http error status=%s model=%s body=%s', exc.code, model, body[:500])
-        return None, True
-    except urllib_error.URLError as exc:
-        logger.error('gemini url error model=%s reason=%s', model, exc.reason)
-        return None, True
-    except TimeoutError:
-        logger.error('gemini request timed out model=%s timeout=%s', model, timeout_seconds)
-        return None, True
-    except json.JSONDecodeError as exc:
-        logger.error('gemini response json parse error model=%s: %s', model, exc)
-        return None, True
+    for index, api_key in enumerate(api_keys):
+        url = url_base + api_key
+        request = urllib_request.Request(
+            url,
+            data=payload,
+            headers={'Content-Type': 'application/json'},
+            method='POST',
+        )
 
-    candidates = data.get('candidates') or []
-    for candidate in candidates:
-        parts = (candidate.get('content') or {}).get('parts') or []
-        for part in parts:
-            text = part.get('text')
-            if isinstance(text, str) and text.strip():
-                return text.strip(), False
-    logger.warning(
-        'gemini response missing text candidates keys=%s',
-        sorted(data.keys()) if isinstance(data, dict) else 'non-dict',
-    )
+        try:
+            with urllib_request.urlopen(request, timeout=timeout_seconds) as response:
+                data = json.loads(response.read().decode('utf-8'))
+
+                candidates = data.get('candidates') or []
+                for candidate in candidates:
+                    parts = (candidate.get('content') or {}).get('parts') or []
+                    for part in parts:
+                        text = part.get('text')
+                        if isinstance(text, str) and text.strip():
+                            return text.strip(), False
+
+                logger.warning(
+                    'gemini response missing text candidates keys=%s',
+                    sorted(data.keys()) if isinstance(data, dict) else 'non-dict',
+                )
+                return None, True
+
+        except urllib_error.HTTPError as exc:
+            body = ''
+            try:
+                body = exc.read().decode('utf-8')
+            except Exception:
+                pass
+
+            # Rotate on 400 (API key invalid/expired), 429 (quota), 401 (unauthorized), 403 (forbidden)
+            if exc.code in (400, 429, 401, 403):
+                logger.warning(
+                    'gemini key index=%d failed with status=%s. Rotating to next key. body=%s',
+                    index, exc.code, body[:200],
+                )
+                continue
+
+            # Fail immediately on server errors
+            logger.error('gemini http error status=%s model=%s body=%s', exc.code, model, body[:500])
+            return None, True
+
+        except urllib_error.URLError as exc:
+            logger.error('gemini url error model=%s reason=%s', model, exc.reason)
+            return None, True
+        except TimeoutError:
+            logger.error('gemini request timed out model=%s timeout=%s', model, timeout_seconds)
+            return None, True
+        except json.JSONDecodeError as exc:
+            logger.error('gemini response json parse error model=%s: %s', model, exc)
+            return None, True
+
+    logger.error('All Gemini API keys exhausted or invalid.')
     return None, True
 
 
 def call_gemini_for_prompt(prompt):
-    api_key = os.getenv('GEMINI_API_KEY') or os.getenv('GOOGLE_API_KEY') or ''
+    # Support both GEMINI_API_KEYS and GEMINI_API_KEY (comma-separated values in either)
+    keys_env = os.getenv('GEMINI_API_KEYS') or os.getenv('GEMINI_API_KEY') or os.getenv('GOOGLE_API_KEY') or ''
+    api_keys = [k.strip() for k in keys_env.split(',') if k.strip()]
+
+    logger.info('gemini loaded %d api key(s)', len(api_keys))
     gemini_model = os.getenv('GEMINI_MODEL', DEFAULT_GEMINI_MODEL)
-    return _call_gemini(prompt, api_key, gemini_model)
+    return _call_gemini(prompt, api_keys, gemini_model)
 
 
 def mark_run_failed(run_id, exc):
