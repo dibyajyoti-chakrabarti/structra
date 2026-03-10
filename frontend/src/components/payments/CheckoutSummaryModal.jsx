@@ -34,19 +34,19 @@ export default function CheckoutSummaryModal({
   const plan = normalizePlan(planName);
   const isTeam = plan === "TEAM";
   const unitPrice = PLAN_PRICES[plan] || PLAN_PRICES.INDIVIDUAL;
-  const lockedQuantity = isTeam ? Math.max(Number(quantity) || 1, 1) : 1;
+  const lockedQuantity = isTeam ? Math.max(Number(quantity) || 1, 2) : 1;
   const total = unitPrice * lockedQuantity;
   const features = PLAN_FEATURES[plan] || PLAN_FEATURES.INDIVIDUAL;
 
   const handleInputChange = (event) => {
     if (!isTeam) return;
     const parsed = Number.parseInt(event.target.value, 10);
-    onQuantityChange(Number.isFinite(parsed) ? Math.max(parsed, 1) : 1);
+    onQuantityChange(Number.isFinite(parsed) ? Math.max(parsed, 2) : 2);
   };
 
   const decrement = () => {
     if (!isTeam) return;
-    onQuantityChange(Math.max(lockedQuantity - 1, 1));
+    onQuantityChange(Math.max(lockedQuantity - 1, 2));
   };
 
   const increment = () => {
@@ -91,13 +91,13 @@ export default function CheckoutSummaryModal({
                     type="button"
                     onClick={decrement}
                     className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-slate-300 text-slate-700 transition hover:bg-slate-100"
-                    disabled={isProcessing}
+                    disabled={isProcessing || lockedQuantity <= 2}
                   >
                     <Minus size={14} />
                   </button>
                   <input
                     type="number"
-                    min={1}
+                    min={2}
                     value={lockedQuantity}
                     onChange={handleInputChange}
                     className="h-8 w-16 rounded-md border border-slate-300 text-center text-sm font-semibold text-slate-900 outline-none focus:border-blue-500"

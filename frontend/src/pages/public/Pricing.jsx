@@ -136,7 +136,7 @@ export default function Pricing() {
   const handleProceedToPayment = async () => {
     if (!checkoutPlan) return;
     const resolvedQuantity =
-      checkoutPlan === "TEAM" ? Math.max(Number(checkoutQuantity) || 1, 1) : 1;
+      checkoutPlan === "TEAM" ? Math.max(Number(checkoutQuantity) || 1, 2) : 1;
 
     setIsCheckoutSummaryOpen(false);
     setPaymentStatus("processing");
