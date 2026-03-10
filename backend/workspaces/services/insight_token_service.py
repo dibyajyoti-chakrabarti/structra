@@ -32,7 +32,10 @@ def _sync_owner_shared_pool(workspace: Workspace, *, allocation: int, today, for
     if not owner_workspaces:
         return workspace
 
-    should_reset = force_reset or any(ws.last_token_reset_date != today for ws in owner_workspaces)
+    allocation_changed = any(ws.daily_insight_tokens != allocation for ws in owner_workspaces)
+    should_reset = force_reset or allocation_changed or any(
+        ws.last_token_reset_date != today for ws in owner_workspaces
+    )
     if should_reset:
         authoritative_remaining = allocation
     else:
@@ -107,8 +110,19 @@ def ensure_workspace_insight_token_state(workspace: Workspace, *, now=None, forc
     fields_to_update = []
 
     if workspace.daily_insight_tokens != allocation:
+        previous_allocation = int(workspace.daily_insight_tokens or 0)
         workspace.daily_insight_tokens = allocation
         fields_to_update.append('daily_insight_tokens')
+
+        if workspace.insight_tokens_remaining is None:
+            workspace.insight_tokens_remaining = allocation
+            fields_to_update.append('insight_tokens_remaining')
+        elif allocation > previous_allocation:
+            workspace.insight_tokens_remaining = allocation
+            fields_to_update.append('insight_tokens_remaining')
+        elif workspace.insight_tokens_remaining > allocation:
+            workspace.insight_tokens_remaining = allocation
+            fields_to_update.append('insight_tokens_remaining')
 
     if workspace.insight_tokens_remaining is None:
         workspace.insight_tokens_remaining = allocation

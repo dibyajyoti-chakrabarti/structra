@@ -105,3 +105,17 @@ class InsightTokenServiceTests(TestCase):
 
         self.assertEqual(workspace_a.insight_tokens_remaining, workspace_a.daily_insight_tokens - 1)
         self.assertEqual(workspace_b.insight_tokens_remaining, workspace_b.daily_insight_tokens)
+
+    def test_plan_upgrade_resets_tokens_to_new_allocation(self):
+        owner, workspace = self._make_workspace('CORE')
+        ensure_workspace_insight_token_state(workspace, now=timezone.now(), force_reset=True)
+
+        owner.current_plan = 'TEAM'
+        owner.purchased_team_seats = 2
+        owner.save(update_fields=['current_plan', 'purchased_team_seats'])
+
+        ensure_workspace_insight_token_state(workspace, now=timezone.now(), force_reset=False)
+        workspace.refresh_from_db()
+
+        self.assertEqual(workspace.daily_insight_tokens, 50)
+        self.assertEqual(workspace.insight_tokens_remaining, 50)
