@@ -30,6 +30,13 @@ const styles = `
     padding: 16px 20px; border-bottom: 1.5px solid var(--border);
   }
   .ts-invite-label { font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em; color: var(--text-muted); margin: 0 0 12px; }
+  .ts-invite-meta {
+    display: flex; justify-content: space-between; align-items: center; gap: 10px;
+    font-size: 12px; color: var(--text-subtle); margin-bottom: 10px;
+  }
+  .ts-invite-note { font-weight: 600; color: var(--text-muted); }
+  .ts-invite-note.warn { color: #f59e0b; }
+  .ts-invite-note.disabled { color: var(--text-subtle); }
   .ts-invite-row { display: flex; gap: 8px; align-items: stretch; }
   .ts-invite-input-wrap { flex: 1; position: relative; }
   .ts-invite-input-icon { position: absolute; left: 11px; top: 50%; transform: translateY(-50%); color: var(--text-subtle); pointer-events: none; }
@@ -182,6 +189,16 @@ const TeamSettings = () => {
   const memberLimit = workspaceMeta?.member_limit;
   const workspacePlan = (workspaceMeta?.effective_plan || '').toUpperCase();
   const showSeatRatio = isAdmin && workspacePlan === 'TEAM';
+  const activeInvitedCount = members.filter((m) => m.role === 'MEMBER').length;
+  const pendingInviteCount = pendingInvitations.length;
+  const teamInviteLimit = Math.max(Number(purchasedSeatCount || 1) - 1, 0);
+  const planInviteLimit = workspacePlan === 'TEAM'
+    ? teamInviteLimit
+    : (Number.isFinite(memberLimit) ? memberLimit : null);
+  const usedInvites = activeInvitedCount + pendingInviteCount;
+  const invitesRemaining = planInviteLimit === null ? null : Math.max(planInviteLimit - usedInvites, 0);
+  const inviteLimitReached = planInviteLimit !== null && usedInvites >= planInviteLimit;
+  const invitesDisabled = !isAdmin || planInviteLimit === 0;
 
   useEffect(() => { refresh(); }, [refresh]);
 
@@ -228,6 +245,14 @@ const TeamSettings = () => {
   const handleInvite = async (e) => {
     e.preventDefault();
     if (!isAdmin) { showAdminOnly(); return; }
+    if (planInviteLimit === 0) {
+      setError(workspacePlan === 'CORE' ? 'Invites are disabled on the Core plan.' : 'Invite limit reached.');
+      return;
+    }
+    if (inviteLimitReached) {
+      setError('Invite limit reached for this workspace.');
+      return;
+    }
     if (!inviteEmail.trim()) return;
     setSendingInvite(true); setError(''); setMessage('');
     try {
@@ -291,6 +316,20 @@ const TeamSettings = () => {
       <div className="ts-card">
         <div className="ts-invite-head">
           <div className="ts-invite-label">Invite new member</div>
+          <div className="ts-invite-meta">
+            {invitesRemaining !== null ? (
+              <span className="ts-invite-note">Invites remaining: {invitesRemaining}</span>
+            ) : (
+              <span className="ts-invite-note">No invite limits on this plan.</span>
+            )}
+            {!isAdmin && <span className="ts-invite-note disabled">Admins only.</span>}
+            {workspacePlan === 'CORE' && (
+              <span className="ts-invite-note disabled">Invites disabled on Core.</span>
+            )}
+            {isAdmin && inviteLimitReached && (
+              <span className="ts-invite-note warn">Invite limit reached.</span>
+            )}
+          </div>
           <form onSubmit={handleInvite} className="ts-invite-row">
             <div className="ts-invite-input-wrap">
               <Mail size={14} className="ts-invite-input-icon" />
@@ -299,11 +338,15 @@ const TeamSettings = () => {
                 className="ts-invite-input"
                 value={inviteEmail}
                 onChange={(e) => setInviteEmail(e.target.value)}
-                readOnly={!isAdmin}
+                disabled={sendingInvite || invitesDisabled || inviteLimitReached}
                 placeholder="colleague@company.com"
               />
             </div>
-            <button type="submit" className="ts-invite-btn" disabled={sendingInvite || !isAdmin}>
+            <button
+              type="submit"
+              className="ts-invite-btn"
+              disabled={sendingInvite || invitesDisabled || inviteLimitReached}
+            >
               <Send size={13} />
               {sendingInvite ? 'Sending…' : 'Send Invite'}
             </button>
