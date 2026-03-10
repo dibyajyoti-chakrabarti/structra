@@ -499,23 +499,7 @@ export default function Profile() {
             </div>
           </div>
 
-          <div className="p-6 border-t border-gray-100 bg-white mt-auto space-y-3">
-            <button
-              onClick={() => navigate('/app/invitations')}
-              className="w-full py-2.5 flex items-center justify-between gap-2 border border-blue-200 bg-blue-50 text-blue-700 rounded-md text-sm font-semibold hover:bg-blue-100 transition-colors"
-            >
-              <span className="flex items-center gap-2">
-                <Inbox size={16} />
-                Invites
-              </span>
-              {inviteCount > 0 ? (
-                <span className="inline-flex min-w-[24px] items-center justify-center rounded-full bg-blue-600 px-2 py-0.5 text-xs font-semibold text-white">
-                  {inviteCount}
-                </span>
-              ) : (
-                <span className="text-xs text-blue-600/80">None</span>
-              )}
-            </button>
+          <div className="p-6 border-t border-gray-100 bg-white mt-auto">
             {isEditing ? (
               <div className="flex gap-2 animate-in slide-in-from-bottom-2 duration-200">
                 <button 
@@ -757,6 +741,27 @@ export default function Profile() {
                     {billingMessage}
                   </p>
                 )}
+              </section>
+
+              <section className="mt-4 rounded-xl border border-gray-200 bg-white p-5 md:p-6">
+                <div className="mb-4 flex items-start justify-between gap-3">
+                  <div>
+                    <h2 className="text-lg font-semibold text-gray-900">Invites</h2>
+                    <p className="text-sm text-gray-500">Join workspaces without email.</p>
+                  </div>
+                  <span className="inline-flex min-w-[28px] items-center justify-center rounded-full border border-blue-100 bg-blue-50 px-2 py-0.5 text-xs font-semibold text-blue-700">
+                    {inviteCount}
+                  </span>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => navigate('/app/invitations')}
+                  className="inline-flex w-full items-center justify-center gap-2 rounded-md border border-gray-200 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700 transition"
+                >
+                  <Inbox size={16} />
+                  View Invites
+                </button>
               </section>
             </aside>
           </div>
