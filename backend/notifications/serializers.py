@@ -30,3 +30,30 @@ class WorkspaceInvitationSerializer(serializers.ModelSerializer):
         if obj.invited_by and obj.invited_by.full_name:
             return obj.invited_by.full_name
         return obj.invited_by.email if obj.invited_by else "Workspace admin"
+
+
+class UserInvitationSerializer(serializers.ModelSerializer):
+    inviter_name = serializers.SerializerMethodField()
+    workspace_name = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Invitation
+        fields = [
+            "token",
+            "email",
+            "role",
+            "status",
+            "inviter_name",
+            "created_at",
+            "expires_at",
+            "workspace_id",
+            "workspace_name",
+        ]
+
+    def get_inviter_name(self, obj):
+        if obj.invited_by and obj.invited_by.full_name:
+            return obj.invited_by.full_name
+        return obj.invited_by.email if obj.invited_by else "Workspace admin"
+
+    def get_workspace_name(self, obj):
+        return obj.workspace.name if obj.workspace else "Unknown workspace"

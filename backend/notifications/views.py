@@ -29,6 +29,7 @@ from .serializers import (
     InvitationTokenSerializer,
     WorkspaceInvitationCreateSerializer,
     WorkspaceInvitationSerializer,
+    UserInvitationSerializer,
 )
 
 
@@ -342,6 +343,28 @@ class WorkspaceInvitationCancelView(APIView):
             message="Workspace invitation cancelled by admin.",
         )
         return Response({"message": "Invitation cancelled successfully."}, status=status.HTTP_200_OK)
+
+
+class UserInvitationListView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        now = timezone.now()
+
+        Invitation.objects.filter(
+            email__iexact=request.user.email,
+            status=InvitationStatus.PENDING,
+            expires_at__lte=now,
+        ).update(status=InvitationStatus.EXPIRED)
+
+        invitations = Invitation.objects.filter(
+            email__iexact=request.user.email,
+            status=InvitationStatus.PENDING,
+            expires_at__gt=now,
+        ).select_related("workspace", "invited_by")
+
+        serializer = UserInvitationSerializer(invitations, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
 
 
 class InvitationDetailsView(APIView):

@@ -7,6 +7,7 @@ from .views import (
     InvitationAcceptView,
     InvitationDetailsView,
     InvitationRejectView,
+    UserInvitationListView,
     WorkspaceInvitationCancelView,
     WorkspaceInvitationCreateView,
 )
@@ -34,6 +35,7 @@ urlpatterns = [
         AdminNotificationMarkAllReadView.as_view(),
         name="admin-notification-mark-all-read",
     ),
+    path("invitations/", UserInvitationListView.as_view(), name="user-invitations"),
     path("invitations/details/", InvitationDetailsView.as_view(), name="invitation-details"),
     path("invitations/accept/", InvitationAcceptView.as_view(), name="invitation-accept"),
     path("invitations/reject/", InvitationRejectView.as_view(), name="invitation-reject"),
