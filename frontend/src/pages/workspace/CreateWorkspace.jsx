@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { UserPlus, Globe, Lock, Plus, ChevronLeft, X } from 'lucide-react';
 import AuthenticatedNavbar from '../../components/AuthenticatedNavbar';
 import api from '../../api';
+import { useAuth } from '../../contexts/AuthContext';
 
 const styles = `
   @import url('https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700;800&display=swap');
@@ -385,6 +386,23 @@ const styles = `
     border-bottom: 1.5px solid var(--border);
   }
 
+  .cw-invite-meta {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 10px;
+    font-size: 12px;
+    color: var(--text-subtle);
+  }
+
+  .cw-invite-note {
+    font-weight: 600;
+    color: var(--text-muted);
+  }
+  .cw-invite-note.warn { color: #f59e0b; }
+  .cw-invite-note.disabled { color: var(--text-subtle); }
+
   .cw-invite-row {
     display: flex;
     gap: 6px;
@@ -571,6 +589,7 @@ const styles = `
 
 const CreateWorkspace = () => {
   const navigate = useNavigate();
+  const { user } = useAuth();
 
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
@@ -581,6 +600,25 @@ const CreateWorkspace = () => {
   const [inviteEmail, setInviteEmail] = useState('');
   const [members, setMembers] = useState([]);
   const [inviteError, setInviteError] = useState('');
+
+  const plan = useMemo(
+    () => (user?.current_plan || 'CORE').toUpperCase(),
+    [user?.current_plan],
+  );
+
+  const inviteLimit = useMemo(() => {
+    const limits = {
+      CORE: 0,
+      INDIVIDUAL: 3,
+      TEAM: Infinity,
+      ENTERPRISE: Infinity,
+    };
+    return limits[plan] ?? 0;
+  }, [plan]);
+
+  const inviteLimitReached = Number.isFinite(inviteLimit) && members.length >= inviteLimit;
+  const invitesDisabled = inviteLimit === 0;
+  const invitesRemaining = Number.isFinite(inviteLimit) ? Math.max(inviteLimit - members.length, 0) : null;
 
   const isValidEmail = (email) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
   const getWorkspaceCreateErrorMessage = (err) => {
@@ -628,7 +666,11 @@ const CreateWorkspace = () => {
         description,
         visibility: visibility.toLowerCase(),
       });
-      const workspaceId = response.data.id;
+      const workspaceId = response?.data?.id || response?.data?.workspace_id;
+      if (!workspaceId) {
+        setError('Workspace created but could not load its ID. Please refresh and try again.');
+        return;
+      }
       if (members.length > 0) {
         await Promise.allSettled(
           members.map((email) => api.post(`workspaces/${workspaceId}/invitations/`, { email }))
@@ -644,6 +686,14 @@ const CreateWorkspace = () => {
 
   const handleAddMember = (e) => {
     e.preventDefault();
+    if (invitesDisabled) {
+      setInviteError('Invites are disabled on the Core plan.');
+      return;
+    }
+    if (inviteLimitReached) {
+      setInviteError(`Invite limit reached for ${plan} plan.`);
+      return;
+    }
     const email = inviteEmail.trim().toLowerCase();
     if (!email) return;
     if (!isValidEmail(email)) { setInviteError('Enter a valid email address.'); return; }
@@ -782,6 +832,19 @@ const CreateWorkspace = () => {
             </div>
 
             <div className="cw-invite-wrap">
+              <div className="cw-invite-meta">
+                {invitesRemaining !== null ? (
+                  <span className="cw-invite-note">Invites remaining: {invitesRemaining}</span>
+                ) : (
+                  <span className="cw-invite-note">No invite limits on this plan.</span>
+                )}
+                {invitesDisabled && (
+                  <span className="cw-invite-note disabled">Invites disabled on Core.</span>
+                )}
+                {!invitesDisabled && inviteLimitReached && (
+                  <span className="cw-invite-note warn">Invite limit reached.</span>
+                )}
+              </div>
               <form onSubmit={handleAddMember} className="cw-invite-row">
                 <input
                   type="email"
@@ -789,9 +852,14 @@ const CreateWorkspace = () => {
                   value={inviteEmail}
                   onChange={(e) => { setInviteEmail(e.target.value); if (inviteError) setInviteError(''); }}
                   placeholder="colleague@company.com"
-                  disabled={loading}
+                  disabled={loading || invitesDisabled || inviteLimitReached}
                 />
-                <button type="submit" className="cw-invite-add-btn" disabled={loading} title="Add member">
+                <button
+                  type="submit"
+                  className="cw-invite-add-btn"
+                  disabled={loading || invitesDisabled || inviteLimitReached}
+                  title="Add member"
+                >
                   <Plus size={16} />
                 </button>
               </form>
