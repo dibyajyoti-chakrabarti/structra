@@ -32,6 +32,7 @@ import Evaluation from "./pages/system/Evaluation";
 import PresentCanvas from "./pages/system/PresentCanvas";
 import InvitationRedirect from "./pages/invitations/InvitationRedirect";
 import InvitationAcceptReject from "./pages/invitations/InvitationAcceptReject";
+import InvitationInbox from "./pages/invitations/InvitationInbox";
 import Unauthorized from "./pages/infrastructure/Unauthorized";
 import NotFound from "./pages/infrastructure/NotFound";
 import ServerDown from "./pages/infrastructure/ServerDown";
@@ -176,6 +177,7 @@ function App() {
           <Route path="/app/profile" element={<Profile />} />
           <Route path="/app/users/:username" element={<PublicUserProfile />} />
           <Route path="/app/notifications" element={<Notification />} />
+          <Route path="/app/invitations" element={<InvitationInbox />} />
           <Route path="/app/create-workspace" element={<CreateWorkspace />} />
           <Route path="/app/home" element={<WorkspaceHome />} />
 

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import AuthenticatedNavbar from '../../components/AuthenticatedNavbar';
-import { User, Mail, MapPin, Calendar, Building, Globe, Lock, ArrowRight, Settings, Check, X, Camera, Edit2, Copy, Star, Search, AtSign } from 'lucide-react';
+import { User, Mail, MapPin, Calendar, Building, Globe, Lock, ArrowRight, Settings, Check, X, Camera, Edit2, Copy, Star, Search, AtSign, Inbox } from 'lucide-react';
 import api from '../../api';
 import { formatDistanceToNow } from 'date-fns';
 import LoadingState from '../../components/LoadingState';
@@ -27,6 +27,7 @@ export default function Profile() {
   const [isCancellingPlan, setIsCancellingPlan] = useState(false);
   const [billingMessage, setBillingMessage] = useState('');
   const [billingMessageType, setBillingMessageType] = useState('success');
+  const [inviteCount, setInviteCount] = useState(0);
 
   const [isEditing, setIsEditing] = useState(false);
   const [formData, setFormData] = useState({});
@@ -98,6 +99,25 @@ export default function Profile() {
     };
     fetchData();
   }, [mapProfileToUser]);
+
+  useEffect(() => {
+    let isActive = true;
+    api
+      .get('invitations/')
+      .then((response) => {
+        if (!isActive) return;
+        const count = Array.isArray(response.data) ? response.data.length : 0;
+        setInviteCount(count);
+      })
+      .catch(() => {
+        if (!isActive) return;
+        setInviteCount(0);
+      });
+
+    return () => {
+      isActive = false;
+    };
+  }, []);
 
   useEffect(() => {
     const query = debouncedUserSearchInput.replace(/^@+/, '');
@@ -479,7 +499,23 @@ export default function Profile() {
             </div>
           </div>
 
-          <div className="p-6 border-t border-gray-100 bg-white mt-auto">
+          <div className="p-6 border-t border-gray-100 bg-white mt-auto space-y-3">
+            <button
+              onClick={() => navigate('/app/invitations')}
+              className="w-full py-2.5 flex items-center justify-between gap-2 border border-blue-200 bg-blue-50 text-blue-700 rounded-md text-sm font-semibold hover:bg-blue-100 transition-colors"
+            >
+              <span className="flex items-center gap-2">
+                <Inbox size={16} />
+                Invites
+              </span>
+              {inviteCount > 0 ? (
+                <span className="inline-flex min-w-[24px] items-center justify-center rounded-full bg-blue-600 px-2 py-0.5 text-xs font-semibold text-white">
+                  {inviteCount}
+                </span>
+              ) : (
+                <span className="text-xs text-blue-600/80">None</span>
+              )}
+            </button>
             {isEditing ? (
               <div className="flex gap-2 animate-in slide-in-from-bottom-2 duration-200">
                 <button 
