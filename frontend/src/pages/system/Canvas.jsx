@@ -41,6 +41,12 @@ import LoadingState from '../../components/LoadingState';
 import EvaluationPanel from '../../components/EvaluationPanel';
 import EvaluationConfirmModal from '../../components/EvaluationConfirmModal';
 import { useTheme } from '../../contexts/ThemeContext';
+import {
+  extractBoundPayload,
+  reconcileBoundMembership,
+  reconcileNodeMembership,
+  removeBoundFromMembership,
+} from './canvasBoundGraphUtils';
 
 const NODE_WIDTH = 180;
 const NODE_HEIGHT = 96;
@@ -203,12 +209,6 @@ const LEGACY_NODE_TYPE_ALIASES = {
 
 const EDGE_PROTOCOL_OPTIONS = ['', 'HTTP', 'ASYNC', 'INTERNAL'];
 const NODE_ANCHORS = ['top', 'right', 'bottom', 'left'];
-const ANCHOR_OFFSETS = {
-  top: { x: NODE_WIDTH / 2, y: 0 },
-  right: { x: NODE_WIDTH, y: NODE_HEIGHT / 2 },
-  bottom: { x: NODE_WIDTH / 2, y: NODE_HEIGHT },
-  left: { x: 0, y: NODE_HEIGHT / 2 },
-};
 const ANCHOR_DIRECTIONS = {
   top: { x: 0, y: -1 },
   right: { x: 1, y: 0 },
@@ -378,6 +378,26 @@ const normalizeNodeStyle = (value) => {
   };
 };
 
+const normalizeNodeDimension = (value, fallback) =>
+  typeof value === 'number' && Number.isFinite(value) && value > 0 ? value : fallback;
+
+const normalizeBoundIds = (boundIds, legacyBoundId = null) => {
+  const merged = Array.isArray(boundIds) ? [...boundIds] : [];
+  if (typeof legacyBoundId === 'string' && legacyBoundId.trim()) {
+    merged.push(legacyBoundId.trim());
+  }
+  const seen = new Set();
+  const normalized = [];
+  merged.forEach((entry) => {
+    if (typeof entry !== 'string') return;
+    const trimmed = entry.trim();
+    if (!trimmed || seen.has(trimmed)) return;
+    seen.add(trimmed);
+    normalized.push(trimmed);
+  });
+  return normalized;
+};
+
 const normalizeTextSize = (value) => {
   if (!value || typeof value !== 'object') {
     return { width: DEFAULT_TEXT_BOX_WIDTH, height: DEFAULT_TEXT_BOX_HEIGHT };
@@ -427,25 +447,31 @@ const ensureCanvasState = (value) => {
 
   return {
     nodes: Array.isArray(value.nodes)
-      ? value.nodes.map((node) => ({
-          id: node.id,
-          type: normalizeNodeType(node.type),
-          label:
-            typeof node.label === 'string' && node.label.trim()
-              ? node.label
-              : toComponentLabel(normalizeNodeType(node.type)),
-          position: {
-            x: typeof node?.position?.x === 'number' ? node.position.x : 0,
-            y: typeof node?.position?.y === 'number' ? node.position.y : 0,
-          },
-          metadata: {
-            purpose: typeof node?.metadata?.purpose === 'string' ? node.metadata.purpose : '',
-            techChoice: typeof node?.metadata?.techChoice === 'string' ? node.metadata.techChoice : '',
-            responsibilities: normalizeStringArray(node?.metadata?.responsibilities),
-            notes: typeof node?.metadata?.notes === 'string' ? node.metadata.notes : '',
-          },
-          style: normalizeNodeStyle(node?.style),
-        }))
+      ? value.nodes.map((node) => {
+          const normalizedType = normalizeNodeType(node.type);
+          return {
+            id: node.id,
+            type: normalizedType,
+            label:
+              typeof node.label === 'string' && node.label.trim()
+                ? node.label
+                : toComponentLabel(normalizedType),
+            position: {
+              x: typeof node?.position?.x === 'number' ? node.position.x : 0,
+              y: typeof node?.position?.y === 'number' ? node.position.y : 0,
+            },
+            width: normalizeNodeDimension(node?.width, NODE_WIDTH),
+            height: normalizeNodeDimension(node?.height, NODE_HEIGHT),
+            bound_ids: normalizeBoundIds(node?.bound_ids, node?.bound_id),
+            metadata: {
+              purpose: typeof node?.metadata?.purpose === 'string' ? node.metadata.purpose : '',
+              techChoice: typeof node?.metadata?.techChoice === 'string' ? node.metadata.techChoice : '',
+              responsibilities: normalizeStringArray(node?.metadata?.responsibilities),
+              notes: typeof node?.metadata?.notes === 'string' ? node.metadata.notes : '',
+            },
+            style: normalizeNodeStyle(node?.style),
+          };
+        })
       : [],
     edges: Array.isArray(value.edges)
       ? value.edges.map((edge) => ({
@@ -1113,6 +1139,7 @@ const Canvas = () => {
   const [canvasEvaluationRuns, setCanvasEvaluationRuns] = useState([]);
   const [optimisticPendingRuns, setOptimisticPendingRuns] = useState([]);
   const [isEvaluationConfirmOpen, setIsEvaluationConfirmOpen] = useState(false);
+  const [pendingEvaluationCanvasState, setPendingEvaluationCanvasState] = useState(null);
 
   const lastSavedSignatureRef = useRef('');
   const retryAttemptRef = useRef(0);
@@ -1357,11 +1384,22 @@ const Canvas = () => {
       type: componentType,
       label: toComponentLabel(componentType),
       position: { x: world.x - NODE_WIDTH / 2, y: world.y - NODE_HEIGHT / 2 },
+      width: NODE_WIDTH,
+      height: NODE_HEIGHT,
+      bound_ids: [],
       metadata: {},
       style: { ...DEFAULT_NODE_STYLE },
     };
 
-    setCanvasState((prev) => ({ ...prev, nodes: [...prev.nodes, newNode] }));
+    setCanvasState((prev) =>
+      reconcileNodeMembership(
+        {
+          ...prev,
+          nodes: [...prev.nodes, newNode],
+        },
+        newNode.id
+      )
+    );
     setSelectedNodeId(newNode.id);
     setSelectedEdgeId(null);
     setSelectedTextId(null);
@@ -1843,6 +1881,10 @@ const Canvas = () => {
 
     const onMouseUp = () => {
       const wasDrawingBound = Boolean(drawingBoundRef.current);
+      const drawnBoundId = drawingBoundRef.current?.boundId || null;
+      const draggedBoundId = draggingBoundRef.current?.boundId || null;
+      const resizedBoundId = resizingBoundRef.current?.boundId || null;
+      const draggedNodeId = draggingNodeRef.current?.nodeId || null;
       draggingNodeRef.current = null;
       draggingBendRef.current = null;
       draggingSegmentRef.current = null;
@@ -1860,6 +1902,21 @@ const Canvas = () => {
       }
       if (wasDrawingBound) {
         setIsBoundsDrawingMode(false);
+      }
+      if (drawnBoundId || draggedBoundId || resizedBoundId || draggedNodeId) {
+        setCanvasState((prev) => {
+          let nextState = prev;
+          const boundIdsToReconcile = Array.from(
+            new Set([drawnBoundId, draggedBoundId, resizedBoundId].filter(Boolean))
+          );
+          boundIdsToReconcile.forEach((boundId) => {
+            nextState = reconcileBoundMembership(nextState, boundId);
+          });
+          if (draggedNodeId) {
+            nextState = reconcileNodeMembership(nextState, draggedNodeId);
+          }
+          return nextState;
+        });
       }
     };
 
@@ -2014,13 +2071,37 @@ const Canvas = () => {
     return () => clearInterval(timer);
   }, [fetchEvaluationPanelData, showEvalPanel]);
 
+  const openEvaluationConfirm = useCallback(
+    (evaluationCanvasState) => {
+      if (!evaluationCanvasState || !Array.isArray(evaluationCanvasState.nodes)) return;
+      if (evaluationCanvasState.nodes.length === 0 || isEvaluationSubmitting) return;
+      setPendingEvaluationCanvasState(evaluationCanvasState);
+      setIsEvaluationConfirmOpen(true);
+    },
+    [isEvaluationSubmitting]
+  );
+
   const handleRequestEvaluate = useCallback(() => {
-    if (canvasState.nodes.length === 0 || isEvaluationSubmitting) return;
-    setIsEvaluationConfirmOpen(true);
-  }, [canvasState.nodes.length, isEvaluationSubmitting]);
+    openEvaluationConfirm(canvasState);
+  }, [canvasState, openEvaluationConfirm]);
+
+  const handleRequestBoundEvaluate = useCallback(
+    (boundId) => {
+      if (!boundId || isEvaluationSubmitting) return;
+      const scopedGraph = extractBoundPayload(boundId, canvasState.nodes, canvasState.edges);
+      const scopedCanvasState = {
+        ...canvasState,
+        nodes: scopedGraph.nodes,
+        edges: scopedGraph.edges,
+      };
+      openEvaluationConfirm(scopedCanvasState);
+    },
+    [canvasState, isEvaluationSubmitting, openEvaluationConfirm]
+  );
 
   const handleConfirmAiEvaluation = useCallback(() => {
-    if (canvasState.nodes.length === 0) return;
+    const evaluationCanvasState = pendingEvaluationCanvasState || canvasState;
+    if (!evaluationCanvasState || evaluationCanvasState.nodes.length === 0) return;
 
     setIsEvaluationConfirmOpen(false);
     setIsEvaluationSubmitting(true);
@@ -2041,7 +2122,7 @@ const Canvas = () => {
       .post('evaluation/ai/', {
         workspaceId,
         systemId,
-        canvasState,
+        canvasState: evaluationCanvasState,
       })
       .then(() => {
         fetchEvaluationPanelData();
@@ -2058,8 +2139,9 @@ const Canvas = () => {
       .finally(() => {
         setOptimisticPendingRuns((prev) => prev.filter((run) => run.id !== optimisticId));
         setIsEvaluationSubmitting(false);
+        setPendingEvaluationCanvasState(null);
       });
-  }, [canvasState, fetchEvaluationPanelData, systemId, workspaceId]);
+  }, [canvasState, fetchEvaluationPanelData, pendingEvaluationCanvasState, systemId, workspaceId]);
 
   const panelRuns = useMemo(
     () => [...optimisticPendingRuns, ...canvasEvaluationRuns],
@@ -2417,8 +2499,12 @@ const Canvas = () => {
     const nodesToFocus = Array.from(relatedNodes.values());
     const minX = Math.min(...nodesToFocus.map((node) => node.position.x));
     const minY = Math.min(...nodesToFocus.map((node) => node.position.y));
-    const maxX = Math.max(...nodesToFocus.map((node) => node.position.x + NODE_WIDTH));
-    const maxY = Math.max(...nodesToFocus.map((node) => node.position.y + NODE_HEIGHT));
+    const maxX = Math.max(
+      ...nodesToFocus.map((node) => node.position.x + normalizeNodeDimension(node.width, NODE_WIDTH))
+    );
+    const maxY = Math.max(
+      ...nodesToFocus.map((node) => node.position.y + normalizeNodeDimension(node.height, NODE_HEIGHT))
+    );
 
     const rect = canvasRef.current.getBoundingClientRect();
     const padding = 80;
@@ -2485,6 +2571,7 @@ const Canvas = () => {
     if (!selectedBoundId) return;
     setCanvasState((prev) => ({
       ...prev,
+      nodes: removeBoundFromMembership(prev.nodes, selectedBoundId),
       boundsItems: prev.boundsItems.filter((item) => item.id !== selectedBoundId),
     }));
     setSelectedBoundId(null);
@@ -2650,9 +2737,25 @@ const Canvas = () => {
 
   const zoomPercent = Math.round(canvasState.viewport.zoom * 100);
 
+  const getNodeDimensions = useCallback(
+    (node) => ({
+      width: normalizeNodeDimension(node?.width, NODE_WIDTH),
+      height: normalizeNodeDimension(node?.height, NODE_HEIGHT),
+    }),
+    []
+  );
+
   const getNodeScreenAnchor = (node, anchor) => {
     const resolvedAnchor = resolveAnchor(anchor, 'right');
-    const offset = ANCHOR_OFFSETS[resolvedAnchor];
+    const { width, height } = getNodeDimensions(node);
+    const offset =
+      resolvedAnchor === 'top'
+        ? { x: width / 2, y: 0 }
+        : resolvedAnchor === 'right'
+        ? { x: width, y: height / 2 }
+        : resolvedAnchor === 'bottom'
+        ? { x: width / 2, y: height }
+        : { x: 0, y: height / 2 };
     const worldX = node.position.x + offset.x;
     const worldY = node.position.y + offset.y;
     return worldToScreen(worldX, worldY, canvasState.viewport);
@@ -3349,7 +3452,7 @@ const Canvas = () => {
               backgroundSize: '24px 24px',
             }}
           >
-            <svg className="absolute inset-0 pointer-events-none" width="100%" height="100%">
+            <svg className="absolute inset-0 z-10 pointer-events-none" width="100%" height="100%">
               <defs>
                 <marker id="arrowhead" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
                   <polygon points="0 0, 8 3, 0 6" fill={edgeDefaultColor} />
@@ -3512,6 +3615,7 @@ const Canvas = () => {
 
             {canvasState.nodes.map((node) => {
               const screen = worldToScreen(node.position.x, node.position.y, canvasState.viewport);
+              const nodeDimensions = getNodeDimensions(node);
               const component = COMPONENT_BY_TYPE.get(node.type);
               const Icon = component ? component.icon : Box;
               const style = normalizeNodeStyle(node.style);
@@ -3528,7 +3632,7 @@ const Canvas = () => {
               return (
                 <div
                   key={node.id}
-                  className={`group absolute rounded-xl overflow-visible ${
+                  className={`group absolute z-20 rounded-xl overflow-visible ${
                     selectedNodeId === node.id
                       ? 'ring-2 ring-blue-500 ring-offset-1 shadow-lg shadow-blue-100/50'
                       : nodeIsHighlighted
@@ -3536,8 +3640,8 @@ const Canvas = () => {
                       : 'ring-1 ring-gray-200 shadow-md hover:shadow-lg hover:ring-gray-300'
                   } transition-shadow`}
                   style={{
-                    width: NODE_WIDTH * canvasState.viewport.zoom,
-                    height: NODE_HEIGHT * canvasState.viewport.zoom,
+                    width: nodeDimensions.width * canvasState.viewport.zoom,
+                    height: nodeDimensions.height * canvasState.viewport.zoom,
                     left: screen.x,
                     top: screen.y,
                     opacity: nodeIsHighlighted || selectedNodeId === node.id || !highlightedInsight ? 1 : 0.58,
@@ -3626,7 +3730,7 @@ const Canvas = () => {
               return (
                 <div
                   key={item.id}
-                  className={`absolute rounded ${
+                  className={`absolute z-20 rounded ${
                     isSelected ? 'ring-2 ring-blue-500 ring-offset-1' : ''
                   }`}
                   style={{
@@ -3809,54 +3913,11 @@ const Canvas = () => {
               const width = bound.size.width * canvasState.viewport.zoom;
               const height = bound.size.height * canvasState.viewport.zoom;
               const borderWidth = Math.max(1, style.borderWidth * canvasState.viewport.zoom);
-              const hitSize = 10;
               const isSelected = selectedBoundId === bound.id;
-              const handleSize = 10;
-              const handleStroke = '#2563eb';
-
-              const selectBound = (event) => {
-                event.stopPropagation();
-                setSelectedBoundId(bound.id);
-                setSelectedNodeId(null);
-                setSelectedEdgeId(null);
-                setSelectedTextId(null);
-                setEditingTextId(null);
-                setRightPanelMode('design');
-                openPropertiesPanel();
-              };
-
-              const startBoundDrag = (event) => {
-                if (!canEditStructure || event.button !== 0 || activeTool !== 'select') return;
-                selectBound(event);
-                draggingBoundRef.current = {
-                  boundId: bound.id,
-                  startClientX: event.clientX,
-                  startClientY: event.clientY,
-                  startX: bound.position.x,
-                  startY: bound.position.y,
-                };
-                beginDragHistory();
-              };
-
-              const startBoundResize = (event, handle) => {
-                if (!canEditStructure || event.button !== 0 || activeTool !== 'select') return;
-                event.stopPropagation();
-                selectBound(event);
-                resizingBoundRef.current = {
-                  boundId: bound.id,
-                  handle,
-                  startClientX: event.clientX,
-                  startClientY: event.clientY,
-                  startPosition: { ...bound.position },
-                  startSize: { ...bound.size },
-                };
-                beginDragHistory();
-              };
-
               return (
                 <div
-                  key={bound.id}
-                  className="absolute pointer-events-none"
+                  key={`bound-shell-${bound.id}`}
+                  className="absolute pointer-events-none z-0"
                   style={{
                     left: screen.x,
                     top: screen.y,
@@ -3873,112 +3934,179 @@ const Canvas = () => {
                       boxShadow: isSelected ? '0 0 0 2px rgba(37, 99, 235, 0.2)' : 'none',
                     }}
                   />
-
-                  {isSelected ? (
-                    <input
-                      type="text"
-                      value={style.label}
-                      onChange={(event) => setBoundLabel(bound.id, event.target.value)}
-                      className="absolute z-10 -top-6 left-0 pointer-events-auto max-w-[240px] rounded-md border-2 border-blue-500 bg-white px-2 py-0.5 text-[11px] font-semibold text-gray-900 shadow-md focus:outline-none focus:ring-2 focus:ring-blue-200"
-                      onMouseDown={(event) => event.stopPropagation()}
-                    />
-                  ) : (
-                    <button
-                      type="button"
-                      className="absolute z-10 -top-6 left-0 pointer-events-auto max-w-[220px] rounded-md border-2 border-blue-300 bg-white px-2 py-0.5 text-[11px] font-semibold text-gray-900 shadow-md"
-                      onMouseDown={(event) => {
-                        if (canEditStructure && activeTool === 'select') {
-                          startBoundDrag(event);
-                        } else {
-                          selectBound(event);
-                        }
-                      }}
-                      title="Boundary label"
-                    >
-                      {style.label}
-                    </button>
-                  )}
-
-                  <div
-                    className="absolute left-0 right-0 top-0 pointer-events-auto"
-                    style={{ height: hitSize, cursor: canEditStructure && activeTool === 'select' ? 'move' : 'pointer' }}
-                    onMouseDown={(event) => {
-                      if (isSelected && canEditStructure && activeTool === 'select') {
-                        startBoundDrag(event);
-                      } else {
-                        selectBound(event);
-                      }
-                    }}
-                  />
-                  <div
-                    className="absolute left-0 right-0 bottom-0 pointer-events-auto"
-                    style={{ height: hitSize, cursor: canEditStructure && activeTool === 'select' ? 'move' : 'pointer' }}
-                    onMouseDown={(event) => {
-                      if (isSelected && canEditStructure && activeTool === 'select') {
-                        startBoundDrag(event);
-                      } else {
-                        selectBound(event);
-                      }
-                    }}
-                  />
-                  <div
-                    className="absolute top-0 bottom-0 left-0 pointer-events-auto"
-                    style={{ width: hitSize, cursor: canEditStructure && activeTool === 'select' ? 'move' : 'pointer' }}
-                    onMouseDown={(event) => {
-                      if (isSelected && canEditStructure && activeTool === 'select') {
-                        startBoundDrag(event);
-                      } else {
-                        selectBound(event);
-                      }
-                    }}
-                  />
-                  <div
-                    className="absolute top-0 bottom-0 right-0 pointer-events-auto"
-                    style={{ width: hitSize, cursor: canEditStructure && activeTool === 'select' ? 'move' : 'pointer' }}
-                    onMouseDown={(event) => {
-                      if (isSelected && canEditStructure && activeTool === 'select') {
-                        startBoundDrag(event);
-                      } else {
-                        selectBound(event);
-                      }
-                    }}
-                  />
-
-                  {isSelected && canEditStructure && (
-                    <>
-                      <button
-                        type="button"
-                        aria-label="Resize bound top-left"
-                        className="absolute -left-1.5 -top-1.5 z-10 rounded-full bg-white pointer-events-auto"
-                        style={{ width: handleSize, height: handleSize, border: `1px solid ${handleStroke}`, cursor: 'nwse-resize' }}
-                        onMouseDown={(event) => startBoundResize(event, 'top-left')}
-                      />
-                      <button
-                        type="button"
-                        aria-label="Resize bound top-right"
-                        className="absolute -right-1.5 -top-1.5 z-10 rounded-full bg-white pointer-events-auto"
-                        style={{ width: handleSize, height: handleSize, border: `1px solid ${handleStroke}`, cursor: 'nesw-resize' }}
-                        onMouseDown={(event) => startBoundResize(event, 'top-right')}
-                      />
-                      <button
-                        type="button"
-                        aria-label="Resize bound bottom-left"
-                        className="absolute -left-1.5 -bottom-1.5 z-10 rounded-full bg-white pointer-events-auto"
-                        style={{ width: handleSize, height: handleSize, border: `1px solid ${handleStroke}`, cursor: 'nesw-resize' }}
-                        onMouseDown={(event) => startBoundResize(event, 'bottom-left')}
-                      />
-                      <button
-                        type="button"
-                        aria-label="Resize bound bottom-right"
-                        className="absolute -right-1.5 -bottom-1.5 z-10 rounded-full bg-white pointer-events-auto"
-                        style={{ width: handleSize, height: handleSize, border: `1px solid ${handleStroke}`, cursor: 'nwse-resize' }}
-                        onMouseDown={(event) => startBoundResize(event, 'bottom-right')}
-                      />
-                    </>
-                  )}
                 </div>
               );
             })}
+
+            <div className="absolute inset-0 z-30 pointer-events-none">
+              {canvasState.boundsItems.map((bound) => {
+                const screen = worldToScreen(bound.position.x, bound.position.y, canvasState.viewport);
+                const style = normalizeBoundStyle(bound.style);
+                const width = bound.size.width * canvasState.viewport.zoom;
+                const height = bound.size.height * canvasState.viewport.zoom;
+                const hitSize = 8;
+                const isSelected = selectedBoundId === bound.id;
+                const handleSize = 10;
+                const handleStroke = '#2563eb';
+                const hasScopedNodes = canvasState.nodes.some(
+                  (node) => Array.isArray(node.bound_ids) && node.bound_ids.includes(bound.id)
+                );
+
+                const selectBound = (event) => {
+                  event.stopPropagation();
+                  setSelectedBoundId(bound.id);
+                  setSelectedNodeId(null);
+                  setSelectedEdgeId(null);
+                  setSelectedTextId(null);
+                  setEditingTextId(null);
+                  setRightPanelMode('design');
+                  openPropertiesPanel();
+                };
+
+                const startBoundDrag = (event) => {
+                  if (!canEditStructure || event.button !== 0 || activeTool !== 'select') return;
+                  selectBound(event);
+                  draggingBoundRef.current = {
+                    boundId: bound.id,
+                    startClientX: event.clientX,
+                    startClientY: event.clientY,
+                    startX: bound.position.x,
+                    startY: bound.position.y,
+                  };
+                  beginDragHistory();
+                };
+
+                const startBoundResize = (event, handle) => {
+                  if (!canEditStructure || event.button !== 0 || activeTool !== 'select') return;
+                  event.stopPropagation();
+                  selectBound(event);
+                  resizingBoundRef.current = {
+                    boundId: bound.id,
+                    handle,
+                    startClientX: event.clientX,
+                    startClientY: event.clientY,
+                    startPosition: { ...bound.position },
+                    startSize: { ...bound.size },
+                  };
+                  beginDragHistory();
+                };
+
+                const handleBoundEdgeMouseDown = (event) => {
+                  if (isSelected && canEditStructure && activeTool === 'select') {
+                    startBoundDrag(event);
+                  } else {
+                    selectBound(event);
+                  }
+                };
+
+                return (
+                  <div
+                    key={`bound-controls-${bound.id}`}
+                    className="absolute pointer-events-none"
+                    style={{
+                      left: screen.x,
+                      top: screen.y,
+                      width,
+                      height,
+                    }}
+                  >
+                    {isSelected && canEditStructure ? (
+                      <input
+                        type="text"
+                        value={style.label}
+                        onChange={(event) => setBoundLabel(bound.id, event.target.value)}
+                        className="absolute z-40 -top-6 left-0 pointer-events-auto max-w-[240px] rounded-md border-2 border-blue-500 bg-white px-2 py-0.5 text-[11px] font-semibold text-gray-900 shadow-md focus:outline-none focus:ring-2 focus:ring-blue-200"
+                        onMouseDown={(event) => event.stopPropagation()}
+                      />
+                    ) : (
+                      <button
+                        type="button"
+                        className="absolute z-40 -top-6 left-0 pointer-events-auto max-w-[220px] rounded-md border-2 border-blue-300 bg-white px-2 py-0.5 text-[11px] font-semibold text-gray-900 shadow-md"
+                        onMouseDown={(event) => {
+                          if (canEditStructure && activeTool === 'select') {
+                            startBoundDrag(event);
+                          } else {
+                            selectBound(event);
+                          }
+                        }}
+                        title="Boundary label"
+                      >
+                        {style.label}
+                      </button>
+                    )}
+
+                    <button
+                      type="button"
+                      className="absolute z-40 -top-7 right-0 pointer-events-auto inline-flex items-center gap-1 rounded-md border border-blue-300 bg-white px-2 py-0.5 text-[10px] font-semibold text-blue-700 shadow-sm hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-55"
+                      onMouseDown={(event) => event.stopPropagation()}
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        handleRequestBoundEvaluate(bound.id);
+                      }}
+                      disabled={!hasScopedNodes || isEvaluationSubmitting}
+                      title={hasScopedNodes ? 'Evaluate this boundary' : 'No enclosed nodes to evaluate'}
+                    >
+                      <Sparkles size={10} />
+                      Evaluate
+                    </button>
+
+                    <div
+                      className="absolute left-0 right-0 -top-1 pointer-events-auto"
+                      style={{ height: hitSize, cursor: canEditStructure && activeTool === 'select' ? 'move' : 'pointer' }}
+                      onMouseDown={handleBoundEdgeMouseDown}
+                    />
+                    <div
+                      className="absolute left-0 right-0 -bottom-1 pointer-events-auto"
+                      style={{ height: hitSize, cursor: canEditStructure && activeTool === 'select' ? 'move' : 'pointer' }}
+                      onMouseDown={handleBoundEdgeMouseDown}
+                    />
+                    <div
+                      className="absolute top-0 bottom-0 -left-1 pointer-events-auto"
+                      style={{ width: hitSize, cursor: canEditStructure && activeTool === 'select' ? 'move' : 'pointer' }}
+                      onMouseDown={handleBoundEdgeMouseDown}
+                    />
+                    <div
+                      className="absolute top-0 bottom-0 -right-1 pointer-events-auto"
+                      style={{ width: hitSize, cursor: canEditStructure && activeTool === 'select' ? 'move' : 'pointer' }}
+                      onMouseDown={handleBoundEdgeMouseDown}
+                    />
+
+                    {isSelected && canEditStructure && (
+                      <>
+                        <button
+                          type="button"
+                          aria-label="Resize bound top-left"
+                          className="absolute -left-1.5 -top-1.5 z-40 rounded-full bg-white pointer-events-auto"
+                          style={{ width: handleSize, height: handleSize, border: `1px solid ${handleStroke}`, cursor: 'nwse-resize' }}
+                          onMouseDown={(event) => startBoundResize(event, 'top-left')}
+                        />
+                        <button
+                          type="button"
+                          aria-label="Resize bound top-right"
+                          className="absolute -right-1.5 -top-1.5 z-40 rounded-full bg-white pointer-events-auto"
+                          style={{ width: handleSize, height: handleSize, border: `1px solid ${handleStroke}`, cursor: 'nesw-resize' }}
+                          onMouseDown={(event) => startBoundResize(event, 'top-right')}
+                        />
+                        <button
+                          type="button"
+                          aria-label="Resize bound bottom-left"
+                          className="absolute -left-1.5 -bottom-1.5 z-40 rounded-full bg-white pointer-events-auto"
+                          style={{ width: handleSize, height: handleSize, border: `1px solid ${handleStroke}`, cursor: 'nesw-resize' }}
+                          onMouseDown={(event) => startBoundResize(event, 'bottom-left')}
+                        />
+                        <button
+                          type="button"
+                          aria-label="Resize bound bottom-right"
+                          className="absolute -right-1.5 -bottom-1.5 z-40 rounded-full bg-white pointer-events-auto"
+                          style={{ width: handleSize, height: handleSize, border: `1px solid ${handleStroke}`, cursor: 'nwse-resize' }}
+                          onMouseDown={(event) => startBoundResize(event, 'bottom-right')}
+                        />
+                      </>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
 
             {canEditStructure && canvasState.nodes.length === 0 && (
               <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
@@ -4696,7 +4824,10 @@ const Canvas = () => {
           <EvaluationConfirmModal
             isOpen={isEvaluationConfirmOpen}
             tokensRemaining={insightTokenStatus?.insightTokensRemaining ?? 0}
-            onCancel={() => setIsEvaluationConfirmOpen(false)}
+            onCancel={() => {
+              setIsEvaluationConfirmOpen(false);
+              setPendingEvaluationCanvasState(null);
+            }}
             onConfirm={handleConfirmAiEvaluation}
             isSubmitting={false}
           />

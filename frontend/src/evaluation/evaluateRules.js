@@ -113,7 +113,19 @@ const rule = (id, ruleTier, passed, confidence, reason, affectedNodeIds = [], af
 
 export function evaluateRules(canvasState) {
   const workspaceTier = (canvasState?.workspaceTier || 'core').toLowerCase();
-  const nodes = Array.isArray(canvasState?.nodes) ? canvasState.nodes : [];
+  const rawNodes = Array.isArray(canvasState?.nodes) ? canvasState.nodes : [];
+  const nodes = rawNodes.map((node) =>
+    node?.isExternalContext
+      ? {
+          ...node,
+          type: 'EXTERNAL_SERVICE',
+          metadata: {
+            ...(node.metadata || {}),
+            contextType: node.type,
+          },
+        }
+      : node
+  );
   const edges = Array.isArray(canvasState?.edges) ? canvasState.edges : [];
   const sysm = canvasState?.systemMetadata || {};
 
