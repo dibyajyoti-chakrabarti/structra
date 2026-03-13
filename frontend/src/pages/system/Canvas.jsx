@@ -1361,6 +1361,36 @@ const Canvas = () => {
     }));
   }, []);
 
+  const handleCanvasWheel = useCallback(
+    (event) => {
+      if (!canvasRef.current) return;
+      event.preventDefault();
+      const rect = canvasRef.current.getBoundingClientRect();
+      const mouseX = event.clientX - rect.left;
+      const mouseY = event.clientY - rect.top;
+
+      updateViewport((prev) => {
+        const zoomFactor = Math.exp(-event.deltaY * 0.0015);
+        const nextZoom = Math.max(0.4, Math.min(2.5, +(prev.zoom * zoomFactor).toFixed(2)));
+        if (nextZoom === prev.zoom) return prev;
+
+        const worldX = (mouseX - prev.pan.x) / prev.zoom;
+        const worldY = (mouseY - prev.pan.y) / prev.zoom;
+        const nextPan = {
+          x: mouseX - worldX * nextZoom,
+          y: mouseY - worldY * nextZoom,
+        };
+
+        return {
+          ...prev,
+          zoom: nextZoom,
+          pan: nextPan,
+        };
+      });
+    },
+    [updateViewport]
+  );
+
   const openPropertiesPanel = useCallback(() => {
     setIsRightPanelHidden(false);
   }, []);
@@ -3391,6 +3421,7 @@ const Canvas = () => {
           <section
             ref={canvasRef}
             onMouseDown={onCanvasMouseDown}
+            onWheel={handleCanvasWheel}
             onContextMenu={(event) => event.preventDefault()}
             onDragOver={(event) => event.preventDefault()}
             onDrop={handleDropComponent}
