@@ -126,21 +126,24 @@ export default function Lander() {
         .ftab.active{border-color:#2563eb;background:#f0f7ff;box-shadow:0 2px 12px rgba(37,99,235,.07)}
         .step-card{background:#fff;border:1.5px solid #e2e8f0;border-radius:16px;padding:32px 28px;position:relative;overflow:hidden;transition:border-color .25s,box-shadow .25s}
         .step-card:hover{border-color:#93c5fd;box-shadow:0 4px 24px rgba(37,99,235,.07)}
-        .pcard{background:#fff;border:1.5px solid #e2e8f0;border-radius:16px;padding:24px;cursor:pointer;transition:border-color .25s,box-shadow .25s}
+        .pcard{background:#fff;border:1.5px solid #e2e8f0;border-radius:16px;padding:24px;cursor:pointer;transition:border-color .25s,box-shadow .25s;display:flex;flex-direction:column}
         .pcard:hover{border-color:#2563eb;box-shadow:0 4px 20px rgba(37,99,235,.08)}
-        .pgain{max-height:0;overflow:hidden;opacity:0;transition:max-height .35s ease,opacity .35s ease}
-        .pcard.show .pgain{max-height:80px;opacity:1}
+        .pcard.show{min-height:220px}
+        .pcard .pbody{flex:1}
+        .pgain{max-height:0;overflow:hidden;opacity:0;transition:max-height .6s ease,opacity .6s ease}
+        .pcard.show .pgain{max-height:90px;opacity:1}
         .pcard h3{opacity:1;visibility:visible}
         .pcard:hover h3{opacity:1;visibility:visible}
-        .toggle-pill{display:inline-flex;align-items:center;gap:8px;background:#eff6ff;border:1px solid #bfdbfe;color:#1d4ed8;font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;padding:6px 14px;border-radius:999px;cursor:pointer;transition:background .2s,border-color .2s,color .2s}
-        .toggle-pill.active{background:#2563eb;border-color:#2563eb;color:#fff}
+        .toggle-pill{display:inline-flex;align-items:center;gap:8px;background:linear-gradient(135deg,#2563eb,#0284c7);border:1px solid #2563eb;color:#fff;font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;padding:8px 16px;border-radius:999px;cursor:pointer;transition:transform .15s,box-shadow .2s,filter .2s}
+        .toggle-pill:hover{transform:translateY(-1px);box-shadow:0 6px 18px rgba(37,99,235,.25)}
+        .toggle-pill.active{filter:saturate(1.1);box-shadow:0 8px 20px rgba(2,132,199,.3)}
         h1,h2,h3,.djf{font-family:'Plus Jakarta Sans','DM Sans',sans-serif}
 
         /* Responsive */
         .hero-grid{display:grid;grid-template-columns:1fr 1fr}
         .features-grid{display:grid;grid-template-columns:1fr 1fr}
         .steps-grid{display:grid;grid-template-columns:repeat(3,1fr)}
-        .personas-grid{display:grid;grid-template-columns:repeat(2,1fr)}
+        .personas-grid{display:grid;grid-template-columns:repeat(2,1fr);align-items:stretch}
         .stats-grid{display:grid;grid-template-columns:repeat(3,1fr)}
 
         /* ── Tablet (≤1024px) ── */
@@ -436,7 +439,7 @@ export default function Lander() {
                 className={`toggle-pill${showGains?" active":""}`}
                 onClick={()=>setShowGains(v=>!v)}
               >
-                With Structra
+                <Sparkles size={12}/> With Structra
               </button>
             </div>
           </div>
@@ -454,12 +457,12 @@ export default function Lander() {
                     </div>
                     <h3 style={{fontSize:"1.05rem",fontWeight:700,color:"#0f172a"}}>{p.role}</h3>
                   </div>
-                  <p style={{fontSize:"0.875rem",color:"#64748b",lineHeight:1.65}}>
+                  <p className="pbody" style={{fontSize:"0.875rem",color:"#64748b",lineHeight:1.65}}>
                     <span style={{color:"#dc2626",fontWeight:600}}>Challenge: </span>{p.pain}
                   </p>
                   <div className="pgain" style={{marginTop:10}}>
                     <p style={{fontSize:"0.875rem",color:"#64748b",lineHeight:1.65}}>
-                      <span style={{color:"#16a34a",fontWeight:600}}>With Structra: </span>{p.gain}
+                      <span style={{color:"#2563eb",fontWeight:600}}>With Structra: </span>{p.gain}
                     </p>
                   </div>
                 </div>
