@@ -257,6 +257,8 @@ const DEFAULT_TEXT_STYLE = {
 const DEFAULT_NODE_STYLE = {
   backgroundColor: '',
   textColor: '',
+  borderColor: '',
+  borderWidth: 1,
 };
 const DEFAULT_TEXT_BOX_WIDTH = 320;
 const DEFAULT_TEXT_BOX_HEIGHT = 76;
@@ -403,6 +405,14 @@ const normalizeNodeStyle = (value) => {
       typeof value.textColor === 'string' && value.textColor.trim()
         ? value.textColor
         : '',
+    borderColor:
+      typeof value.borderColor === 'string' && value.borderColor.trim()
+        ? value.borderColor
+        : '',
+    borderWidth:
+      typeof value.borderWidth === 'number' && Number.isFinite(value.borderWidth)
+        ? Math.min(12, Math.max(0, value.borderWidth))
+        : DEFAULT_NODE_STYLE.borderWidth,
   };
 };
 
@@ -2826,7 +2836,7 @@ const Canvas = () => {
     []
   );
 
-  const getNodeScreenAnchor = (node, anchor) => {
+  const getNodeWorldAnchor = (node, anchor) => {
     const resolvedAnchor = resolveAnchor(anchor, 'right');
     const { width, height } = getNodeDimensions(node);
     const offset =
@@ -2837,9 +2847,15 @@ const Canvas = () => {
         : resolvedAnchor === 'bottom'
         ? { x: width / 2, y: height }
         : { x: 0, y: height / 2 };
-    const worldX = node.position.x + offset.x;
-    const worldY = node.position.y + offset.y;
-    return worldToScreen(worldX, worldY, canvasState.viewport);
+    return {
+      x: node.position.x + offset.x,
+      y: node.position.y + offset.y,
+    };
+  };
+
+  const getNodeScreenAnchor = (node, anchor) => {
+    const world = getNodeWorldAnchor(node, anchor);
+    return worldToScreen(world.x, world.y, canvasState.viewport);
   };
 
   const getEdgeScreenPath = (edge) => {
@@ -2851,11 +2867,9 @@ const Canvas = () => {
 
     const sourceAnchor = resolveAnchor(edge.sourceAnchor, 'right');
     const targetAnchor = resolveAnchor(edge.targetAnchor, 'left');
-    const sourcePoint = getNodeScreenAnchor(sourceNode, sourceAnchor);
-    const targetPoint = getNodeScreenAnchor(targetNode, targetAnchor);
-    const bendPoints = Array.isArray(edge.bends)
-      ? edge.bends.map((bend) => worldToScreen(bend.x, bend.y, canvasState.viewport))
-      : [];
+    const sourcePoint = getNodeWorldAnchor(sourceNode, sourceAnchor);
+    const targetPoint = getNodeWorldAnchor(targetNode, targetAnchor);
+    const bendPoints = Array.isArray(edge.bends) ? edge.bends : [];
 
     if (bendPoints.length > 0) {
       const rawPathPoints = [sourcePoint, ...bendPoints, targetPoint];
@@ -2863,20 +2877,35 @@ const Canvas = () => {
       return {
         sourceNode,
         targetNode,
-        pathPoints: collapseDuplicatePoints(orthogonal.points),
+        pathPoints: collapseDuplicatePoints(orthogonal.points).map((point) =>
+          worldToScreen(point.x, point.y, canvasState.viewport)
+        ),
         segmentToRawIndex: orthogonal.segmentToRawIndex,
       };
     }
 
     const sourceDirection = ANCHOR_DIRECTIONS[sourceAnchor];
     const targetDirection = ANCHOR_DIRECTIONS[targetAnchor];
+    const breakout = GRID_SIZE;
     const sourceLead = {
-      x: sourcePoint.x + sourceDirection.x * DEFAULT_EDGE_BREAKOUT,
-      y: sourcePoint.y + sourceDirection.y * DEFAULT_EDGE_BREAKOUT,
+      x:
+        sourceDirection.x !== 0
+          ? snapToGrid(sourcePoint.x + sourceDirection.x * breakout)
+          : sourcePoint.x,
+      y:
+        sourceDirection.y !== 0
+          ? snapToGrid(sourcePoint.y + sourceDirection.y * breakout)
+          : sourcePoint.y,
     };
     const targetLead = {
-      x: targetPoint.x + targetDirection.x * DEFAULT_EDGE_BREAKOUT,
-      y: targetPoint.y + targetDirection.y * DEFAULT_EDGE_BREAKOUT,
+      x:
+        targetDirection.x !== 0
+          ? snapToGrid(targetPoint.x + targetDirection.x * breakout)
+          : targetPoint.x,
+      y:
+        targetDirection.y !== 0
+          ? snapToGrid(targetPoint.y + targetDirection.y * breakout)
+          : targetPoint.y,
     };
     const betweenLeadRaw =
       Math.abs(sourceDirection.y) === 1
@@ -2886,7 +2915,9 @@ const Canvas = () => {
     return {
       sourceNode,
       targetNode,
-      pathPoints: collapseDuplicatePoints(orthogonal.points),
+      pathPoints: collapseDuplicatePoints(orthogonal.points).map((point) =>
+        worldToScreen(point.x, point.y, canvasState.viewport)
+      ),
       segmentToRawIndex: orthogonal.segmentToRawIndex,
     };
   };
@@ -3569,7 +3600,7 @@ const Canvas = () => {
                 const edgeOpacity =
                   edgeIsHighlighted || selectedEdgeId === edge.id || !highlightedInsight ? 1 : 0.3;
                 const isSelected = selectedEdgeId === edge.id;
-                const edgeStrokeWidth = isSelected ? 2.5 : edgeIsHighlighted ? 2 : 1.5;
+                const edgeStrokeWidth = (isSelected ? 2.5 : edgeIsHighlighted ? 2 : 1.5) * nodeZoom;
                 const edgeColor = isSelected ? edgeSelectedColor : edgeIsHighlighted ? edgeHighlightColor : edgeDefaultColor;
                 const arrowMarkerId = isSelected ? 'arrowhead-selected' : edgeIsHighlighted ? 'arrowhead-highlighted' : 'arrowhead';
 
@@ -3580,7 +3611,7 @@ const Canvas = () => {
                       <path
                         d={pathDefinition}
                         stroke={edgeSelectedColor}
-                        strokeWidth={6}
+                        strokeWidth={6 * nodeZoom}
                         opacity={0.15}
                         fill="none"
                       />
@@ -3614,7 +3645,7 @@ const Canvas = () => {
                     <path
                       d={pathDefinition}
                       stroke="transparent"
-                      strokeWidth="14"
+                      strokeWidth={Math.max(8, 14 * nodeZoom)}
                       fill="none"
                       className="pointer-events-auto cursor-pointer"
                       onClick={(event) => {
@@ -3696,8 +3727,8 @@ const Canvas = () => {
                     x2={targetX}
                     y2={targetY}
                     stroke={edgeSelectedColor}
-                    strokeWidth="2"
-                    strokeDasharray="6 4"
+                    strokeWidth={2 * nodeZoom}
+                    strokeDasharray={`${6 * nodeZoom} ${4 * nodeZoom}`}
                     strokeLinecap="round"
                     opacity={0.8}
                     markerEnd="url(#arrowhead-selected)"
@@ -3714,6 +3745,8 @@ const Canvas = () => {
               const style = normalizeNodeStyle(node.style);
               const nodeBackgroundColor = style.backgroundColor || (isDarkTheme ? '#111827' : '#ffffff');
               const nodeTextColor = style.textColor || (isDarkTheme ? '#f3f4f6' : '#111827');
+              const nodeBorderColor = style.borderColor || (isDarkTheme ? '#243246' : '#e5e7eb');
+              const nodeBorderWidth = Math.max(0, style.borderWidth ?? DEFAULT_NODE_STYLE.borderWidth);
               const nodeIsHighlighted = highlightedNodeIds.has(node.id);
               const connectorClasses = {
                 top: 'absolute left-1/2 -translate-x-1/2 -top-3.5',
@@ -3739,6 +3772,8 @@ const Canvas = () => {
                     top: screen.y,
                     opacity: nodeIsHighlighted || selectedNodeId === node.id || !highlightedInsight ? 1 : 0.58,
                     backgroundColor: nodeBackgroundColor,
+                    border: `${nodeBorderWidth}px solid ${nodeBorderColor}`,
+                    boxSizing: 'border-box',
                   }}
                   onMouseDown={(event) => {
                     if (event.button !== 2) {
@@ -4420,6 +4455,8 @@ const Canvas = () => {
                         onClick={() => {
                           setSelectedNodeStyleField('backgroundColor', '');
                           setSelectedNodeStyleField('textColor', '');
+                          setSelectedNodeStyleField('borderColor', '');
+                          setSelectedNodeStyleField('borderWidth', DEFAULT_NODE_STYLE.borderWidth);
                         }}
                         disabled={!canEditStructure}
                         className="text-[10px] px-2 py-1 rounded-md border border-gray-200 text-gray-600 hover:bg-gray-100 transition-colors disabled:opacity-40"
@@ -4446,6 +4483,29 @@ const Canvas = () => {
                           onChange={(event) => setSelectedNodeStyleField('textColor', event.target.value)}
                           disabled={!canEditStructure}
                           className="w-full h-9 border border-gray-200 rounded-lg bg-white"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[11px] font-semibold text-gray-500 block mb-1.5">Border color</label>
+                        <input
+                          type="color"
+                          value={selectedNode?.style?.borderColor || (isDarkTheme ? '#243246' : '#e5e7eb')}
+                          onChange={(event) => setSelectedNodeStyleField('borderColor', event.target.value)}
+                          disabled={!canEditStructure}
+                          className="w-full h-9 border border-gray-200 rounded-lg bg-white"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[11px] font-semibold text-gray-500 block mb-1.5">Border width</label>
+                        <input
+                          type="number"
+                          min="0"
+                          max="12"
+                          step="1"
+                          value={selectedNode?.style?.borderWidth ?? DEFAULT_NODE_STYLE.borderWidth}
+                          onChange={(event) => setSelectedNodeStyleField('borderWidth', Number(event.target.value))}
+                          disabled={!canEditStructure}
+                          className="w-full h-9 border border-gray-200 rounded-lg bg-white px-2 text-sm"
                         />
                       </div>
                     </div>
