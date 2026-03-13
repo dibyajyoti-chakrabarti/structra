@@ -52,6 +52,28 @@ const NODE_WIDTH = 180;
 const NODE_HEIGHT = 96;
 const AUTOSAVE_DEBOUNCE_MS = 650;
 const MOBILE_MAX_WIDTH = 767;
+const clampNumber = (value, min, max) => Math.min(max, Math.max(min, value));
+const NODE_SCALE_LIMITS = {
+  typeFont: { base: 12, min: 7, max: 30 },
+  labelFont: { base: 16, min: 9, max: 40 },
+  idFont: { base: 12, min: 7, max: 30 },
+  icon: { base: 14, min: 8, max: 35 },
+  padding: { base: 12, min: 6, max: 30 },
+};
+const MIN_NODE_ZOOM = Math.max(
+  NODE_SCALE_LIMITS.typeFont.min / NODE_SCALE_LIMITS.typeFont.base,
+  NODE_SCALE_LIMITS.labelFont.min / NODE_SCALE_LIMITS.labelFont.base,
+  NODE_SCALE_LIMITS.idFont.min / NODE_SCALE_LIMITS.idFont.base,
+  NODE_SCALE_LIMITS.icon.min / NODE_SCALE_LIMITS.icon.base,
+  NODE_SCALE_LIMITS.padding.min / NODE_SCALE_LIMITS.padding.base
+);
+const MAX_NODE_ZOOM = Math.min(
+  NODE_SCALE_LIMITS.typeFont.max / NODE_SCALE_LIMITS.typeFont.base,
+  NODE_SCALE_LIMITS.labelFont.max / NODE_SCALE_LIMITS.labelFont.base,
+  NODE_SCALE_LIMITS.idFont.max / NODE_SCALE_LIMITS.idFont.base,
+  NODE_SCALE_LIMITS.icon.max / NODE_SCALE_LIMITS.icon.base,
+  NODE_SCALE_LIMITS.padding.max / NODE_SCALE_LIMITS.padding.base
+);
 const LEFT_PANEL_ITEMS = [
   { id: 'components', label: 'Components', icon: Box },
   { id: 'text', label: 'Text', icon: Type },
@@ -1371,7 +1393,7 @@ const Canvas = () => {
 
       updateViewport((prev) => {
         const zoomFactor = Math.exp(-event.deltaY * 0.0015);
-        const nextZoom = Math.max(0.4, Math.min(2.5, +(prev.zoom * zoomFactor).toFixed(2)));
+        const nextZoom = Math.max(MIN_NODE_ZOOM, Math.min(MAX_NODE_ZOOM, +(prev.zoom * zoomFactor).toFixed(2)));
         if (nextZoom === prev.zoom) return prev;
 
         const worldX = (mouseX - prev.pan.x) / prev.zoom;
@@ -2542,7 +2564,7 @@ const Canvas = () => {
     const fitHeight = Math.max(120, maxY - minY + padding * 2);
     const zoomX = rect.width / fitWidth;
     const zoomY = rect.height / fitHeight;
-    const nextZoom = Math.max(0.4, Math.min(2.5, Math.min(zoomX, zoomY)));
+    const nextZoom = Math.max(MIN_NODE_ZOOM, Math.min(MAX_NODE_ZOOM, Math.min(zoomX, zoomY)));
 
     const centerX = (minX + maxX) / 2;
     const centerY = (minY + maxY) / 2;
@@ -2857,11 +2879,21 @@ const Canvas = () => {
   const edgeSelectedColor = isDarkTheme ? '#60a5fa' : '#3b82f6';
   const edgeHighlightColor = isDarkTheme ? '#34d399' : '#10b981';
   const nodeZoom = canvasState.viewport.zoom;
-  const nodePadding = Math.max(6, Math.round(12 * nodeZoom));
-  const nodeTypeFontSize = Math.max(8, Math.round(12 * nodeZoom));
-  const nodeLabelFontSize = Math.max(10, Math.round(16 * nodeZoom));
-  const nodeIdFontSize = Math.max(8, Math.round(12 * nodeZoom));
-  const nodeIconSize = Math.max(10, Math.round(14 * nodeZoom));
+  const nodePadding = Math.round(
+    clampNumber(NODE_SCALE_LIMITS.padding.base * nodeZoom, NODE_SCALE_LIMITS.padding.min, NODE_SCALE_LIMITS.padding.max)
+  );
+  const nodeTypeFontSize = Math.round(
+    clampNumber(NODE_SCALE_LIMITS.typeFont.base * nodeZoom, NODE_SCALE_LIMITS.typeFont.min, NODE_SCALE_LIMITS.typeFont.max)
+  );
+  const nodeLabelFontSize = Math.round(
+    clampNumber(NODE_SCALE_LIMITS.labelFont.base * nodeZoom, NODE_SCALE_LIMITS.labelFont.min, NODE_SCALE_LIMITS.labelFont.max)
+  );
+  const nodeIdFontSize = Math.round(
+    clampNumber(NODE_SCALE_LIMITS.idFont.base * nodeZoom, NODE_SCALE_LIMITS.idFont.min, NODE_SCALE_LIMITS.idFont.max)
+  );
+  const nodeIconSize = Math.round(
+    clampNumber(NODE_SCALE_LIMITS.icon.base * nodeZoom, NODE_SCALE_LIMITS.icon.min, NODE_SCALE_LIMITS.icon.max)
+  );
 
   if (loading) {
     return <LoadingState message="Loading canvas" minHeight="100vh" />;
@@ -3108,7 +3140,7 @@ const Canvas = () => {
               onClick={() =>
                 updateViewport((prev) => ({
                   ...prev,
-                  zoom: Math.max(0.4, +(prev.zoom - 0.1).toFixed(2)),
+                  zoom: Math.max(MIN_NODE_ZOOM, +(prev.zoom - 0.1).toFixed(2)),
                 }))
               }
               className="p-1.5 rounded-md text-gray-500 hover:text-gray-700 hover:bg-white transition-all"
@@ -3122,7 +3154,7 @@ const Canvas = () => {
               onClick={() =>
                 updateViewport((prev) => ({
                   ...prev,
-                  zoom: Math.min(2.5, +(prev.zoom + 0.1).toFixed(2)),
+                  zoom: Math.min(MAX_NODE_ZOOM, +(prev.zoom + 0.1).toFixed(2)),
                 }))
               }
               className="p-1.5 rounded-md text-gray-500 hover:text-gray-700 hover:bg-white transition-all"
