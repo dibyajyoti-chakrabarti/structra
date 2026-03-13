@@ -3014,7 +3014,7 @@ const Canvas = () => {
           </div>
         </div>
       )}
-      <header className="canvas-topbar border-b border-gray-200 bg-white px-4 py-0 flex items-stretch justify-between gap-3 h-12 shrink-0">
+      <header className="canvas-topbar relative z-50 border-b border-gray-200 bg-white px-4 py-0 flex items-stretch justify-between gap-3 h-12 shrink-0">
         {/* Left: breadcrumb */}
         <div className="flex items-center min-w-0 gap-1">
           <button
@@ -3331,7 +3331,7 @@ const Canvas = () => {
         )}
 
         {canEditStructure && isLeftPanelCollapsed && (
-          <aside className="canvas-left-quickbar absolute top-3 left-3 z-20 inline-flex flex-col gap-1 p-1.5 rounded-xl border border-gray-200 bg-white shadow-sm">
+          <aside className="canvas-left-quickbar absolute top-3 left-3 z-40 inline-flex flex-col gap-1 p-1.5 rounded-xl border border-gray-200 bg-white shadow-sm">
             {LEFT_PANEL_ITEMS.map((item) => {
               const ItemIcon = item.icon;
               const isActive =
