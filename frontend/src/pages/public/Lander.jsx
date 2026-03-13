@@ -130,12 +130,63 @@ export default function Lander() {
         .pgain{max-height:0;overflow:hidden;opacity:0;transition:max-height .35s ease,opacity .35s ease}
         .pcard:hover .pgain{max-height:80px;opacity:1}
         h1,h2,h3,.djf{font-family:'Plus Jakarta Sans','DM Sans',sans-serif}
+
+        /* Responsive */
+        .hero-grid{display:grid;grid-template-columns:1fr 1fr}
+        .features-grid{display:grid;grid-template-columns:1fr 1fr}
+        .steps-grid{display:grid;grid-template-columns:repeat(3,1fr)}
+        .personas-grid{display:grid;grid-template-columns:repeat(2,1fr)}
+        .stats-grid{display:grid;grid-template-columns:repeat(3,1fr)}
+
+        /* ── Tablet (≤1024px) ── */
+        @media (max-width: 1024px){
+          .hero-grid{grid-template-columns:1fr;gap:40px;max-width:680px;margin-left:auto;margin-right:auto}
+          .hero-media{order:2}
+          .hero-copy{order:1;text-align:center}
+          .hero-copy .pill{justify-content:center}
+          .hero-copy p{margin-left:auto;margin-right:auto}
+          .hero-actions{justify-content:center}
+          .hero-trust{justify-content:center}
+          .stats-grid{grid-template-columns:1fr 1fr}
+          .features-grid{grid-template-columns:1fr;gap:2rem;max-width:680px;margin-left:auto;margin-right:auto}
+          .steps-grid{grid-template-columns:1fr;gap:1.25rem;max-width:640px;margin-left:auto;margin-right:auto}
+          .personas-grid{grid-template-columns:1fr 1fr;gap:1rem}
+          .step-card .chevron-connector{display:none}
+        }
+
+        /* ── Mobile (≤640px) ── */
+        @media (max-width: 640px){
+          .hero{padding:64px 0 56px}
+          .hero-inner{padding:0 1.25rem}
+          .logo-strip{padding:14px 0}
+          .stats-grid{grid-template-columns:1fr 1fr;gap:.75rem}
+          .hero-actions{width:100%;flex-direction:column}
+          .hero-actions button{width:100%}
+          .hero-trust{flex-direction:column;align-items:center;gap:10px}
+          .cta{padding:72px 1.25rem}
+          .cta-actions{flex-direction:column;align-items:stretch}
+          .cta-actions button{width:100%}
+          .personas-grid{grid-template-columns:1fr}
+          .features-section{padding:72px 1.25rem}
+          .process-section{padding:72px 1.25rem}
+          .personas-section{padding:72px 1.25rem}
+          .ftab{padding:14px 16px}
+          .step-card{padding:24px 20px}
+          .pcard{padding:20px}
+          h2{font-size:clamp(1.6rem,6vw,2.2rem) !important}
+        }
+
+        /* ── Small mobile (≤390px) ── */
+        @media (max-width: 390px){
+          .stats-grid{grid-template-columns:1fr}
+          .hero-inner{padding:0 1rem}
+        }
       `}</style>
 
       <Navbar/>
 
       {/* ──── HERO ──────────────────────────────── */}
-      <section style={{
+      <section className="hero" style={{
         background:"linear-gradient(180deg,#f0f7ff 0%,#fff 100%)",
         borderBottom:"1px solid #e2e8f0",
         padding:"96px 0 80px",
@@ -146,11 +197,11 @@ export default function Lander() {
           backgroundImage:"radial-gradient(#dbeafe 1px,transparent 1px)",
           backgroundSize:"28px 28px",opacity:0.6,
         }}/>
-        <div style={{maxWidth:1200,margin:"0 auto",padding:"0 2rem",position:"relative"}}>
-          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"56px",alignItems:"center"}}>
+        <div className="hero-inner" style={{maxWidth:1200,margin:"0 auto",padding:"0 2rem",position:"relative"}}>
+          <div className="hero-grid" style={{gap:"56px",alignItems:"center"}}>
 
             {/* Left */}
-            <div>
+            <div className="hero-copy">
               <div className="pill" style={{marginBottom:20}}>
                 <Sparkles size={11}/> AI-Native Decision Intelligence
               </div>
@@ -168,7 +219,7 @@ export default function Lander() {
                 an AI layer for trade-off analysis, and a governance trail that
                 makes audits effortless.
               </p>
-              <div style={{display:"flex",gap:12,flexWrap:"wrap",marginBottom:28}}>
+              <div className="hero-actions" style={{display:"flex",gap:12,flexWrap:"wrap",marginBottom:28}}>
                 <button className="btn-p" onClick={()=>navigate("/signup")}>
                   Start free trial <ArrowRight size={15}/>
                 </button>
@@ -176,7 +227,7 @@ export default function Lander() {
                   <Play size={13}/> Watch demo
                 </button>
               </div>
-              <div style={{display:"flex",gap:20,flexWrap:"wrap",fontSize:13,color:"#94a3b8"}}>
+              <div className="hero-trust" style={{display:"flex",gap:20,flexWrap:"wrap",fontSize:13,color:"#94a3b8"}}>
                 {[[CheckCircle2,"No credit card required"],[Shield,"SOC 2 aligned"],[Zap,"Ready in 5 minutes"]].map(([Icon,label])=>(
                   <span key={label} style={{display:"flex",alignItems:"center",gap:5}}>
                     <Icon size={13} style={{color:"#2563eb"}}/> {label}
@@ -186,7 +237,7 @@ export default function Lander() {
             </div>
 
             {/* Right — browser frame with user's canvas */}
-            <div style={{position:"relative"}}>
+            <div className="hero-media" style={{position:"relative"}}>
               <div style={{
                 background:"#fff",borderRadius:16,
                 border:"1.5px solid #e2e8f0",overflow:"hidden",
@@ -205,7 +256,7 @@ export default function Lander() {
                     padding:"3px 14px",fontSize:11,color:"#94a3b8",
                     fontFamily:"DM Mono,monospace",flex:1,
                   }}>
-                    app.structra<span style={{color:"#2563eb"}}>.cloud</span> / workspace
+                    structra.cloud<span style={{color:"#2563eb"}}>/app/ws</span>
                   </div>
                   <span style={{
                     background:"#eff6ff",border:"1px solid #bfdbfe",
@@ -220,19 +271,6 @@ export default function Lander() {
                   style={{display:"block",width:"100%",objectFit:"cover"}}
                 />
               </div>
-              {/* floating status badge */}
-              <div style={{
-                position:"absolute",bottom:-18,right:20,
-                background:"#fff",border:"1.5px solid #e2e8f0",
-                borderRadius:12,padding:"10px 16px",
-                display:"flex",alignItems:"center",gap:10,
-                boxShadow:"0 4px 20px rgba(15,23,42,0.09)",
-              }}>
-                <div style={{width:8,height:8,borderRadius:"50%",background:"#22c55e"}}/>
-                <span style={{fontSize:12,color:"#374151",fontWeight:500}}>
-                  AI Evaluation complete — 3 risks flagged
-                </span>
-              </div>
             </div>
 
           </div>
@@ -240,7 +278,7 @@ export default function Lander() {
       </section>
 
       {/* ──── LOGO STRIP ────────────────────────── */}
-      <div style={{borderBottom:"1px solid #f1f5f9",background:"#fafafa",padding:"18px 0",overflow:"hidden",position:"relative"}}>
+      <div className="logo-strip" style={{borderBottom:"1px solid #f1f5f9",background:"#fafafa",padding:"18px 0",overflow:"hidden",position:"relative"}}>
         <div style={{position:"absolute",left:0,top:0,bottom:0,width:80,background:"linear-gradient(90deg,#fafafa,transparent)",zIndex:2}}/>
         <div style={{position:"absolute",right:0,top:0,bottom:0,width:80,background:"linear-gradient(270deg,#fafafa,transparent)",zIndex:2}}/>
         <div className="logo-scroll" style={{display:"flex",gap:"3rem",width:"max-content"}}>
@@ -252,7 +290,7 @@ export default function Lander() {
 
       {/* ──── STATS ─────────────────────────────── */}
       <FadeIn>
-        <div style={{maxWidth:860,margin:"72px auto 0",padding:"0 2rem",display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:"1rem"}}>
+        <div className="stats-grid" style={{maxWidth:860,margin:"72px auto 0",padding:"0 2rem",gap:"1rem"}}>
           {[
             {label:"Decisions documented",suffix:"+",ref:r1,val:c1},
             {label:"Faster than spreadsheets",suffix:"%",ref:r2,val:c2},
@@ -269,7 +307,7 @@ export default function Lander() {
       </FadeIn>
 
       {/* ──── FEATURES ──────────────────────────── */}
-      <section style={{padding:"96px 2rem",maxWidth:1200,margin:"0 auto"}}>
+      <section className="features-section" style={{padding:"96px 2rem",maxWidth:1200,margin:"0 auto"}}>
         <FadeIn>
           <div style={{textAlign:"center",marginBottom:"3.5rem"}}>
             <div className="pill" style={{marginBottom:16}}>Platform Capabilities</div>
@@ -282,7 +320,7 @@ export default function Lander() {
           </div>
         </FadeIn>
 
-        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"3rem",alignItems:"center"}}>
+        <div className="features-grid" style={{gap:"3rem",alignItems:"center"}}>
           {/* illustration */}
           <FadeIn>
             <div style={{
@@ -326,7 +364,7 @@ export default function Lander() {
       </section>
 
       {/* ──── HOW IT WORKS ──────────────────────── */}
-      <section style={{background:"#f8fafc",borderTop:"1px solid #e2e8f0",borderBottom:"1px solid #e2e8f0",padding:"96px 2rem"}}>
+      <section className="process-section" style={{background:"#f8fafc",borderTop:"1px solid #e2e8f0",borderBottom:"1px solid #e2e8f0",padding:"96px 2rem"}}>
         <div style={{maxWidth:1100,margin:"0 auto"}}>
           <FadeIn>
             <div style={{textAlign:"center",marginBottom:"3.5rem"}}>
@@ -337,7 +375,7 @@ export default function Lander() {
             </div>
           </FadeIn>
 
-          <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:"1.5rem"}}>
+          <div className="steps-grid" style={{gap:"1.5rem"}}>
             {STEPS.map((s,i)=>{
               const Icon=s.icon;
               return (
@@ -362,7 +400,7 @@ export default function Lander() {
                     <h3 style={{fontSize:"1.15rem",fontWeight:700,color:"#0f172a",marginBottom:10}}>{s.title}</h3>
                     <p style={{fontSize:"0.875rem",color:"#64748b",lineHeight:1.75}}>{s.body}</p>
                     {i<2&&(
-                      <div style={{
+                      <div className="chevron-connector" style={{
                         position:"absolute",right:-18,top:"50%",transform:"translateY(-50%)",
                         width:36,height:36,borderRadius:"50%",
                         background:"#fff",border:"1.5px solid #e2e8f0",
@@ -380,7 +418,7 @@ export default function Lander() {
       </section>
 
       {/* ──── PERSONAS ──────────────────────────── */}
-      <section style={{padding:"96px 2rem",maxWidth:1200,margin:"0 auto"}}>
+      <section className="personas-section" style={{padding:"96px 2rem",maxWidth:1200,margin:"0 auto"}}>
         <FadeIn>
           <div style={{textAlign:"center",marginBottom:"3.5rem"}}>
             <div className="pill" style={{marginBottom:16}}>Who it's for</div>
@@ -391,7 +429,7 @@ export default function Lander() {
           </div>
         </FadeIn>
 
-        <div style={{display:"grid",gridTemplateColumns:"repeat(2,1fr)",gap:"1.25rem"}}>
+        <div className="personas-grid" style={{gap:"1.25rem"}}>
           {PERSONAS.map((p,i)=>{
             const Icon=p.icon;
             return (
@@ -419,7 +457,7 @@ export default function Lander() {
       </section>
 
       {/* ──── CTA ───────────────────────────────── */}
-      <section style={{background:"linear-gradient(135deg,#1d4ed8 0%,#0284c7 100%)",padding:"100px 2rem",textAlign:"center"}}>
+      <section className="cta" style={{background:"linear-gradient(135deg,#1d4ed8 0%,#0284c7 100%)",padding:"100px 2rem",textAlign:"center"}}>
         <FadeIn>
           <div style={{maxWidth:700,margin:"0 auto"}}>
             <div style={{
@@ -444,7 +482,7 @@ export default function Lander() {
               and ops into one shared model — with AI that actually helps you decide.
             </p>
 
-            <div style={{display:"flex",gap:12,justifyContent:"center",flexWrap:"wrap"}}>
+            <div className="cta-actions" style={{display:"flex",gap:12,justifyContent:"center",flexWrap:"wrap"}}>
               <button
                 onClick={()=>navigate("/signup")}
                 style={{
