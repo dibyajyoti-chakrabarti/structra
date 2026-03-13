@@ -99,6 +99,7 @@ export default function Lander() {
   const [c2,r2]=useCounter(91);
   const [c3,r3]=useCounter(14);
   const [activeF,setActiveF]=useState(0);
+  const [showGains,setShowGains]=useState(false);
 
   useEffect(()=>{
     const t=setInterval(()=>setActiveF(p=>(p+1)%FEATURES.length),4000);
@@ -128,7 +129,11 @@ export default function Lander() {
         .pcard{background:#fff;border:1.5px solid #e2e8f0;border-radius:16px;padding:24px;cursor:pointer;transition:border-color .25s,box-shadow .25s}
         .pcard:hover{border-color:#2563eb;box-shadow:0 4px 20px rgba(37,99,235,.08)}
         .pgain{max-height:0;overflow:hidden;opacity:0;transition:max-height .35s ease,opacity .35s ease}
-        .pcard:hover .pgain{max-height:80px;opacity:1}
+        .pcard.show .pgain{max-height:80px;opacity:1}
+        .pcard h3{opacity:1;visibility:visible}
+        .pcard:hover h3{opacity:1;visibility:visible}
+        .toggle-pill{display:inline-flex;align-items:center;gap:8px;background:#eff6ff;border:1px solid #bfdbfe;color:#1d4ed8;font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;padding:6px 14px;border-radius:999px;cursor:pointer;transition:background .2s,border-color .2s,color .2s}
+        .toggle-pill.active{background:#2563eb;border-color:#2563eb;color:#fff}
         h1,h2,h3,.djf{font-family:'Plus Jakarta Sans','DM Sans',sans-serif}
 
         /* Responsive */
@@ -147,7 +152,7 @@ export default function Lander() {
           .hero-copy p{margin-left:auto;margin-right:auto}
           .hero-actions{justify-content:center}
           .hero-trust{justify-content:center}
-          .stats-grid{grid-template-columns:1fr 1fr}
+          .stats-grid{grid-template-columns:1fr}
           .features-grid{grid-template-columns:1fr;gap:2rem;max-width:680px;margin-left:auto;margin-right:auto}
           .steps-grid{grid-template-columns:1fr;gap:1.25rem;max-width:640px;margin-left:auto;margin-right:auto}
           .personas-grid{grid-template-columns:1fr 1fr;gap:1rem}
@@ -425,7 +430,15 @@ export default function Lander() {
             <h2 style={{fontSize:"clamp(1.9rem,3vw,2.6rem)",fontWeight:800,color:"#0f172a",letterSpacing:"-0.02em"}}>
               Built for every team that touches<br/>architecture decisions
             </h2>
-            <p style={{color:"#94a3b8",marginTop:12,fontSize:13}}>Hover a card to see the outcome</p>
+            <div style={{marginTop:16}}>
+              <button
+                type="button"
+                className={`toggle-pill${showGains?" active":""}`}
+                onClick={()=>setShowGains(v=>!v)}
+              >
+                With Structra
+              </button>
+            </div>
           </div>
         </FadeIn>
 
@@ -434,7 +447,7 @@ export default function Lander() {
             const Icon=p.icon;
             return (
               <FadeIn key={p.role} delay={i*80}>
-                <div className="pcard">
+                <div className={`pcard${showGains?" show":""}`}>
                   <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:14}}>
                     <div style={{width:40,height:40,borderRadius:10,background:"#eff6ff",display:"flex",alignItems:"center",justifyContent:"center"}}>
                       <Icon size={18} style={{color:"#2563eb"}}/>
