@@ -8,8 +8,7 @@ const getInitialTheme = () => {
   if (typeof window === 'undefined') return 'light';
   const stored = localStorage.getItem(THEME_KEY);
   if (stored === 'light' || stored === 'dark') return stored;
-  const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
-  return prefersDark ? 'dark' : 'light';
+  return 'light';
 };
 
 export function ThemeProvider({ children }) {
@@ -43,4 +42,3 @@ export function ThemeProvider({ children }) {
 }
 
 export const useTheme = () => useContext(ThemeContext);
-
