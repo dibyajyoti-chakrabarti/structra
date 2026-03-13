@@ -53,6 +53,12 @@ const NODE_HEIGHT = 96;
 const AUTOSAVE_DEBOUNCE_MS = 650;
 const MOBILE_MAX_WIDTH = 767;
 const clampNumber = (value, min, max) => Math.min(max, Math.max(min, value));
+const GRID_SIZE = 48;
+const snapToGrid = (value) => Math.round(value / GRID_SIZE) * GRID_SIZE;
+const snapPointToGrid = (point) => ({
+  x: snapToGrid(point.x),
+  y: snapToGrid(point.y),
+});
 const NODE_SCALE_LIMITS = {
   typeFont: { base: 12, min: 7, max: 30 },
   labelFont: { base: 16, min: 9, max: 40 },
@@ -1430,12 +1436,13 @@ const Canvas = () => {
       event.clientY - rect.top,
       canvasState.viewport
     );
+    const snapped = snapPointToGrid(world);
 
     const newNode = {
       id: makeUuid(),
       type: componentType,
       label: toComponentLabel(componentType),
-      position: { x: world.x - NODE_WIDTH / 2, y: world.y - NODE_HEIGHT / 2 },
+      position: { x: snapped.x - NODE_WIDTH / 2, y: snapped.y - NODE_HEIGHT / 2 },
       width: NODE_WIDTH,
       height: NODE_HEIGHT,
       bound_ids: [],
@@ -1651,10 +1658,11 @@ const Canvas = () => {
         event.clientY - rect.top,
         canvasState.viewport
       );
+      const snapped = snapPointToGrid(world);
       const boundId = makeUuid();
       const nextBound = {
         id: boundId,
-        position: { x: world.x, y: world.y },
+        position: { x: snapped.x, y: snapped.y },
         size: { width: MIN_BOUND_SIZE, height: MIN_BOUND_SIZE },
         style: { ...DEFAULT_BOUND },
       };
@@ -1662,8 +1670,8 @@ const Canvas = () => {
         boundId,
         startClientX: event.clientX,
         startClientY: event.clientY,
-        startX: world.x,
-        startY: world.y,
+        startX: snapped.x,
+        startY: snapped.y,
       };
       setCanvasState((prev) => ({
         ...prev,
@@ -1705,6 +1713,11 @@ const Canvas = () => {
         const nextHeight = Math.max(MIN_BOUND_SIZE, Math.abs(deltaY));
         const nextX = deltaX >= 0 ? drag.startX : drag.startX - nextWidth;
         const nextY = deltaY >= 0 ? drag.startY : drag.startY - nextHeight;
+        const snappedPosition = snapPointToGrid({ x: nextX, y: nextY });
+        const snappedSize = {
+          width: Math.max(MIN_BOUND_SIZE, snapToGrid(nextWidth)),
+          height: Math.max(MIN_BOUND_SIZE, snapToGrid(nextHeight)),
+        };
 
         setCanvasState((prev) => ({
           ...prev,
@@ -1712,8 +1725,8 @@ const Canvas = () => {
             item.id === drag.boundId
               ? {
                   ...item,
-                  position: { x: nextX, y: nextY },
-                  size: { width: nextWidth, height: nextHeight },
+                  position: snappedPosition,
+                  size: snappedSize,
                 }
               : item
           ),
@@ -1724,16 +1737,17 @@ const Canvas = () => {
         const drag = draggingTextRef.current;
         const deltaX = (event.clientX - drag.startClientX) / canvasState.viewport.zoom;
         const deltaY = (event.clientY - drag.startClientY) / canvasState.viewport.zoom;
+        const nextPosition = snapPointToGrid({
+          x: drag.startX + deltaX,
+          y: drag.startY + deltaY,
+        });
         setCanvasState((prev) => ({
           ...prev,
           textItems: prev.textItems.map((item) =>
             item.id === drag.textId
               ? {
                   ...item,
-                  position: {
-                    x: drag.startX + deltaX,
-                    y: drag.startY + deltaY,
-                  },
+                  position: nextPosition,
                 }
               : item
           ),
@@ -1744,16 +1758,17 @@ const Canvas = () => {
         const drag = draggingBoundRef.current;
         const deltaX = (event.clientX - drag.startClientX) / canvasState.viewport.zoom;
         const deltaY = (event.clientY - drag.startClientY) / canvasState.viewport.zoom;
+        const nextPosition = snapPointToGrid({
+          x: drag.startX + deltaX,
+          y: drag.startY + deltaY,
+        });
         setCanvasState((prev) => ({
           ...prev,
           boundsItems: prev.boundsItems.map((item) =>
             item.id === drag.boundId
               ? {
                   ...item,
-                  position: {
-                    x: drag.startX + deltaX,
-                    y: drag.startY + deltaY,
-                  },
+                  position: nextPosition,
                 }
               : item
           ),
@@ -1785,6 +1800,11 @@ const Canvas = () => {
           nextSize.height = height;
           nextPosition.y = drag.startPosition.y + heightDelta;
         }
+        const snappedPosition = snapPointToGrid(nextPosition);
+        const snappedSize = {
+          width: Math.max(MIN_BOUND_SIZE, snapToGrid(nextSize.width)),
+          height: Math.max(MIN_BOUND_SIZE, snapToGrid(nextSize.height)),
+        };
 
         setCanvasState((prev) => ({
           ...prev,
@@ -1792,8 +1812,8 @@ const Canvas = () => {
             item.id === drag.boundId
               ? {
                   ...item,
-                  position: nextPosition,
-                  size: nextSize,
+                  position: snappedPosition,
+                  size: snappedSize,
                 }
               : item
           ),
@@ -1898,10 +1918,19 @@ const Canvas = () => {
             node.id === drag.nodeId
               ? {
                   ...node,
-                  position: {
-                    x: drag.startX + deltaX,
-                    y: drag.startY + deltaY,
-                  },
+                  position: (() => {
+                    const width = normalizeNodeDimension(node.width, NODE_WIDTH);
+                    const height = normalizeNodeDimension(node.height, NODE_HEIGHT);
+                    const center = {
+                      x: drag.startX + deltaX + width / 2,
+                      y: drag.startY + deltaY + height / 2,
+                    };
+                    const snappedCenter = snapPointToGrid(center);
+                    return {
+                      x: snappedCenter.x - width / 2,
+                      y: snappedCenter.y - height / 2,
+                    };
+                  })(),
                 }
               : node
           ),
@@ -3462,18 +3491,19 @@ const Canvas = () => {
               if (isBoundsDrawingMode) return;
               if (canEditStructure && isTextPlacementMode && canvasRef.current) {
                 const rect = canvasRef.current.getBoundingClientRect();
-                const world = canvasToWorld(
-                  event.clientX - rect.left,
-                  event.clientY - rect.top,
-                  canvasState.viewport
-                );
-                const textItem = {
-                  id: makeUuid(),
-                  content: 'Type here',
-                  position: { x: world.x, y: world.y },
-                  size: { width: DEFAULT_TEXT_BOX_WIDTH, height: DEFAULT_TEXT_BOX_HEIGHT },
-                  style: { ...DEFAULT_TEXT_STYLE },
-                };
+        const world = canvasToWorld(
+          event.clientX - rect.left,
+          event.clientY - rect.top,
+          canvasState.viewport
+        );
+        const snapped = snapPointToGrid(world);
+        const textItem = {
+          id: makeUuid(),
+          content: 'Type here',
+          position: { x: snapped.x, y: snapped.y },
+          size: { width: DEFAULT_TEXT_BOX_WIDTH, height: DEFAULT_TEXT_BOX_HEIGHT },
+          style: { ...DEFAULT_TEXT_STYLE },
+        };
                 setCanvasState((prev) => ({
                   ...prev,
                   textItems: [...prev.textItems, textItem],
@@ -3512,7 +3542,7 @@ const Canvas = () => {
             style={{
               backgroundColor: canvasGridBackground,
               backgroundImage: `linear-gradient(to right, ${canvasGridDotColor} 1px, transparent 1px), linear-gradient(to bottom, ${canvasGridDotColor} 1px, transparent 1px)`,
-              backgroundSize: `${Math.round(24 * nodeZoom)}px ${Math.round(24 * nodeZoom)}px`,
+              backgroundSize: `${Math.round(GRID_SIZE * nodeZoom)}px ${Math.round(GRID_SIZE * nodeZoom)}px`,
             }}
           >
             <svg className="absolute inset-0 z-10 pointer-events-none" width="100%" height="100%">
