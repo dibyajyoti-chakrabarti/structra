@@ -282,6 +282,22 @@ const DEFAULT_BOUND = {
 };
 
 const resolveAnchor = (value, fallback = 'right') => (NODE_ANCHORS.includes(value) ? value : fallback);
+const chooseAnchorToward = (dx, dy, horizontalFallback = 'right') => {
+  if (Math.abs(dx) >= Math.abs(dy)) {
+    return dx >= 0 ? 'right' : 'left';
+  }
+  return dy >= 0 ? 'bottom' : 'top';
+};
+const adjustAnchorToward = (anchor, dx, dy, horizontalFallback = 'right') => {
+  const resolved = resolveAnchor(anchor, horizontalFallback);
+  if ((resolved === 'right' && dx < 0) || (resolved === 'left' && dx > 0)) {
+    return chooseAnchorToward(dx, dy, horizontalFallback);
+  }
+  if ((resolved === 'bottom' && dy < 0) || (resolved === 'top' && dy > 0)) {
+    return chooseAnchorToward(dx, dy, horizontalFallback);
+  }
+  return resolved;
+};
 
 const isEditableElement = (target) => {
   if (!(target instanceof HTMLElement)) return false;
@@ -2865,8 +2881,20 @@ const Canvas = () => {
       return { sourceNode: null, targetNode: null, pathPoints: [], segmentToRawIndex: [] };
     }
 
-    const sourceAnchor = resolveAnchor(edge.sourceAnchor, 'right');
-    const targetAnchor = resolveAnchor(edge.targetAnchor, 'left');
+    const sourceSize = getNodeDimensions(sourceNode);
+    const targetSize = getNodeDimensions(targetNode);
+    const sourceCenter = {
+      x: sourceNode.position.x + sourceSize.width / 2,
+      y: sourceNode.position.y + sourceSize.height / 2,
+    };
+    const targetCenter = {
+      x: targetNode.position.x + targetSize.width / 2,
+      y: targetNode.position.y + targetSize.height / 2,
+    };
+    const dx = targetCenter.x - sourceCenter.x;
+    const dy = targetCenter.y - sourceCenter.y;
+    const sourceAnchor = adjustAnchorToward(edge.sourceAnchor, dx, dy, 'right');
+    const targetAnchor = adjustAnchorToward(edge.targetAnchor, -dx, -dy, 'left');
     const sourcePoint = getNodeWorldAnchor(sourceNode, sourceAnchor);
     const targetPoint = getNodeWorldAnchor(targetNode, targetAnchor);
     const bendPoints = Array.isArray(edge.bends) ? edge.bends : [];
