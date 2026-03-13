@@ -134,6 +134,7 @@ export default function Lander() {
         .toggle-pill{display:inline-flex;align-items:center;gap:8px;background:linear-gradient(135deg,#2563eb,#0284c7);border:1px solid #2563eb;color:#fff;font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;padding:8px 16px;border-radius:999px;cursor:pointer;transition:transform .15s,box-shadow .2s,filter .2s}
         .toggle-pill:hover{transform:translateY(-1px);box-shadow:0 6px 18px rgba(37,99,235,.25)}
         .toggle-pill.active{filter:saturate(1.1);box-shadow:0 8px 20px rgba(2,132,199,.3)}
+        .hero-typed{white-space:nowrap}
         h1,h2,h3,.djf{font-family:'Plus Jakarta Sans','DM Sans',sans-serif}
 
         /* Responsive */
@@ -180,6 +181,11 @@ export default function Lander() {
           .step-card{padding:24px 20px}
           .pcard{padding:20px}
           h2{font-size:clamp(1.6rem,6vw,2.2rem) !important}
+          .hero-copy h1{font-size:clamp(2.1rem,9vw,2.8rem) !important}
+          .hero-typed{white-space:normal}
+          .hero-chrome{padding:8px 10px !important;gap:6px !important}
+          .hero-url{font-size:10px !important;padding:2px 8px !important;margin-left:6px !important}
+          .hero-eval{display:none}
         }
 
         /* ── Small mobile (≤390px) ── */
@@ -216,7 +222,7 @@ export default function Lander() {
                 color:"#0f172a",marginBottom:20,letterSpacing:"-0.025em",
               }}>
                 Architecture decisions<br/>
-                <span style={{display:"block",whiteSpace:"nowrap",color:"#2563eb",minHeight:"1.2em"}}>
+                <span className="hero-typed" style={{display:"block",color:"#2563eb",minHeight:"1.2em"}}>
                   <TypedText phrases={["never get lost.","scale with you.","close in hours.","earn trust."]}/>
                 </span>
               </h1>
@@ -250,21 +256,21 @@ export default function Lander() {
                 boxShadow:"0 8px 40px rgba(15,23,42,0.1)",
               }}>
                 {/* browser chrome */}
-                <div style={{
+                <div className="hero-chrome" style={{
                   background:"#f8fafc",borderBottom:"1px solid #e2e8f0",
                   padding:"10px 16px",display:"flex",alignItems:"center",gap:7,
                 }}>
                   {["#ef4444","#f59e0b","#22c55e"].map(c=>(
                     <div key={c} style={{width:10,height:10,borderRadius:"50%",background:c}}/>
                   ))}
-                  <div style={{
+                  <div className="hero-url" style={{
                     marginLeft:10,background:"#fff",border:"1px solid #e2e8f0",borderRadius:6,
                     padding:"3px 14px",fontSize:11,color:"#94a3b8",
                     fontFamily:"DM Mono,monospace",flex:1,
                   }}>
                     structra.cloud<span style={{color:"#2563eb"}}>/app/ws</span>
                   </div>
-                  <span style={{
+                  <span className="hero-eval" style={{
                     background:"#eff6ff",border:"1px solid #bfdbfe",
                     color:"#1d4ed8",fontSize:11,fontWeight:600,
                     borderRadius:99,padding:"3px 12px",whiteSpace:"nowrap",
