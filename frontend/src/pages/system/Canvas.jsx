@@ -3511,8 +3511,8 @@ const Canvas = () => {
             }`}
             style={{
               backgroundColor: canvasGridBackground,
-              backgroundImage: `radial-gradient(circle, ${canvasGridDotColor} 1px, transparent 1px)`,
-              backgroundSize: '24px 24px',
+              backgroundImage: `linear-gradient(to right, ${canvasGridDotColor} 1px, transparent 1px), linear-gradient(to bottom, ${canvasGridDotColor} 1px, transparent 1px)`,
+              backgroundSize: `${Math.round(24 * nodeZoom)}px ${Math.round(24 * nodeZoom)}px`,
             }}
           >
             <svg className="absolute inset-0 z-10 pointer-events-none" width="100%" height="100%">
