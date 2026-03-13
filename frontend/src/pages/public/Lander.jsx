@@ -95,9 +95,6 @@ const LOGOS=["Meridian Capital","TechStack Inc.","CloudNine Systems","Apex Engin
 // ── MAIN ──────────────────────────────────────────────────────────────────────
 export default function Lander() {
   const navigate=useNavigate();
-  const [c1,r1]=useCounter(3200);
-  const [c2,r2]=useCounter(91);
-  const [c3,r3]=useCounter(14);
   const [activeF,setActiveF]=useState(0);
   const [showGains,setShowGains]=useState(false);
 
@@ -120,7 +117,7 @@ export default function Lander() {
         .btn-p:hover{background:#1d4ed8;transform:translateY(-1px)}
         .btn-o{display:inline-flex;align-items:center;gap:8px;background:transparent;color:#374151;font-weight:500;border-radius:10px;padding:13px 28px;font-size:14px;border:1.5px solid #d1d5db;cursor:pointer;transition:border-color .2s,color .2s;font-family:'DM Sans',sans-serif}
         .btn-o:hover{border-color:#2563eb;color:#2563eb}
-        .pill{display:inline-flex;align-items:center;gap:6px;background:#eff6ff;border:1px solid #bfdbfe;color:#1d4ed8;font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;padding:5px 13px;border-radius:99px}
+        .pill{display:inline-flex;align-items:center;gap:6px;background:#f3f4f6;border:1px solid #111827;color:#111827;font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;padding:5px 13px;border-radius:99px}
         .ftab{width:100%;text-align:left;border-radius:12px;border:1.5px solid #e2e8f0;background:#fff;padding:18px 20px;cursor:pointer;transition:border-color .2s,background .2s,box-shadow .2s}
         .ftab:hover{border-color:#93c5fd;background:#f8fbff}
         .ftab.active{border-color:#2563eb;background:#f0f7ff;box-shadow:0 2px 12px rgba(37,99,235,.07)}
@@ -144,6 +141,7 @@ export default function Lander() {
         .features-grid{display:grid;grid-template-columns:1fr 1fr}
         .steps-grid{display:grid;grid-template-columns:repeat(3,1fr)}
         .personas-grid{display:grid;grid-template-columns:repeat(2,1fr);align-items:stretch}
+        .personas-grid .pcard{height:100%}
         .stats-grid{display:grid;grid-template-columns:repeat(3,1fr)}
 
         /* ── Tablet (≤1024px) ── */
@@ -155,7 +153,7 @@ export default function Lander() {
           .hero-copy p{margin-left:auto;margin-right:auto}
           .hero-actions{justify-content:center}
           .hero-trust{justify-content:center}
-          .stats-grid{grid-template-columns:1fr}
+          .stats-grid{grid-template-columns:repeat(3,1fr)}
           .features-grid{grid-template-columns:1fr;gap:2rem;max-width:680px;margin-left:auto;margin-right:auto}
           .steps-grid{grid-template-columns:1fr;gap:1.25rem;max-width:640px;margin-left:auto;margin-right:auto}
           .personas-grid{grid-template-columns:1fr 1fr;gap:1rem}
@@ -286,33 +284,15 @@ export default function Lander() {
       </section>
 
       {/* ──── LOGO STRIP ────────────────────────── */}
-      <div className="logo-strip" style={{borderBottom:"1px solid #f1f5f9",background:"#fafafa",padding:"18px 0",overflow:"hidden",position:"relative"}}>
-        <div style={{position:"absolute",left:0,top:0,bottom:0,width:80,background:"linear-gradient(90deg,#fafafa,transparent)",zIndex:2}}/>
-        <div style={{position:"absolute",right:0,top:0,bottom:0,width:80,background:"linear-gradient(270deg,#fafafa,transparent)",zIndex:2}}/>
+      <div className="logo-strip" style={{borderBottom:"1px solid #111827",borderTop:"1px solid #111827",background:"#f3f4f6",padding:"18px 0",overflow:"hidden",position:"relative"}}>
+        <div style={{position:"absolute",left:0,top:0,bottom:0,width:80,background:"linear-gradient(90deg,#f3f4f6,transparent)",zIndex:2}}/>
+        <div style={{position:"absolute",right:0,top:0,bottom:0,width:80,background:"linear-gradient(270deg,#f3f4f6,transparent)",zIndex:2}}/>
         <div className="logo-scroll" style={{display:"flex",gap:"3rem",width:"max-content"}}>
           {[...LOGOS,...LOGOS].map((n,i)=>(
-            <span key={i} style={{fontSize:12,fontWeight:700,color:"#cbd5e1",letterSpacing:"0.1em",textTransform:"uppercase",whiteSpace:"nowrap"}}>{n}</span>
+            <span key={i} style={{fontSize:12,fontWeight:700,color:"#111827",letterSpacing:"0.1em",textTransform:"uppercase",whiteSpace:"nowrap"}}>{n}</span>
           ))}
         </div>
       </div>
-
-      {/* ──── STATS ─────────────────────────────── */}
-      <FadeIn>
-        <div className="stats-grid" style={{maxWidth:860,margin:"72px auto 0",padding:"0 2rem",gap:"1rem"}}>
-          {[
-            {label:"Decisions documented",suffix:"+",ref:r1,val:c1},
-            {label:"Faster than spreadsheets",suffix:"%",ref:r2,val:c2},
-            {label:"Days avg. onboarding",suffix:" days",ref:r3,val:c3},
-          ].map(({label,suffix,ref,val})=>(
-            <div key={label} ref={ref} style={{background:"#f8fafc",border:"1.5px solid #e2e8f0",borderRadius:16,padding:"28px 24px",textAlign:"center"}}>
-              <p className="djf" style={{fontSize:"2.4rem",fontWeight:800,color:"#2563eb",lineHeight:1}}>
-                {val.toLocaleString()}{suffix}
-              </p>
-              <p style={{fontSize:13,color:"#94a3b8",marginTop:8,lineHeight:1.5}}>{label}</p>
-            </div>
-          ))}
-        </div>
-      </FadeIn>
 
       {/* ──── FEATURES ──────────────────────────── */}
       <section className="features-section" style={{padding:"96px 2rem",maxWidth:1200,margin:"0 auto"}}>
