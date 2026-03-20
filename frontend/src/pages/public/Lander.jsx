@@ -127,8 +127,7 @@ export default function Lander() {
         .persona-toggle button{border:none;background:transparent;color:#1e3a8a;font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;padding:8px 14px;border-radius:999px;cursor:pointer;transition:background .2s,color .2s,box-shadow .2s}
         .persona-toggle button:hover{background:rgba(37,99,235,.08)}
         .persona-toggle button.active{background:#2563eb;color:#fff;box-shadow:0 4px 14px rgba(37,99,235,.28)}
-        .persona-card{background:#fff;border:1.5px solid #dbe4f0;border-radius:18px;padding:22px;transition:border-color .2s,box-shadow .25s,transform .2s;height:100%;position:relative;overflow:hidden}
-        .persona-card::after{content:"";position:absolute;right:-30px;top:-30px;width:110px;height:110px;border-radius:50%;background:radial-gradient(circle,#dbeafe 0%,rgba(219,234,254,0) 70%);pointer-events:none}
+        .persona-card{background:#fff;border:1.5px solid #dbe4f0;border-radius:18px;padding:22px;transition:border-color .2s,box-shadow .25s,transform .2s;height:100%}
         .persona-card:hover{border-color:#93c5fd;box-shadow:0 8px 28px rgba(15,23,42,.08);transform:translateY(-2px)}
         .persona-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:14px}
         .persona-title{display:flex;align-items:center;gap:12px;min-width:0}
