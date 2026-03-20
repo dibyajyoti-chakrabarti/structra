@@ -282,7 +282,7 @@ const DEFAULT_BOUND = {
 };
 
 const resolveAnchor = (value, fallback = 'right') => (NODE_ANCHORS.includes(value) ? value : fallback);
-const chooseAnchorToward = (dx, dy, horizontalFallback = 'right') => {
+const chooseAnchorToward = (dx, dy) => {
   if (Math.abs(dx) >= Math.abs(dy)) {
     return dx >= 0 ? 'right' : 'left';
   }
@@ -291,10 +291,10 @@ const chooseAnchorToward = (dx, dy, horizontalFallback = 'right') => {
 const adjustAnchorToward = (anchor, dx, dy, horizontalFallback = 'right') => {
   const resolved = resolveAnchor(anchor, horizontalFallback);
   if ((resolved === 'right' && dx < 0) || (resolved === 'left' && dx > 0)) {
-    return chooseAnchorToward(dx, dy, horizontalFallback);
+    return chooseAnchorToward(dx, dy);
   }
   if ((resolved === 'bottom' && dy < 0) || (resolved === 'top' && dy > 0)) {
-    return chooseAnchorToward(dx, dy, horizontalFallback);
+    return chooseAnchorToward(dx, dy);
   }
   return resolved;
 };
@@ -2989,10 +2989,84 @@ const Canvas = () => {
 
   if (isMobileViewport) {
     return (
-      <div className="h-screen w-screen bg-white flex items-center justify-center p-6">
-        <p className="text-sm font-medium text-gray-700 text-center">
-          Mobile is not supported for the system canvas.
-        </p>
+      <div
+        className={`relative min-h-screen w-screen overflow-hidden ${
+          isDarkTheme ? 'bg-slate-950 text-slate-100' : 'bg-slate-50 text-slate-900'
+        }`}
+      >
+        <div className="pointer-events-none absolute inset-0">
+          <div
+            className={`absolute -top-20 -right-20 h-64 w-64 rounded-full blur-3xl ${
+              isDarkTheme ? 'bg-blue-500/25' : 'bg-blue-200/70'
+            }`}
+          />
+          <div
+            className={`absolute -bottom-24 -left-16 h-72 w-72 rounded-full blur-3xl ${
+              isDarkTheme ? 'bg-cyan-500/20' : 'bg-cyan-200/70'
+            }`}
+          />
+        </div>
+
+        <div className="relative z-10 mx-auto flex min-h-screen w-full max-w-md items-center px-5 py-10">
+          <div
+            className={`w-full rounded-3xl border p-6 shadow-2xl ${
+              isDarkTheme
+                ? 'border-slate-800 bg-slate-900/90'
+                : 'border-blue-100 bg-white/95'
+            }`}
+          >
+            <div
+              className={`inline-flex h-12 w-12 items-center justify-center rounded-xl ${
+                isDarkTheme ? 'bg-blue-500/20 text-blue-300' : 'bg-blue-100 text-blue-700'
+              }`}
+            >
+              <Monitor size={22} />
+            </div>
+
+            <h2 className="mt-4 text-2xl font-black leading-tight">
+              Canvas editor works best on larger screens
+            </h2>
+            <p className={`mt-2 text-sm leading-relaxed ${isDarkTheme ? 'text-slate-300' : 'text-slate-600'}`}>
+              This viewport is currently in mobile mode, so editing is disabled to keep the experience reliable.
+            </p>
+
+            <div
+              className={`mt-5 rounded-2xl border p-4 ${
+                isDarkTheme ? 'border-slate-800 bg-slate-900/70' : 'border-slate-200 bg-slate-50'
+              }`}
+            >
+              <div className="flex items-start gap-2 text-sm">
+                <Sparkles size={16} className={isDarkTheme ? 'text-blue-300 mt-0.5' : 'text-blue-600 mt-0.5'} />
+                <p className={isDarkTheme ? 'text-slate-300' : 'text-slate-600'}>
+                  If you zoomed in, zoom out or widen the browser to re-enter the full canvas editor.
+                </p>
+              </div>
+            </div>
+
+            <div className="mt-6 grid gap-3">
+              <button
+                type="button"
+                onClick={() => navigate(`/app/ws/${workspaceId}/systems/${systemId}/present`)}
+                className="inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-blue-700"
+              >
+                Open Present View
+                <ArrowRight size={16} />
+              </button>
+
+              <button
+                type="button"
+                onClick={() => navigate(`/app/ws/${workspaceId}`)}
+                className={`inline-flex items-center justify-center gap-2 rounded-xl border px-4 py-3 text-sm font-semibold transition ${
+                  isDarkTheme
+                    ? 'border-slate-700 text-slate-200 hover:bg-slate-800'
+                    : 'border-slate-200 text-slate-700 hover:bg-slate-100'
+                }`}
+              >
+                Back to Workspace
+              </button>
+            </div>
+          </div>
+        </div>
       </div>
     );
   }
