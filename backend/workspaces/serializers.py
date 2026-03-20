@@ -66,6 +66,21 @@ class WorkspaceSerializer(serializers.ModelSerializer):
             'updated_at',
         ]
         read_only_fields = ['id', 'owner', 'created_at', 'updated_at']
+
+    def validate_name(self, value):
+        request = self.context.get('request')
+        if request and request.user and request.user.is_authenticated:
+            existing = Workspace.objects.filter(
+                owner=request.user,
+                name__iexact=value,
+            )
+            if self.instance:
+                existing = existing.exclude(pk=self.instance.pk)
+            if existing.exists():
+                raise serializers.ValidationError(
+                    "You already have a workspace with this name."
+                )
+        return value
     
     def get_member_count(self, obj):
         return WorkspaceMember.objects.filter(workspace=obj).count()
