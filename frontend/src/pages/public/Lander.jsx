@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import {
   ArrowRight, Sparkles, Play, Zap, Shield, Users,
   Brain, Workflow, BarChart3, Layers,
-  CheckCircle2, TrendingUp, Clock, Lock, ChevronRight,
+  CheckCircle2, TrendingUp, Clock, Lock,
 } from "lucide-react";
 import Navbar from "../../components/Navbar";
 import Footer from "../../components/Footer";
@@ -158,7 +158,6 @@ export default function Lander() {
           .features-grid{grid-template-columns:1fr;gap:2rem;max-width:680px;margin-left:auto;margin-right:auto}
           .steps-grid{grid-template-columns:1fr;gap:1.25rem;max-width:640px;margin-left:auto;margin-right:auto}
           .personas-grid{grid-template-columns:1fr 1fr;gap:1rem}
-          .step-card .chevron-connector{display:none}
         }
 
         /* ── Mobile (≤640px) ── */
@@ -393,16 +392,6 @@ export default function Lander() {
                     </div>
                     <h3 style={{fontSize:"1.15rem",fontWeight:700,color:"#0f172a",marginBottom:10}}>{s.title}</h3>
                     <p style={{fontSize:"0.875rem",color:"#64748b",lineHeight:1.75}}>{s.body}</p>
-                    {i<2&&(
-                      <div className="chevron-connector" style={{
-                        position:"absolute",right:-18,top:"50%",transform:"translateY(-50%)",
-                        width:36,height:36,borderRadius:"50%",
-                        background:"#fff",border:"1.5px solid #e2e8f0",
-                        display:"flex",alignItems:"center",justifyContent:"center",zIndex:2,
-                      }}>
-                        <ChevronRight size={14} style={{color:"#2563eb"}}/>
-                      </div>
-                    )}
                   </div>
                 </FadeIn>
               );

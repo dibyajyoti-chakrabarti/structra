@@ -23,14 +23,6 @@ export default function Navbar() {
 
           {/* Desktop Navigation */}
           <div className="hidden md:flex items-center gap-8">
-            <button
-              onClick={() =>
-                window.scrollTo({ top: 0, left: 0, behavior: "smooth" })
-              }
-              className="text-sm font-semibold text-slate-600 transition-colors hover:text-blue-700"
-            >
-              Platform
-            </button>
             <Link to="/pricing" className="text-sm font-semibold text-slate-600 transition-colors hover:text-blue-700">
               Pricing
             </Link>
@@ -73,15 +65,6 @@ export default function Navbar() {
       {/* Mobile Menu Overlay */}
       {isOpen && (
         <div className="animate-in slide-in-from-top-5 space-y-4 border-b border-blue-100 bg-white px-4 pb-6 pt-2 duration-200 md:hidden">
-          <button
-            onClick={() => {
-              window.scrollTo({ top: 0, left: 0, behavior: "smooth" });
-              setIsOpen(false);
-            }}
-            className="block py-2 text-base font-semibold text-slate-700 hover:text-blue-700"
-          >
-            Platform
-          </button>
           <Link to="/pricing" className="block py-2 text-base font-semibold text-slate-700 hover:text-blue-700" onClick={() => setIsOpen(false)}>
             Pricing
           </Link>
