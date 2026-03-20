@@ -187,7 +187,7 @@ export default function Login() {
               className="inline-flex items-center gap-2 rounded-lg border border-blue-100 bg-white px-3 py-2 text-sm font-semibold text-slate-600 transition hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700"
             >
               <ArrowLeft size={16} />
-              Back to Home
+              Back
             </button>
           </div>
 
