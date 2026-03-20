@@ -123,17 +123,23 @@ export default function Lander() {
         .ftab.active{border-color:#2563eb;background:#f0f7ff;box-shadow:0 2px 12px rgba(37,99,235,.07)}
         .step-card{background:#fff;border:1.5px solid #e2e8f0;border-radius:16px;padding:32px 28px;position:relative;overflow:hidden;transition:border-color .25s,box-shadow .25s}
         .step-card:hover{border-color:#93c5fd;box-shadow:0 4px 24px rgba(37,99,235,.07)}
-        .pcard{background:#fff;border:1.5px solid #e2e8f0;border-radius:16px;padding:24px;cursor:pointer;transition:border-color .25s,box-shadow .25s;display:flex;flex-direction:column}
-        .pcard:hover{border-color:#2563eb;box-shadow:0 4px 20px rgba(37,99,235,.08)}
-        .pcard.show{min-height:220px}
-        .pcard .pbody{flex:1}
-        .pgain{max-height:0;overflow:hidden;opacity:0;transition:max-height .6s ease,opacity .6s ease}
-        .pcard.show .pgain{max-height:90px;opacity:1}
-        .pcard h3{opacity:1;visibility:visible}
-        .pcard:hover h3{opacity:1;visibility:visible}
-        .toggle-pill{display:inline-flex;align-items:center;gap:8px;background:linear-gradient(135deg,#2563eb,#0284c7);border:1px solid #2563eb;color:#fff;font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;padding:8px 16px;border-radius:999px;cursor:pointer;transition:transform .15s,box-shadow .2s,filter .2s}
-        .toggle-pill:hover{transform:translateY(-1px);box-shadow:0 6px 18px rgba(37,99,235,.25)}
-        .toggle-pill.active{filter:saturate(1.1);box-shadow:0 8px 20px rgba(2,132,199,.3)}
+        .persona-toggle{display:inline-flex;align-items:center;gap:6px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:999px;padding:4px}
+        .persona-toggle button{border:none;background:transparent;color:#1e3a8a;font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;padding:8px 14px;border-radius:999px;cursor:pointer;transition:background .2s,color .2s,box-shadow .2s}
+        .persona-toggle button:hover{background:rgba(37,99,235,.08)}
+        .persona-toggle button.active{background:#2563eb;color:#fff;box-shadow:0 4px 14px rgba(37,99,235,.28)}
+        .persona-card{background:#fff;border:1.5px solid #dbe4f0;border-radius:18px;padding:22px;transition:border-color .2s,box-shadow .25s,transform .2s;height:100%;position:relative;overflow:hidden}
+        .persona-card::after{content:"";position:absolute;right:-30px;top:-30px;width:110px;height:110px;border-radius:50%;background:radial-gradient(circle,#dbeafe 0%,rgba(219,234,254,0) 70%);pointer-events:none}
+        .persona-card:hover{border-color:#93c5fd;box-shadow:0 8px 28px rgba(15,23,42,.08);transform:translateY(-2px)}
+        .persona-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:14px}
+        .persona-title{display:flex;align-items:center;gap:12px;min-width:0}
+        .persona-icon{width:42px;height:42px;border-radius:12px;background:#eff6ff;border:1px solid #dbeafe;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+        .persona-state{font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;padding:5px 10px;border-radius:999px;border:1px solid}
+        .persona-state.challenge{color:#b91c1c;background:#fef2f2;border-color:#fecaca}
+        .persona-state.value{color:#1d4ed8;background:#eff6ff;border-color:#bfdbfe}
+        .persona-copy{font-size:0.915rem;line-height:1.7;color:#64748b;margin:0}
+        .persona-copy strong{font-weight:700}
+        .persona-copy .lead-challenge{color:#dc2626}
+        .persona-copy .lead-value{color:#2563eb}
         .hero-typed{white-space:nowrap}
         h1,h2,h3,.djf{font-family:'Plus Jakarta Sans','DM Sans',sans-serif}
 
@@ -142,7 +148,7 @@ export default function Lander() {
         .features-grid{display:grid;grid-template-columns:1fr 1fr}
         .steps-grid{display:grid;grid-template-columns:repeat(3,1fr)}
         .personas-grid{display:grid;grid-template-columns:repeat(2,1fr);align-items:stretch}
-        .personas-grid .pcard{height:100%}
+        .personas-grid .persona-card{height:100%}
         .stats-grid{display:grid;grid-template-columns:repeat(3,1fr)}
 
         /* ── Tablet (≤1024px) ── */
@@ -178,7 +184,11 @@ export default function Lander() {
           .personas-section{padding:72px 1.25rem}
           .ftab{padding:14px 16px}
           .step-card{padding:24px 20px}
-          .pcard{padding:20px}
+          .persona-card{padding:18px}
+          .persona-toggle{display:flex;width:100%;max-width:340px}
+          .persona-toggle button{flex:1;text-align:center;padding:8px 10px}
+          .persona-head{align-items:flex-start}
+          .persona-state{align-self:flex-start}
           h2{font-size:clamp(1.6rem,6vw,2.2rem) !important}
           .hero-copy h1{font-size:clamp(2.1rem,9vw,2.8rem) !important}
           .hero-typed{white-space:normal}
@@ -408,14 +418,31 @@ export default function Lander() {
             <h2 style={{fontSize:"clamp(1.9rem,3vw,2.6rem)",fontWeight:800,color:"#0f172a",letterSpacing:"-0.02em"}}>
               Built for every team that touches<br/>architecture decisions
             </h2>
-            <div style={{marginTop:16}}>
-              <button
-                type="button"
-                className={`toggle-pill${showGains?" active":""}`}
-                onClick={()=>setShowGains(v=>!v)}
-              >
-                <Sparkles size={12}/> With Structra
-              </button>
+            <p style={{margin:"14px auto 0",maxWidth:560,fontSize:"0.95rem",lineHeight:1.7,color:"#64748b"}}>
+              Switch perspectives to compare each team's current friction with the outcomes they get using Structra.
+            </p>
+            <div style={{marginTop:18,display:"flex",justifyContent:"center"}}>
+              <div className="persona-toggle" role="tablist" aria-label="Persona perspective">
+                <button
+                  type="button"
+                  className={!showGains ? "active" : ""}
+                  onClick={() => setShowGains(false)}
+                  role="tab"
+                  aria-selected={!showGains}
+                >
+                  Current reality
+                </button>
+                <button
+                  type="button"
+                  className={showGains ? "active" : ""}
+                  onClick={() => setShowGains(true)}
+                  role="tab"
+                  aria-selected={showGains}
+                >
+                  <Sparkles size={12} style={{display:"inline-block",marginRight:6,verticalAlign:"-1px"}}/>
+                  With Structra
+                </button>
+              </div>
             </div>
           </div>
         </FadeIn>
@@ -425,21 +452,39 @@ export default function Lander() {
             const Icon=p.icon;
             return (
               <FadeIn key={p.role} delay={i*80}>
-                <div className={`pcard${showGains?" show":""}`}>
-                  <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:14}}>
-                    <div style={{width:40,height:40,borderRadius:10,background:"#eff6ff",display:"flex",alignItems:"center",justifyContent:"center"}}>
-                      <Icon size={18} style={{color:"#2563eb"}}/>
+                <div className="persona-card">
+                  <div className="persona-head">
+                    <div className="persona-title">
+                      <div className="persona-icon">
+                        <Icon size={18} style={{color:"#2563eb"}}/>
+                      </div>
+                      <h3 style={{fontSize:"1.1rem",fontWeight:700,color:"#0f172a",margin:0}}>{p.role}</h3>
                     </div>
-                    <h3 style={{fontSize:"1.05rem",fontWeight:700,color:"#0f172a"}}>{p.role}</h3>
+                    <span className={`persona-state ${showGains ? "value" : "challenge"}`}>
+                      {showGains ? "Outcome" : "Challenge"}
+                    </span>
                   </div>
-                  <p className="pbody" style={{fontSize:"0.875rem",color:"#64748b",lineHeight:1.65}}>
-                    <span style={{color:"#dc2626",fontWeight:600}}>Challenge: </span>{p.pain}
+                  <p className="persona-copy">
+                    {showGains ? (
+                      <>
+                        <strong className="lead-value">With Structra:</strong> {p.gain}
+                      </>
+                    ) : (
+                      <>
+                        <strong className="lead-challenge">Challenge:</strong> {p.pain}
+                      </>
+                    )}
                   </p>
-                  <div className="pgain" style={{marginTop:10}}>
-                    <p style={{fontSize:"0.875rem",color:"#64748b",lineHeight:1.65}}>
-                      <span style={{color:"#2563eb",fontWeight:600}}>With Structra: </span>{p.gain}
-                    </p>
-                  </div>
+                  {!showGains && (
+                    <div style={{marginTop:12,fontSize:"0.78rem",color:"#94a3b8",fontWeight:600}}>
+                      Toggle to <span style={{color:"#2563eb"}}>With Structra</span> to preview their improved state.
+                    </div>
+                  )}
+                  {showGains && (
+                    <div style={{marginTop:12,fontSize:"0.78rem",color:"#94a3b8",fontWeight:600}}>
+                      Result is tailored for <span style={{color:"#0f172a"}}>{p.role}</span>.
+                    </div>
+                  )}
                 </div>
               </FadeIn>
             );
