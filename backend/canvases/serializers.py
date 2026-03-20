@@ -157,6 +157,16 @@ class CanvasSerializer(serializers.ModelSerializer):
             or self.context.get("workspace")
             or getattr(self.instance, "workspace", None)
         )
+        name = (attrs.get("name") or getattr(self.instance, "name", "") or "").strip()
+
+        if workspace and name:
+            existing_canvases = Canvas.objects.filter(workspace=workspace, name=name)
+            if self.instance:
+                existing_canvases = existing_canvases.exclude(pk=self.instance.pk)
+            if existing_canvases.exists():
+                raise serializers.ValidationError(
+                    {"name": "A canvas with this name already exists in this workspace."}
+                )
 
         requested_visibility = attrs.get("visibility", getattr(self.instance, "visibility", None))
         if requested_visibility is None:

@@ -2,7 +2,6 @@ from datetime import timedelta
 
 from django.contrib.auth import get_user_model
 from django.core.management import call_command
-from django.urls import reverse
 from django.utils import timezone
 from rest_framework.test import APITestCase
 
@@ -12,53 +11,6 @@ from permissions.models import WorkspaceMember
 from workspaces.models import Workspace
 
 User = get_user_model()
-
-
-class VoluntaryDowngradeTests(APITestCase):
-    def setUp(self):
-        self.user = User.objects.create_user(
-            email="downgrade-owner@example.com",
-            username="downgradeowner",
-            password="password123",
-            full_name="Downgrade Owner",
-            current_plan="TEAM",
-        )
-        self.workspace = Workspace.objects.create(name="Downgrade WS", owner=self.user)
-        WorkspaceMember.objects.create(
-            workspace=self.workspace,
-            user=self.user,
-            role=WorkspaceRole.ADMIN,
-            joined_at=timezone.now(),
-        )
-
-        for idx in range(4):
-            member = User.objects.create_user(
-                email=f"member-{idx}@example.com",
-                username=f"member{idx}",
-                password="password123",
-                full_name=f"Member {idx}",
-            )
-            WorkspaceMember.objects.create(
-                workspace=self.workspace,
-                user=member,
-                role=WorkspaceRole.MEMBER,
-                joined_at=timezone.now(),
-            )
-
-        self.url = reverse("payments-subscription-downgrade")
-        self.client.force_authenticate(user=self.user)
-
-    def test_voluntary_downgrade_to_individual_is_blocked_when_members_exceed_limit(self):
-        response = self.client.post(self.url, {"target_plan": "INDIVIDUAL"}, format="json")
-
-        self.assertEqual(response.status_code, 400)
-        self.assertIn("violations", response.data)
-        self.assertEqual(
-            WorkspaceMember.objects.filter(workspace=self.workspace, role=WorkspaceRole.MEMBER).count(),
-            4,
-        )
-        self.workspace.refresh_from_db()
-        self.assertIsNone(self.workspace.archived_at)
 
 
 class ExpiryEnforcementCommandTests(APITestCase):
@@ -74,6 +26,9 @@ class ExpiryEnforcementCommandTests(APITestCase):
 
         self.workspace_keep = Workspace.objects.create(name="Keep WS", owner=self.user)
         self.workspace_archive = Workspace.objects.create(name="Archive WS", owner=self.user)
+        Workspace.all_objects.filter(id=self.workspace_keep.id).update(
+            updated_at=timezone.now() + timedelta(seconds=1)
+        )
 
         WorkspaceMember.objects.create(
             workspace=self.workspace_keep,

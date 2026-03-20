@@ -116,9 +116,10 @@ class AIEvaluationTokenFlowTests(APITestCase):
         self.assertFalse(run.insight_token_consumed)
         self.assertEqual(run.insight_tokens_remaining, 2)
 
+    @patch('canvases.evaluation_service.close_old_connections', return_value=None)
     @patch('canvases.evaluation_service.call_gemini_for_prompt', return_value=(None, True))
     @patch('canvases.evaluation_service.evaluate_canvas_state')
-    def test_gemini_no_response_refunds_token(self, evaluate_mock, _gemini_mock):
+    def test_gemini_no_response_refunds_token(self, evaluate_mock, _gemini_mock, _close_connections_mock):
         ensure_workspace_insight_token_state(self.workspace, now=timezone.now(), force_reset=True)
         self.workspace.insight_tokens_remaining = 2
         self.workspace.save(update_fields=['insight_tokens_remaining'])
@@ -151,8 +152,9 @@ class AIEvaluationTokenFlowTests(APITestCase):
         self.assertTrue(run.gemini_error)
         self.assertFalse(run.insight_token_consumed)
 
+    @patch('canvases.evaluation_service.close_old_connections', return_value=None)
     @patch('canvases.evaluation_service.evaluate_canvas_state', side_effect=RuntimeError('invalid report'))
-    def test_corrupted_run_refunds_token(self, _evaluate_mock):
+    def test_corrupted_run_refunds_token(self, _evaluate_mock, _close_connections_mock):
         ensure_workspace_insight_token_state(self.workspace, now=timezone.now(), force_reset=True)
         self.workspace.insight_tokens_remaining = 2
         self.workspace.save(update_fields=['insight_tokens_remaining'])
