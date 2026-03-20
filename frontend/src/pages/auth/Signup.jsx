@@ -14,6 +14,8 @@ import {
   KeyRound,
 } from "lucide-react";
 import logo from "../../assets/logo.png";
+import SignupIllustration from "../../assets/signup-illustration.svg";
+import CtaIllustration from "../../assets/cta-illustration.svg";
 import api from "../../api";
 
 export default function Signup() {
@@ -38,7 +40,7 @@ export default function Signup() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [illustrationSrc, setIllustrationSrc] = useState(
-    "/src/assets/signup-illustration.svg"
+    SignupIllustration
   );
 
   useEffect(() => {
@@ -511,7 +513,7 @@ export default function Signup() {
             src={illustrationSrc}
             alt="Structra signup illustration"
             className="h-full max-h-[92vh] w-full object-contain"
-            onError={() => setIllustrationSrc("/src/assets/cta-illustration.svg")}
+            onError={() => setIllustrationSrc(CtaIllustration)}
           />
         </aside>
       </div>
