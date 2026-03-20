@@ -17,11 +17,16 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
         model = User
         fields = ('user_id', 'full_name', 'email', 'username', 'current_plan', 'password')
         read_only_fields = ('current_plan', 'plan_expires_at', 'created_at')
+        extra_kwargs = {
+            'username': {'required': False, 'allow_blank': True},
+        }
 
     def validate_username(self, value):
+        if value is None:
+            return None
         normalized = normalize_username_input(value)
         if not normalized:
-            raise serializers.ValidationError('Username is required.')
+            return None
         try:
             username_validator(normalized)
         except DjangoValidationError as exc:
@@ -37,7 +42,7 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
     def create(self, validated_data):
         user = User.objects.create_user(
             email=validated_data['email'],
-            username=validated_data['username'],
+            username=validated_data.get('username'),
             password=validated_data['password'],
             full_name=validated_data.get('full_name', '')
         )

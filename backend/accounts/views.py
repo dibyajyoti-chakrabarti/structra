@@ -524,20 +524,21 @@ class EmailOTPVerifyView(APIView):
         else:
             if not full_name:
                 return Response({'error': 'Full name is required for signup verification'}, status=status.HTTP_400_BAD_REQUEST)
-            if not username:
-                return Response({'error': 'Username is required for signup verification'}, status=status.HTTP_400_BAD_REQUEST)
-            try:
-                username_validator(username)
-            except DjangoValidationError as exc:
-                return Response({'error': exc.messages[0]}, status=status.HTTP_400_BAD_REQUEST)
             if User.objects.filter(email=email).exists():
                 return Response({'error': 'Account already exists. Please login instead.'}, status=status.HTTP_400_BAD_REQUEST)
-            if User.objects.filter(username__iexact=username).exists():
-                return Response({'error': 'Username is already taken.'}, status=status.HTTP_400_BAD_REQUEST)
+
+            if username:
+                try:
+                    username_validator(username)
+                except DjangoValidationError as exc:
+                    return Response({'error': exc.messages[0]}, status=status.HTTP_400_BAD_REQUEST)
+                if User.objects.filter(username__iexact=username).exists():
+                    return Response({'error': 'Username is already taken.'}, status=status.HTTP_400_BAD_REQUEST)
+
             try:
                 user = User.objects.create_user(
                     email=email,
-                    username=username,
+                    username=username or None,
                     password=None,
                     full_name=full_name
                 )
