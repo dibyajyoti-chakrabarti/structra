@@ -24,8 +24,6 @@ import WorkspaceSettings from "./pages/workspace/settings/WorkspaceSettings";
 import GeneralSettings from "./pages/workspace/settings/GeneralSettings";
 import TeamSettings from "./pages/workspace/settings/TeamSettings";
 import SecuritySettings from "./pages/workspace/settings/SecuritySettings";
-import IamSettings from "./pages/workspace/settings/IamSettings";
-import WorkspaceVisibility from "./pages/workspace/settings/WorkspaceVisibility";
 import LogSettings from "./pages/workspace/settings/LogSettings";
 import Canvas from "./pages/system/Canvas";
 import Evaluation from "./pages/system/Evaluation";
