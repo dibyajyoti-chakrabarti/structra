@@ -363,7 +363,7 @@ backend/
 ├── notifications/        # Invitations and admin notification feed
 ├── audit/                # Audit models, services, filters, summary endpoints
 ├── payments/             # Subscription billing, verification, webhooks
-├── core/                 # Shared constants, responses, middleware, utilities
+├── core/                 # Shared constants, pricing helpers, utilities, health endpoint
 ├── manage.py
 └── requirements.txt
 ```
