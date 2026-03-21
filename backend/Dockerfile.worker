@@ -1,0 +1,23 @@
+FROM python:3.12-slim
+
+WORKDIR /app
+
+# System deps
+RUN apt-get update && apt-get install -y \
+    libpq-dev gcc --no-install-recommends && \
+    rm -rf /var/lib/apt/lists/*
+
+# Install Python deps
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Copy project
+COPY . .
+
+# Force SQS mode
+ENV PYTHONPATH=/app
+ENV USE_SQS=true
+ENV DJANGO_SETTINGS_MODULE=backend_hub.settings.production
+
+# Run worker
+CMD ["python", "canvases/sqs_worker.py"]
