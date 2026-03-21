@@ -10,10 +10,10 @@ PROJECT_DIR = BASE_DIR.parent
 # Load environment files.
 django_env = os.getenv('DJANGO_ENV', 'local')
 if django_env == 'production':
-    load_dotenv(BASE_DIR / '.env.production', override=True)
+    load_dotenv(BASE_DIR / '.env.production', override=False)
 else:
-    load_dotenv(BASE_DIR / '.env.local', override=True)
-load_dotenv(PROJECT_DIR / '.env')  # fallback, keep as is for backward compatibility
+    load_dotenv(BASE_DIR / '.env.local', override=False)
+load_dotenv(PROJECT_DIR / '.env', override=False)  # fallback, keep as is for backward compatibility
 
 # SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = os.getenv('DJANGO_SECRET_KEY', 'django-insecure-change-me')
@@ -159,6 +159,10 @@ RAZORPAY_PLAN_ID_TEAM = os.getenv('RAZORPAY_PLAN_ID_TEAM', '')
 USE_SQS = os.getenv("USE_SQS", "false").lower() == "true"
 SQS_QUEUE_URL = os.getenv("SQS_QUEUE_URL", "")
 AWS_REGION = os.getenv("AWS_REGION", "ap-south-2")
+EVALUATION_LOCAL_QUEUE_POLL_INTERVAL_SECONDS = int(os.getenv("EVALUATION_LOCAL_QUEUE_POLL_INTERVAL_SECONDS", "5"))
+EVALUATION_LOCAL_QUEUE_RETRY_DELAY_SECONDS = int(os.getenv("EVALUATION_LOCAL_QUEUE_RETRY_DELAY_SECONDS", "10"))
+EVALUATION_LOCAL_QUEUE_MAX_ATTEMPTS = int(os.getenv("EVALUATION_LOCAL_QUEUE_MAX_ATTEMPTS", "3"))
+EVALUATION_LOCAL_QUEUE_LOCK_TIMEOUT_SECONDS = int(os.getenv("EVALUATION_LOCAL_QUEUE_LOCK_TIMEOUT_SECONDS", "300"))
 
 DEBUG_PROPAGATE_EXCEPTIONS = os.getenv('DJANGO_DEBUG_PROPAGATE_EXCEPTIONS', 'false').lower() == 'true'
 
@@ -193,6 +197,16 @@ LOGGING = {
             'propagate': False,
         },
         'canvases.evaluation_service': {
+            'handlers': ['console'],
+            'level': 'INFO',
+            'propagate': False,
+        },
+        'canvases.evaluation_queue': {
+            'handlers': ['console'],
+            'level': 'INFO',
+            'propagate': False,
+        },
+        'canvases.evaluation_worker': {
             'handlers': ['console'],
             'level': 'INFO',
             'propagate': False,

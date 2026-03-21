@@ -7,6 +7,10 @@ RUN apt-get update && apt-get install -y \
     libpq-dev gcc --no-install-recommends && \
     rm -rf /var/lib/apt/lists/*
 
+# Install Node
+RUN apt-get update && apt-get install -y nodejs npm \
+    && node -v
+
 # Install Python deps
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
@@ -14,10 +18,10 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy project
 COPY . .
 
-# Force SQS mode
+# Default to production settings; runtime env can override to local.
 ENV PYTHONPATH=/app
-ENV USE_SQS=true
-ENV DJANGO_SETTINGS_MODULE=backend_hub.settings.production
+ENV DJANGO_ENV=production
+ENV DJANGO_SETTINGS_MODULE=backend_hub.settings
 
 # Run worker
-CMD ["python", "canvases/sqs_worker.py"]
+CMD ["python", "canvases/evaluation_worker.py"]

@@ -438,6 +438,6 @@ Default dev URL: `http://127.0.0.1:8000`
 
 ## Key Operational Notes
 
-- Use local execution mode for evaluation while developing unless queue infrastructure is configured.
+- Evaluations are always worker-executed. In production the worker polls SQS; in local environments it polls the DB-backed local evaluation queue.
 - Billing, invitation, and OAuth flows require environment variables and third-party credentials to be meaningful in local environments.
 - Permission enforcement is backend-owned; frontend visibility alone must not be treated as security.

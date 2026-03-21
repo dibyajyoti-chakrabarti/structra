@@ -14,8 +14,9 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy project
 COPY . .
 
-# Set Django settings explicitly
-ENV DJANGO_SETTINGS_MODULE=backend_hub.settings.production
+# Default to production settings; runtime env can override to local.
+ENV DJANGO_ENV=production
+ENV DJANGO_SETTINGS_MODULE=backend_hub.settings
 
 # Collect static
 RUN python manage.py collectstatic --noinput

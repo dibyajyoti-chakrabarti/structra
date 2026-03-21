@@ -39,7 +39,7 @@ def _run_rule_engine(canvas_state, workspace_tier):
     }
     try:
         process = subprocess.run(
-            ['node', str(RUNNER_PATH)],
+            ['/usr/bin/node', str(RUNNER_PATH)],
             input=json.dumps(payload),
             capture_output=True,
             text=True,

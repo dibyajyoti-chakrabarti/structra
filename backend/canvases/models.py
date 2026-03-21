@@ -1,9 +1,11 @@
-from django.db import models
 from django.conf import settings
+from django.db import models
+from django.utils import timezone
 import uuid
-from workspaces.models import Workspace
+
 from core.constants import WorkspaceVisibility
 from core.utils import generate_alphanumeric_id
+from workspaces.models import Workspace
 
 
 def default_canvas_state():
@@ -106,3 +108,37 @@ class CanvasComment(models.Model):
 
     def __str__(self):
         return f"Comment by {self.author_id} on {self.system_id}"
+
+
+class EvaluationQueueJob(models.Model):
+    class Status(models.TextChoices):
+        QUEUED = 'queued', 'Queued'
+        PROCESSING = 'processing', 'Processing'
+        COMPLETED = 'completed', 'Completed'
+        FAILED = 'failed', 'Failed'
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    run = models.OneToOneField(
+        'workspaces.EvaluationRun',
+        on_delete=models.CASCADE,
+        related_name='queue_job',
+    )
+    payload = models.JSONField(default=dict, blank=True)
+    status = models.CharField(max_length=20, choices=Status.choices, default=Status.QUEUED)
+    attempt_count = models.PositiveIntegerField(default=0)
+    available_at = models.DateTimeField(default=timezone.now)
+    locked_at = models.DateTimeField(null=True, blank=True)
+    completed_at = models.DateTimeField(null=True, blank=True)
+    last_error = models.TextField(blank=True, default='')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'evaluation_queue_jobs'
+        indexes = [
+            models.Index(fields=['status', 'available_at'], name='evalqueue_status_available_idx'),
+            models.Index(fields=['created_at'], name='evalqueue_created_idx'),
+        ]
+
+    def __str__(self):
+        return f"Evaluation queue job for run {self.run_id}"

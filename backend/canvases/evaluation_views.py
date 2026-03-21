@@ -1,8 +1,6 @@
 from datetime import timedelta
 import logging
-import os
 
-from django.conf import settings
 from django.db import transaction
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
@@ -12,12 +10,11 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from audit.services import record_system_event
+from canvases.evaluation_queue import get_evaluation_queue
 from canvases.evaluation_service import (
     resolve_workspace_tier,
-    run_evaluation_job,
 )
 from canvases.models import Canvas
-from canvases.sqs_publisher import publish_evaluation_job
 from permissions.checks import user_has_system_read_access
 from permissions.models import WorkspaceMember
 from workspaces.models import EvaluationRun, Workspace
@@ -59,50 +56,37 @@ class AIEvaluationRequestSerializer(EvaluateRequestSerializer):
     pass
 
 
-def _is_local_execution_mode():
-    env_name = (os.getenv('DJANGO_ENV') or os.getenv('ENV') or '').strip().lower()
-    return settings.DEBUG or env_name == 'local'
-
-
 def _dispatch_evaluation_job(*, run, workspace, system, canvas_state):
-    if not _is_local_execution_mode():
-        published = publish_evaluation_job(
-            run_id=str(run.id),
-            workspace_id=str(workspace.id),
-            system_id=str(system.id),
-            canvas_state=canvas_state,
-        )
-        if not published:
-            run.status = EvaluationRun.Status.FAILED
-            run.error_message = 'Failed to queue evaluation'
-            run.save(update_fields=['status', 'error_message'])
-            logger.error(
-                'evaluation queue publish failed run_id=%s workspace_id=%s system_id=%s',
-                run.id,
-                workspace.id,
-                system.id,
-            )
-            return False
-
+    queue = get_evaluation_queue()
+    queued = queue.enqueue(
+        {
+            'runId': str(run.id),
+            'workspaceId': str(workspace.id),
+            'systemId': str(system.id),
+            'canvasState': canvas_state,
+        }
+    )
+    if queued:
         logger.info(
-            'evaluation job queued run_id=%s workspace_id=%s system_id=%s transport=sqs',
+            'evaluation job queued run_id=%s workspace_id=%s system_id=%s transport=%s',
             run.id,
             workspace.id,
             system.id,
+            queue.backend_name,
         )
         return True
 
-    import threading
-
-    worker = threading.Thread(target=run_evaluation_job, args=(run, canvas_state), daemon=True)
-    worker.start()
-    logger.info(
-        'evaluation job queued run_id=%s workspace_id=%s system_id=%s transport=thread',
+    run.status = EvaluationRun.Status.FAILED
+    run.error_message = 'Failed to queue evaluation'
+    run.save(update_fields=['status', 'error_message'])
+    logger.error(
+        'evaluation queue publish failed run_id=%s workspace_id=%s system_id=%s transport=%s',
         run.id,
         workspace.id,
         system.id,
+        queue.backend_name,
     )
-    return True
+    return False
 
 
 def _serialize_run(run):
