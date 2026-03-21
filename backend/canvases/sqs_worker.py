@@ -39,6 +39,11 @@ def process_message(body):
 
 
 def main():
+    use_sqs = os.getenv("USE_SQS", "true") == "true"
+    if not use_sqs:
+        logger.info("USE_SQS is false; skipping SQS worker startup.")
+        return
+
     queue_url = settings.SQS_QUEUE_URL
     if not queue_url:
         raise RuntimeError('SQS_QUEUE_URL is required for sqs_worker.')
