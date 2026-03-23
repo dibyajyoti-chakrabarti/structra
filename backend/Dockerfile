@@ -19,8 +19,15 @@ ENV DJANGO_ENV=production
 ENV DJANGO_SETTINGS_MODULE=backend_hub.settings
 
 # Collect static
-RUN python manage.py collectstatic --noinput
+# Dummy vars only needed at build time for collectstatic
+# Real values come from .env.production at runtime
+RUN DJANGO_SECRET_KEY=build-time-placeholder \
+    DJANGO_ENV=production \
+    CORS_ALLOWED_ORIGINS=http://placeholder.com \
+    CSRF_TRUSTED_ORIGINS=http://placeholder.com \
+    DB_HOST=localhost \
+    python manage.py collectstatic --noinput
 
 EXPOSE 8000
 
-CMD ["gunicorn", "backend_hub.wsgi:application", "--bind", "0.0.0.0:8000", "--workers", "3", "--timeout", "120", "--access-logfile", "-", "--error-logfile", "-"]
+CMD ["gunicorn", "backend_hub.wsgi:application", "--bind", "0.0.0.0:8000", "--workers", "2", "--timeout", "120", "--access-logfile", "-", "--error-logfile", "-"]
