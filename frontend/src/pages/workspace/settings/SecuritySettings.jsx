@@ -152,6 +152,23 @@ const styles = `
   .sec-sub-save-btn:hover { background: color-mix(in srgb, var(--text), #000 12%); }
   .sec-sub-save-btn:disabled { background: var(--border); color: var(--text-subtle); cursor: not-allowed; }
 
+  .sec-sub-input {
+    flex: 1;
+    min-width: 220px;
+    height: 36px;
+    padding: 0 12px;
+    border: 1.5px solid var(--border);
+    border-radius: 8px;
+    font-size: 13px;
+    font-family: inherit;
+    color: var(--text);
+    background: var(--surface);
+    outline: none;
+    transition: border-color 0.15s, box-shadow 0.15s;
+  }
+  .sec-sub-input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(37,99,235,0.08); }
+  .sec-sub-input:disabled { background: var(--surface-3); color: var(--text-subtle); cursor: not-allowed; }
+
   /* Grant row */
   .sec-grant-row { display: flex; gap: 8px; flex-wrap: wrap; align-items: flex-start; }
   .sec-grant-input-wrap { flex: 1; min-width: 200px; position: relative; }
@@ -209,6 +226,8 @@ const SecuritySettings = () => {
   const [expandedSystem, setExpandedSystem] = useState(null);
   const [systemVisDrafts, setSystemVisDrafts] = useState({});
   const [systemVisSaving, setSystemVisSaving] = useState({});
+  const [systemNameDrafts, setSystemNameDrafts] = useState({});
+  const [systemNameSaving, setSystemNameSaving] = useState({});
   const [grantForms, setGrantForms] = useState({});
   const [loadingIam, setLoadingIam] = useState(false);
   const [error, setError] = useState('');
@@ -244,6 +263,7 @@ const SecuritySettings = () => {
       const list = r.data || [];
       setSystems(list);
       setSystemVisDrafts(list.reduce((acc, s) => { acc[s.system_id] = s.visibility || 'private'; return acc; }, {}));
+      setSystemNameDrafts(list.reduce((acc, s) => { acc[s.system_id] = s.system_name || ''; return acc; }, {}));
       setExpandedSystem((cur) => (cur && list.some((s) => s.system_id === cur)) ? cur : (list[0]?.system_id || null));
     } catch (e) { setError(e.response?.data?.error || 'Failed to load IAM policies.'); }
     finally { setLoadingIam(false); }
@@ -290,6 +310,30 @@ const SecuritySettings = () => {
       setTimeout(() => setSuccess(''), 2500);
     } catch (e) { setError(e.response?.data?.error || 'Failed to update system visibility.'); }
     finally { setSystemVisSaving((p) => ({ ...p, [systemId]: false })); }
+  };
+
+  const saveSystemName = async (systemId, currentName) => {
+    if (!isAdmin) { showAdminOnly(); return; }
+    const nextName = (systemNameDrafts[systemId] || '').trim();
+    const currentTrimmed = (currentName || '').trim();
+    if (!nextName) { setError('System name cannot be empty.'); return; }
+    if (nextName === currentTrimmed) return;
+
+    setError(''); setSuccess('');
+    setSystemNameSaving((p) => ({ ...p, [systemId]: true }));
+    try {
+      await api.patch(`workspaces/${workspaceId}/canvases/${systemId}/`, { name: nextName });
+      setSuccess('System name updated.');
+      await fetchIam();
+      setTimeout(() => setSuccess(''), 2500);
+    } catch (e) {
+      const data = e.response?.data;
+      if (Array.isArray(data?.name) && data.name[0]) setError(`Name: ${data.name[0]}`);
+      else if (data?.detail) setError(data.detail);
+      else setError(data?.error || 'Failed to update system name.');
+    } finally {
+      setSystemNameSaving((p) => ({ ...p, [systemId]: false }));
+    }
   };
 
   const updateForm = (systemId, updates) => {
@@ -405,6 +449,9 @@ const SecuritySettings = () => {
               const filteredMembers = getFilteredMembers(system.system_id);
               const sysVis = systemVisDrafts[system.system_id] || system.visibility || 'private';
               const savingVis = !!systemVisSaving[system.system_id];
+              const systemNameDraft = systemNameDrafts[system.system_id] ?? system.system_name ?? '';
+              const systemNameChanged = systemNameDraft.trim() !== (system.system_name || '').trim();
+              const savingName = !!systemNameSaving[system.system_id];
 
               return (
                 <div key={system.system_id} className={`sec-system ${expanded ? 'expanded' : ''}`}>
@@ -413,7 +460,7 @@ const SecuritySettings = () => {
                       <div className={`sec-system-icon ${expanded ? 'active' : 'idle'}`}>
                         <Lock size={14} />
                       </div>
-                      <span className="sec-system-name">{system.system_name}</span>
+                      <span className="sec-system-name">{systemNameDraft || system.system_name}</span>
                       <span className={`sec-sys-badge ${sysVis}`}>{sysVis}</span>
                     </div>
                     {expanded ? <ChevronUp size={16} style={{ color: 'var(--text-subtle)' }} /> : <ChevronDown size={16} style={{ color: 'var(--text-subtle)' }} />}
@@ -441,6 +488,30 @@ const SecuritySettings = () => {
                           <div className="sec-no-perm-sub">Public systems are visible to signed-in users. Private systems are visible to workspace members.</div>
                         </div>
                       )}
+
+                      {/* System name */}
+                      <div className="sec-sub">
+                        <div className="sec-sub-label">System Name</div>
+                        <div className="sec-sub-row">
+                          <input
+                            className="sec-sub-input"
+                            type="text"
+                            value={systemNameDraft}
+                            onChange={(e) => setSystemNameDrafts((p) => ({ ...p, [system.system_id]: e.target.value }))}
+                            disabled={!isAdmin || savingName}
+                            maxLength={255}
+                            placeholder="Enter system name"
+                          />
+                          <button
+                            className="sec-sub-save-btn"
+                            onClick={() => saveSystemName(system.system_id, system.system_name)}
+                            disabled={!isAdmin || savingName || !systemNameChanged || !systemNameDraft.trim()}
+                          >
+                            <Save size={13} />
+                            {savingName ? 'Saving…' : 'Save'}
+                          </button>
+                        </div>
+                      </div>
 
                       {/* System visibility */}
                       <div className="sec-sub">
