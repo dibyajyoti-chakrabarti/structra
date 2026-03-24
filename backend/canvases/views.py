@@ -190,6 +190,16 @@ class CanvasDetailView(generics.RetrieveUpdateDestroyAPIView):
         system = serializer.instance
         previous_name = system.name
         previous_visibility = system.visibility
+        is_workspace_admin = user_is_workspace_admin(system.workspace, self.request.user)
+
+        # Only workspace admins can rename systems.
+        requested_name = serializer.validated_data.get("name")
+        if (
+            requested_name is not None
+            and requested_name != previous_name
+            and not is_workspace_admin
+        ):
+            raise PermissionDenied("Only workspace admins can rename systems.")
 
         updated_system = serializer.save(last_modified_by=self.request.user)
 

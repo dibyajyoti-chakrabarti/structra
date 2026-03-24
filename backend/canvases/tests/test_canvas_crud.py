@@ -254,7 +254,7 @@ class CanvasCRUDAPITests(APITestCase):
         self.assertEqual(canvas.name, "Edited Canvas")
         self.assertEqual(canvas.visibility, WorkspaceVisibility.PUBLIC)
 
-    def test_editor_member_can_update_canvas(self):
+    def test_editor_member_can_update_canvas_non_name_fields(self):
         canvas = Canvas.objects.create(
             name="Member Editable Canvas",
             workspace=self.workspace,
@@ -266,13 +266,34 @@ class CanvasCRUDAPITests(APITestCase):
 
         response = self.client.patch(
             reverse("canvas-detail", kwargs={"workspace_id": self.workspace.id, "id": canvas.id}),
-            {"name": "Member Updated Canvas"},
+            {"description": "Updated by editor member"},
             format="json",
         )
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         canvas.refresh_from_db()
-        self.assertEqual(canvas.name, "Member Updated Canvas")
+        self.assertEqual(canvas.description, "Updated by editor member")
+
+    def test_editor_member_cannot_rename_canvas(self):
+        canvas = Canvas.objects.create(
+            name="Rename Protected Canvas",
+            workspace=self.workspace,
+            visibility=WorkspaceVisibility.PRIVATE,
+            last_modified_by=self.admin,
+        )
+        CanvasPermission.objects.create(system=canvas, user=self.member, role=CanvasRole.EDITOR)
+        self.client.force_authenticate(user=self.member)
+
+        response = self.client.patch(
+            reverse("canvas-detail", kwargs={"workspace_id": self.workspace.id, "id": canvas.id}),
+            {"name": "Member Renamed Canvas"},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertEqual(response.data["detail"], "Only workspace admins can rename systems.")
+        canvas.refresh_from_db()
+        self.assertEqual(canvas.name, "Rename Protected Canvas")
 
     def test_viewer_member_cannot_update_canvas(self):
         canvas = Canvas.objects.create(
