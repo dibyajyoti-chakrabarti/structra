@@ -1,48 +1,25 @@
 import { useEffect, useState } from "react";
 import serverDownIllustration from "../../assets/server-down-illustration.svg";
 
-const IST_OFFSET_MINUTES = 5.5 * 60;
-const SLEEP_START_HOUR_IST = 17;
-const WAKE_HOUR_IST = 9;
+const JULY_RESTART_IST = "2026-07-01T09:00:00+05:30";
 
-const getIstDate = (date) => {
-  return new Date(date.getTime() + IST_OFFSET_MINUTES * 60 * 1000);
-};
-
-const getSleepSchedule = (now = new Date()) => {
-  const istNow = getIstDate(now);
-  const istHour = istNow.getUTCHours();
-  const isSleeping = istHour >= SLEEP_START_HOUR_IST || istHour < WAKE_HOUR_IST;
-
-  if (!isSleeping) {
-    return { isSleeping: false, countdownMs: 0 };
-  }
-
-  // Build next 9:00 AM IST as a real UTC timestamp
-  // 9:00 AM IST = 3:30 AM UTC, so subtract the IST offset from the IST wall time
-  const year = istNow.getUTCFullYear();
-  const month = istNow.getUTCMonth();
-  const day = istNow.getUTCDate();
-  const wakeDay = istHour >= SLEEP_START_HOUR_IST ? day + 1 : day;
-  const nextWakeUtc = new Date(
-    Date.UTC(year, month, wakeDay, WAKE_HOUR_IST, 0, 0, 0) - IST_OFFSET_MINUTES * 60 * 1000
-  );
-  const countdownMs = Math.max(0, nextWakeUtc.getTime() - now.getTime());
-
-  return { isSleeping: true, countdownMs };
+const getJulyRestartCountdown = (now = new Date()) => {
+  const julyRestart = new Date(JULY_RESTART_IST);
+  const countdownMs = Math.max(0, julyRestart.getTime() - now.getTime());
+  return { countdownMs };
 };
 
 export default function ServerDown() {
   const [elapsed, setElapsed] = useState(0);
   const [pulseKey, setPulseKey] = useState(0);
-  const [sleepSchedule, setSleepSchedule] = useState(() => getSleepSchedule());
+  const [restartCountdown, setRestartCountdown] = useState(() => getJulyRestartCountdown());
 
   useEffect(() => {
     const elapsedInterval = setInterval(() => {
       setElapsed((e) => e + 1);
     }, 1000);
     const scheduleInterval = setInterval(() => {
-      setSleepSchedule(getSleepSchedule());
+      setRestartCountdown(getJulyRestartCountdown());
     }, 1000);
     const pulseInterval = setInterval(() => {
       setPulseKey((k) => k + 1);
@@ -70,9 +47,10 @@ export default function ServerDown() {
     ).padStart(2, "0")}s`;
   };
 
-  const startupMessage = sleepSchedule.isSleeping
-    ? `${formatCountdown(sleepSchedule.countdownMs)} to 9:00 AM IST`
-    : "Starting any second now";
+  const startupMessage =
+    restartCountdown.countdownMs > 0
+      ? `${formatCountdown(restartCountdown.countdownMs)} to July 1, 2026, 9:00 AM IST`
+      : "July restart window has begun";
 
   return (
     <>
@@ -369,11 +347,11 @@ export default function ServerDown() {
             </div>
 
             <h1 className="sd-heading">
-              Backend is <span>on a schedule</span>
+              Backend is <span>paused until July</span>
             </h1>
 
             <p className="sd-body">
-              Structra infrastructure runs on AWS. For cost optimization, backend servers operate daily from 9:00 AM to 5:00 PM IST. Outside this window, services are paused and this page will reconnect automatically when the next run window starts.
+              Structra infrastructure is temporarily shut down for cost savings. The backend will remain offline until July and will be started again in the July restart window.
             </p>
 
             <div className="sd-status-card">
@@ -383,14 +361,14 @@ export default function ServerDown() {
               <div className="sd-status-rows">
                 <div className="sd-status-row">
                   <span className="sd-status-label">Auto-retry</span>
-                  <span className="sd-status-value active">Active</span>
+                  <span className="sd-status-value">Paused</span>
                 </div>
                 <div className="sd-status-row">
-                  <span className="sd-status-label">Check interval</span>
-                  <span className="sd-status-value">Every 15s</span>
+                  <span className="sd-status-label">Expected restart</span>
+                  <span className="sd-status-value">July 1, 2026 - 9:00 AM IST</span>
                 </div>
                 <div className="sd-status-row">
-                  <span className="sd-status-label">Server start</span>
+                  <span className="sd-status-label">Time remaining</span>
                   <span className="sd-status-value">{startupMessage}</span>
                 </div>
                 <div className="sd-status-row">
@@ -407,7 +385,7 @@ export default function ServerDown() {
                     <polyline points="20 6 9 17 4 12" />
                   </svg>
                 </div>
-                <span>This page <strong>auto-reconnects</strong> and does not need manual refresh.</span>
+                <span>No action is needed now. <strong>Service access resumes in July</strong>.</span>
               </div>
               <div className="sd-info-item">
                 <div className="sd-info-icon">
@@ -417,7 +395,7 @@ export default function ServerDown() {
                     <line x1="12" y1="16" x2="12.01" y2="16" />
                   </svg>
                 </div>
-                <span>Daily run window: <strong>9:00 AM - 5:00 PM IST</strong>.</span>
+                <span>Service state: <strong>Offline until July</strong>.</span>
               </div>
             </div>
           </div>
