@@ -1,8 +1,7 @@
-name: Scheduled - Start Infra
+name: Infra Start (Cron Disabled Until July)
 
 on:
-  schedule:
-    - cron: '30 3 * * *'   # 09:00 AM IST
+  workflow_dispatch:
 
 jobs:
   start-infra:
