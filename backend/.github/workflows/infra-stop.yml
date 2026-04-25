@@ -1,11 +1,11 @@
-name: Scheduled - Stop Infra
+name: Infra Stop (Disabled Until July)
 
 on:
-  schedule:
-    - cron: '30 11 * * *'  # 05:00 PM IST
+  workflow_dispatch:
 
 jobs:
   stop-infra:
+    if: false
     runs-on: ubuntu-latest
 
     steps:
