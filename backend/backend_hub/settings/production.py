@@ -23,7 +23,22 @@ lb_hosts = os.getenv('ALLOWED_LB_HOSTS', '')
 if lb_hosts:
     ALLOWED_HOSTS.extend([host.strip() for host in lb_hosts.split(',') if host.strip()])
 try:
-    private_ip = gethostbyname(gethostname())
+    import urllib.request
+    
+    # Step 1: get token
+    token_req = urllib.request.Request(
+        'http://169.254.169.254/latest/api/token',
+        headers={'X-aws-ec2-metadata-token-ttl-seconds': '21600'},
+        method='PUT'
+    )
+    token = urllib.request.urlopen(token_req, timeout=1).read().decode()
+    
+    #Step 2: use token to get IP
+    private_ip_req= urllib.request.Request(
+        'http://169.254.169.254/latest/meta-data/local-ipv4',
+        headers={'X-aws-ec2-metadata-token': token}
+    )
+    private_ip = urllib.request.urlopen(private_ip_req, timeout=1).read().decode()
     if private_ip:
         ALLOWED_HOSTS.append(private_ip)
 except Exception:
@@ -41,5 +56,5 @@ if not CSRF_TRUSTED_ORIGINS:
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 SESSION_COOKIE_SECURE = True
 CSRF_COOKIE_SECURE = True
-SECURE_SSL_REDIRECT = os.getenv("SECURE_SSL_REDIRECT", "True") == "True"
+SECURE_SSL_REDIRECT = False  # ALB handles SSL termination, not Django
 STATIC_ROOT = BASE_DIR / "staticfiles"

@@ -2,14 +2,11 @@ FROM python:3.12-slim
 
 WORKDIR /app
 
-# System deps
+# Single apt-get run — combine all packages, clean up once
 RUN apt-get update && apt-get install -y \
-    libpq-dev gcc --no-install-recommends && \
-    rm -rf /var/lib/apt/lists/*
-
-# Install Node
-RUN apt-get update && apt-get install -y nodejs npm \
-    && node -v
+    libpq-dev gcc nodejs npm --no-install-recommends \
+    && node -v \
+    && rm -rf /var/lib/apt/lists/*
 
 # Install Python deps
 COPY requirements.txt .

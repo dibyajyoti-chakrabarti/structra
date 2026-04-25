@@ -23,6 +23,24 @@ jobs:
           role-to-assume: arn:aws:iam::042843883108:role/structra-github-OIDC-Role
           aws-region: ap-south-2
 
+      - name: Login to ECR
+        id: ecr-login
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build and push API image
+        env:
+          ECR_REGISTRY: 042843883108.dkr.ecr.ap-south-2.amazonaws.com
+        run: |
+          docker build -t $ECR_REGISTRY/structra-api:latest -f Dockerfile .
+          docker push $ECR_REGISTRY/structra-api:latest
+
+      - name: Build and push Worker image
+        env:
+          ECR_REGISTRY: 042843883108.dkr.ecr.ap-south-2.amazonaws.com
+        run: |
+          docker build -t $ECR_REGISTRY/structra-worker:latest -f Dockerfile.worker .
+          docker push $ECR_REGISTRY/structra-worker:latest
+
       - name: Deploy via SSM
         run: |
           COMMAND_ID=$(aws ssm send-command \
