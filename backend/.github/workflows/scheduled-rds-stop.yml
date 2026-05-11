@@ -18,14 +18,16 @@ jobs:
           aws-region: ${{ secrets.AWS_REGION }}
 
       - name: Check RDS status and stop if running
+        env:
+          RDS_ID: ${{ secrets.RDS_INSTANCE_ID }}
         run: |
-          STATUS=$(aws rds describe-db-instances --db-instance-identifier ${{ secrets.RDS_INSTANCE_ID }} --query "DBInstances[0].DBInstanceStatus" --output text)
+          STATUS=$(aws rds describe-db-instances --db-instance-identifier "$RDS_ID" --query "DBInstances[0].DBInstanceStatus" --output text)
 
           echo "RDS status: $STATUS"
 
           if [ "$STATUS" = "available" ]; then
             echo "RDS is running. Stopping..."
-            aws rds stop-db-instance --db-instance-identifier ${{ secrets.RDS_INSTANCE_ID }}
+            aws rds stop-db-instance --db-instance-identifier "$RDS_ID"
             echo "Stop command issued."
           else
             echo "RDS is not running (status: $STATUS). No action needed."
