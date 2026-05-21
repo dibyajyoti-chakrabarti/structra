@@ -4,25 +4,8 @@ on:
   workflow_dispatch:
 
 jobs:
-  time-guard:
-    runs-on: ubuntu-latest
-    outputs:
-      blocked: ${{ steps.check.outputs.blocked }}
-    steps:
-      - name: Block 2-3 PM IST window
-        id: check
-        run: |
-          IST_HOUR=$(TZ=Asia/Kolkata date +%H)
-          if [ "$IST_HOUR" = "14" ]; then
-            echo "blocked=true" >> "$GITHUB_OUTPUT"
-            echo "Infra stop is blocked between 2:00 PM and 3:00 PM IST."
-          else
-            echo "blocked=false" >> "$GITHUB_OUTPUT"
-          fi
-
   stop-infra:
-    needs: time-guard
-    if: ${{ needs.time-guard.outputs.blocked != 'true' }}
+    if: false
     runs-on: ubuntu-latest
 
     steps:

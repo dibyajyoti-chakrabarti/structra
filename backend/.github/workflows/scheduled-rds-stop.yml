@@ -1,6 +1,8 @@
 name: Scheduled - Auto Stop RDS if Running
 
 on:
+  schedule:
+    - cron: '0 0,6,12,18 * * *'  # 00:00, 06:00, 12:00, 18:00 UTC
   workflow_dispatch:  # keep manual trigger for testing
 
 jobs:
