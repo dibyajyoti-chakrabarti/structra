@@ -9,12 +9,11 @@ from rest_framework.exceptions import PermissionDenied
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from django.conf import settings
+
 from audit.services import record_system_event
-from canvases.evaluation_queue import get_evaluation_queue
-from canvases.evaluation_service import (
-    resolve_workspace_tier,
-)
 from canvases.models import Canvas
+from canvases.queue_publisher import enqueue_evaluation_job
 from permissions.checks import user_has_system_read_access
 from permissions.models import WorkspaceMember
 from workspaces.models import EvaluationRun, Workspace
@@ -31,6 +30,18 @@ from workspaces.services.insight_token_service import (
 )
 HOURLY_WORKSPACE_EVALUATION_LIMIT = 10
 logger = logging.getLogger(__name__)
+
+_TIER_MAP = {
+    'CORE': 'core',
+    'INDIVIDUAL': 'individual',
+    'TEAM': 'team',
+    'ENTERPRISE': 'enterprise',
+}
+
+
+def _resolve_workspace_tier(workspace):
+    raw_plan = (getattr(workspace.owner, 'current_plan', 'CORE') or 'CORE').upper()
+    return _TIER_MAP.get(raw_plan, 'core')
 
 
 class EvaluateRequestSerializer(serializers.Serializer):
@@ -57,22 +68,18 @@ class AIEvaluationRequestSerializer(EvaluateRequestSerializer):
 
 
 def _dispatch_evaluation_job(*, run, workspace, system, canvas_state):
-    queue = get_evaluation_queue()
-    queued = queue.enqueue(
-        {
-            'runId': str(run.id),
-            'workspaceId': str(workspace.id),
-            'systemId': str(system.id),
-            'canvasState': canvas_state,
-        }
-    )
+    transport = 'sqs' if settings.USE_SQS else 'local'
+    payload = {
+        'runId': str(run.id),
+        'workspaceId': str(workspace.id),
+        'systemId': str(system.id),
+        'canvasState': canvas_state,
+    }
+    queued = enqueue_evaluation_job(payload)
     if queued:
         logger.info(
             'evaluation job queued run_id=%s workspace_id=%s system_id=%s transport=%s',
-            run.id,
-            workspace.id,
-            system.id,
-            queue.backend_name,
+            run.id, workspace.id, system.id, transport,
         )
         return True
 
@@ -81,10 +88,7 @@ def _dispatch_evaluation_job(*, run, workspace, system, canvas_state):
     run.save(update_fields=['status', 'error_message'])
     logger.error(
         'evaluation queue publish failed run_id=%s workspace_id=%s system_id=%s transport=%s',
-        run.id,
-        workspace.id,
-        system.id,
-        queue.backend_name,
+        run.id, workspace.id, system.id, transport,
     )
     return False
 
@@ -179,7 +183,7 @@ class EvaluateAPIView(APIView):
         if not is_member or not user_has_system_read_access(system, request.user):
             raise PermissionDenied('You do not have permission to evaluate this system.')
 
-        workspace_tier = resolve_workspace_tier(workspace)
+        workspace_tier = _resolve_workspace_tier(workspace)
         try:
             with transaction.atomic():
                 run = EvaluationRun.objects.create(

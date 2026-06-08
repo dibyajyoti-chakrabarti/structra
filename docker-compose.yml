@@ -54,10 +54,11 @@ services:
 
   worker:
     build:
-      context: ./backend
-      dockerfile: Dockerfile.worker
+      context: .
+      dockerfile: worker/Dockerfile
     volumes:
-      - ./backend:/app
+      - ./worker:/app/worker
+      - ./backend:/app/backend
     env_file:
       - ./backend/.env.local
     environment:

@@ -196,27 +196,7 @@ LOGGING = {
             'level': 'INFO',
             'propagate': False,
         },
-        'canvases.evaluation_service': {
-            'handlers': ['console'],
-            'level': 'INFO',
-            'propagate': False,
-        },
-        'canvases.evaluation_queue': {
-            'handlers': ['console'],
-            'level': 'INFO',
-            'propagate': False,
-        },
-        'canvases.evaluation_worker': {
-            'handlers': ['console'],
-            'level': 'INFO',
-            'propagate': False,
-        },
-        'canvases.sqs_worker': {
-            'handlers': ['console'],
-            'level': 'INFO',
-            'propagate': False,
-        },
-        'canvases.sqs_publisher': {
+        'canvases.queue_publisher': {
             'handlers': ['console'],
             'level': 'INFO',
             'propagate': False,

@@ -4,12 +4,12 @@ import time
 
 import django
 
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'backend_hub.settings')
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'worker_hub.settings')
 os.environ.setdefault('DJANGO_ENV', 'production')
 django.setup()
 
-from canvases.evaluation_queue import get_evaluation_queue  # noqa: E402
-from canvases.evaluation_service import run_evaluation_job  # noqa: E402
+from evaluation_queue import get_evaluation_queue  # noqa: E402
+from evaluation_service import run_evaluation_job  # noqa: E402
 from workspaces.models import EvaluationRun  # noqa: E402
 
 logger = logging.getLogger(__name__)

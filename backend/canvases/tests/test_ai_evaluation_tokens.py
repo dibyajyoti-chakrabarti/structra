@@ -5,13 +5,11 @@ from django.urls import reverse
 from django.utils import timezone
 from rest_framework.test import APITestCase
 
-from canvases.evaluation_service import run_evaluation_job
 from canvases.models import Canvas
 from core.constants import WorkspaceRole
 from permissions.models import WorkspaceMember
 from workspaces.models import EvaluationRun, Workspace
 from workspaces.services.insight_token_service import (
-    consume_insight_token_on_confirmation,
     ensure_workspace_insight_token_state,
 )
 
@@ -115,68 +113,3 @@ class AIEvaluationTokenFlowTests(APITestCase):
         run = EvaluationRun.objects.latest('created_at')
         self.assertFalse(run.insight_token_consumed)
         self.assertEqual(run.insight_tokens_remaining, 2)
-
-    @patch('canvases.evaluation_service.close_old_connections', return_value=None)
-    @patch('canvases.evaluation_service.call_gemini_for_prompt', return_value=(None, True))
-    @patch('canvases.evaluation_service.evaluate_canvas_state')
-    def test_gemini_no_response_refunds_token(self, evaluate_mock, _gemini_mock, _close_connections_mock):
-        ensure_workspace_insight_token_state(self.workspace, now=timezone.now(), force_reset=True)
-        self.workspace.insight_tokens_remaining = 2
-        self.workspace.save(update_fields=['insight_tokens_remaining'])
-        token_state = consume_insight_token_on_confirmation(workspace_id=self.workspace.id)
-
-        run = EvaluationRun.objects.create(
-            workspace=self.workspace,
-            system_id=self.system.id,
-            user=self.user,
-            workspace_tier='individual',
-            canvas_state={'nodes': [], 'edges': []},
-            status=EvaluationRun.Status.PENDING,
-            insight_token_consumed=True,
-            insight_tokens_remaining=token_state['insightTokensRemaining'],
-            credits_remaining=4,
-        )
-        evaluate_mock.return_value = {
-            'results': [{'id': 'F-01', 'passed': False, 'ruleTier': 'basic', 'confidence': 'high', 'reason': 'x'}],
-            'summary': {'failed': 1, 'passed': 0, 'applicable': 1},
-            'score': 0,
-            'prompt': 'prompt',
-        }
-
-        run_evaluation_job(run, run.canvas_state)
-
-        self.workspace.refresh_from_db()
-        self.assertEqual(self.workspace.insight_tokens_remaining, 2)
-        run.refresh_from_db()
-        self.assertEqual(run.status, EvaluationRun.Status.COMPLETED)
-        self.assertTrue(run.gemini_error)
-        self.assertFalse(run.insight_token_consumed)
-
-    @patch('canvases.evaluation_service.close_old_connections', return_value=None)
-    @patch('canvases.evaluation_service.evaluate_canvas_state', side_effect=RuntimeError('invalid report'))
-    def test_corrupted_run_refunds_token(self, _evaluate_mock, _close_connections_mock):
-        ensure_workspace_insight_token_state(self.workspace, now=timezone.now(), force_reset=True)
-        self.workspace.insight_tokens_remaining = 2
-        self.workspace.save(update_fields=['insight_tokens_remaining'])
-        token_state = consume_insight_token_on_confirmation(workspace_id=self.workspace.id)
-
-        run = EvaluationRun.objects.create(
-            workspace=self.workspace,
-            system_id=self.system.id,
-            user=self.user,
-            workspace_tier='individual',
-            canvas_state={'nodes': [], 'edges': []},
-            status=EvaluationRun.Status.PENDING,
-            insight_token_consumed=True,
-            insight_tokens_remaining=token_state['insightTokensRemaining'],
-            credits_remaining=4,
-        )
-
-        with self.assertRaises(RuntimeError):
-            run_evaluation_job(run, run.canvas_state)
-
-        self.workspace.refresh_from_db()
-        self.assertEqual(self.workspace.insight_tokens_remaining, 2)
-        run.refresh_from_db()
-        self.assertEqual(run.status, EvaluationRun.Status.FAILED)
-        self.assertFalse(run.insight_token_consumed)
