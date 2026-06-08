@@ -1,0 +1,338 @@
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { Activity, AlertCircle, CheckCircle2, Clock3, Coins, RefreshCcw, X, XCircle } from 'lucide-react';
+import api from '../../api';
+import LoadingState from '../../components/LoadingState';
+import StructuredReport from '../../components/StructuredReport';
+import { useTheme } from '../../contexts/ThemeContext';
+
+const statusIcon = (status) => {
+  if (status === 'completed') return <CheckCircle2 size={14} className="text-emerald-500" />;
+  if (status === 'failed') return <XCircle size={14} className="text-red-500" />;
+  if (status === 'running') return <Activity size={14} className="text-blue-500" />;
+  return <Clock3 size={14} className="text-amber-500" />;
+};
+
+const statusLabel = (status) => {
+  if (status === 'completed') return 'Completed';
+  if (status === 'failed') return 'Failed';
+  if (status === 'running') return 'Running';
+  return 'Queued';
+};
+
+const formatTime = (value) => {
+  if (!value) return '—';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '—';
+  return date.toLocaleString();
+};
+
+const hasReportData = (run) =>
+  Boolean(run?.suggestions) ||
+  (Array.isArray(run?.results) && run.results.length > 0) ||
+  (run?.summary && typeof run.summary === 'object' && Object.keys(run.summary).length > 0) ||
+  Number.isFinite(run?.score);
+
+const isCorruptedRun = (run) =>
+  run?.status === 'failed' || (Boolean(run?.error) && !hasReportData(run));
+
+const buildFallbackReport = (run) => {
+  const summary = run?.summary && typeof run.summary === 'object' ? run.summary : {};
+  const score = Number.isFinite(run?.score) ? run.score : Number(summary?.score);
+  const applicable = Number(summary?.applicable || 0);
+  const passed = Number(summary?.passed || 0);
+  const failed = Number(summary?.failed || 0);
+
+  const failedRules = Array.isArray(summary?.failedRules)
+    ? summary.failedRules
+    : (Array.isArray(run?.results)
+        ? run.results.filter((item) => item?.passed === false)
+        : []);
+  const topFailedRules = failedRules.slice(0, 8);
+  const failedSection = topFailedRules.length
+    ? topFailedRules
+        .map((item) => {
+          const id = item?.id || 'UNKNOWN';
+          const confidence = item?.confidence ? ` (confidence: ${item.confidence})` : '';
+          const reason = item?.reason || 'No reason provided.';
+          return `- **Rule Failed:** \`${id}\`${confidence} ${reason}`;
+        })
+        .join('\n')
+    : '- No failed rules were recorded.';
+
+  return [
+    '# Evaluation Summary',
+    '',
+    `- **Status:** ${run?.status || 'completed'}`,
+    `- **Score:** ${Number.isFinite(score) ? score : 'N/A'}`,
+    `- **Applicable Rules:** ${applicable}`,
+    `- **Passed:** ${passed}`,
+    `- **Failed:** ${failed}`,
+    '',
+    '## Rule Findings',
+    failedSection,
+    '',
+    run?.geminiError
+      ? '> [!WARNING]\n> AI narrative generation is unavailable in this environment. Showing rule-engine output only.'
+      : '> [!NOTE]\n> AI report text was not available for this run. Showing rule-engine output only.',
+  ].join('\n');
+};
+
+export default function WorkspaceEvaluations() {
+  const { workspaceId } = useParams();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const navigate = useNavigate();
+  const { theme } = useTheme();
+  const isDarkTheme = theme === 'dark';
+
+  const [loading, setLoading] = useState(true);
+  const [workspace, setWorkspace] = useState(null);
+  const [runs, setRuns] = useState([]);
+  const [activeCount, setActiveCount] = useState(0);
+  const [selectedRunId, setSelectedRunId] = useState(null);
+  const [isReportOpen, setIsReportOpen] = useState(false);
+  const [error, setError] = useState('');
+  const queryHydratedRef = useRef(false);
+
+  const loadData = useCallback(async () => {
+    try {
+      setError('');
+      const [workspaceRes, evalRes] = await Promise.all([
+        api.get(`workspaces/${workspaceId}/`, { cache: false }),
+        api.get(`workspaces/${workspaceId}/evaluations/`, { cache: false }),
+      ]);
+      const nextRuns = Array.isArray(evalRes.data?.runs) ? evalRes.data.runs : [];
+      setWorkspace(workspaceRes.data);
+      setRuns(nextRuns);
+      setActiveCount(Number(evalRes.data?.activeCount || 0));
+      const requestedRunId = searchParams.get('runId');
+      setSelectedRunId((prev) => {
+        if (!nextRuns.length) return null;
+        if (
+          requestedRunId &&
+          nextRuns.some((run) => run.id === requestedRunId && !isCorruptedRun(run))
+        ) {
+          return requestedRunId;
+        }
+        if (prev && nextRuns.some((run) => run.id === prev)) return prev;
+        const firstOpenable = nextRuns.find((run) => !isCorruptedRun(run));
+        return firstOpenable ? firstOpenable.id : nextRuns[0].id;
+      });
+      if (
+        !queryHydratedRef.current &&
+        requestedRunId &&
+        nextRuns.some((run) => run.id === requestedRunId && !isCorruptedRun(run))
+      ) {
+        setIsReportOpen(true);
+      }
+      queryHydratedRef.current = true;
+    } catch {
+      setError('Failed to load evaluations.');
+    } finally {
+      setLoading(false);
+    }
+  }, [searchParams, workspaceId]);
+
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
+
+  useEffect(() => {
+    if (activeCount <= 0) return undefined;
+    const timer = setInterval(loadData, 2500);
+    return () => clearInterval(timer);
+  }, [activeCount, loadData]);
+
+  const completedCount = useMemo(
+    () => runs.filter((run) => run.status === 'completed').length,
+    [runs]
+  );
+
+  const selectedRun = useMemo(
+    () => runs.find((run) => run.id === selectedRunId) || null,
+    [runs, selectedRunId]
+  );
+
+  const closeReport = useCallback(() => {
+    setIsReportOpen(false);
+    const nextParams = new URLSearchParams(searchParams);
+    nextParams.delete('runId');
+    setSearchParams(nextParams, { replace: true });
+  }, [searchParams, setSearchParams]);
+
+  if (loading) return <LoadingState message="Loading evaluations" minHeight={360} />;
+
+  if (isReportOpen && selectedRun && !isCorruptedRun(selectedRun)) {
+    return (
+      <div className="pb-0">
+        <div
+          className={`flex min-h-[calc(100vh-9rem)] flex-col overflow-hidden rounded-2xl border shadow-sm ${
+            isDarkTheme ? 'border-slate-700 bg-slate-900' : 'border-slate-200 bg-white'
+          }`}
+        >
+          <div
+            className={`flex items-start justify-between border-b px-6 py-5 ${
+              isDarkTheme ? 'border-slate-700 bg-slate-900' : 'border-slate-200 bg-slate-50'
+            }`}
+          >
+            <div>
+              <h2 className={`text-xl font-semibold tracking-tight ${isDarkTheme ? 'text-slate-100' : 'text-slate-900'}`}>
+                Evaluation Report
+              </h2>
+              <p className={`text-xs ${isDarkTheme ? 'text-slate-400' : 'text-slate-500'}`}>Run: {selectedRun.id}</p>
+            </div>
+            <button
+              type="button"
+              onClick={closeReport}
+              className={`rounded-lg border p-1.5 ${
+                isDarkTheme
+                  ? 'border-slate-700 text-slate-400 hover:bg-slate-800 hover:text-slate-200'
+                  : 'border-gray-200 text-gray-500 hover:bg-gray-50 hover:text-gray-700'
+              }`}
+              aria-label="Close report"
+            >
+              <X size={14} />
+            </button>
+          </div>
+
+          <div className="flex-1 space-y-4 overflow-y-auto p-6">
+            <div className="grid grid-cols-2 gap-2 text-xs md:grid-cols-4">
+              <div className={`rounded-lg border px-3 py-2 ${isDarkTheme ? 'border-slate-700 bg-slate-800 text-slate-300' : 'border-slate-200 bg-slate-50 text-slate-700'}`}>Status: <strong className={isDarkTheme ? 'text-slate-100' : 'text-slate-900'}>{statusLabel(selectedRun.status)}</strong></div>
+              <div className={`rounded-lg border px-3 py-2 ${isDarkTheme ? 'border-slate-700 bg-slate-800 text-slate-300' : 'border-slate-200 bg-slate-50 text-slate-700'}`}>System: <strong className={isDarkTheme ? 'text-slate-100' : 'text-slate-900'}>{selectedRun.systemId}</strong></div>
+              <div className={`rounded-lg border px-3 py-2 ${isDarkTheme ? 'border-slate-700 bg-slate-800 text-slate-300' : 'border-slate-200 bg-slate-50 text-slate-700'}`}>Score: <strong className={isDarkTheme ? 'text-slate-100' : 'text-slate-900'}>{selectedRun.score ?? '—'}</strong></div>
+              <div className={`rounded-lg border px-3 py-2 ${isDarkTheme ? 'border-slate-700 bg-slate-800 text-slate-300' : 'border-slate-200 bg-slate-50 text-slate-700'}`}>Tier: <strong className={isDarkTheme ? 'text-slate-100' : 'text-slate-900'}>{selectedRun.workspaceTier || '—'}</strong></div>
+            </div>
+
+            {selectedRun.error && (
+              <div className="rounded-lg border border-red-200 bg-red-50 p-2.5 text-xs text-red-700">
+                {selectedRun.error}
+              </div>
+            )}
+
+            <div className={`rounded-xl border p-6 shadow-sm ${isDarkTheme ? 'border-slate-700 bg-slate-900' : 'border-slate-200 bg-white'}`}>
+              <StructuredReport text={selectedRun.suggestions || buildFallbackReport(selectedRun)} />
+            </div>
+
+            <div className="flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={closeReport}
+                className="inline-flex items-center rounded-md border border-gray-200 px-3 py-2 text-xs font-semibold text-gray-700 hover:bg-gray-50"
+              >
+                Back to Runs
+              </button>
+              <Link
+                to={`/app/ws/${workspaceId}/systems/${selectedRun.systemId}`}
+                className="inline-flex items-center rounded-md border border-gray-200 px-3 py-2 text-xs font-semibold text-gray-700 hover:bg-gray-50"
+              >
+                Open System
+              </Link>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4 pb-10">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">{workspace?.name || workspaceId} Evaluations</h1>
+          <p className="text-sm text-gray-500">Click any evaluation row to open its full report.</p>
+        </div>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={loadData}
+            className="inline-flex items-center gap-2 rounded-lg border border-gray-200 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+          >
+            <RefreshCcw size={14} /> Refresh
+          </button>
+          <button
+            type="button"
+            onClick={() => navigate(`/app/ws/${workspaceId}`)}
+            className="inline-flex items-center gap-2 rounded-lg border border-gray-200 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+          >
+            Back to Workspace
+          </button>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+        <div className="rounded-xl border border-gray-200 bg-white p-4">
+          <p className="text-xs uppercase tracking-wide text-gray-500">Active</p>
+          <p className="mt-1 text-2xl font-semibold text-gray-900">{activeCount}</p>
+        </div>
+        <div className="rounded-xl border border-gray-200 bg-white p-4">
+          <p className="text-xs uppercase tracking-wide text-gray-500">Completed</p>
+          <p className="mt-1 text-2xl font-semibold text-gray-900">{completedCount}</p>
+        </div>
+        <div className="rounded-xl border border-gray-200 bg-white p-4">
+          <p className="text-xs uppercase tracking-wide text-gray-500">Total Runs</p>
+          <p className="mt-1 text-2xl font-semibold text-gray-900">{runs.length}</p>
+        </div>
+      </div>
+
+      {error && (
+        <div className="inline-flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+          <AlertCircle size={15} />
+          {error}
+        </div>
+      )}
+
+      {runs.length === 0 ? (
+        <div className="rounded-xl border border-dashed border-gray-300 bg-white p-8 text-center text-gray-500">
+          No evaluation runs yet. Trigger one from any system canvas.
+        </div>
+      ) : (
+        <div className="space-y-2">
+          {runs.map((run) => {
+            const corrupted = isCorruptedRun(run);
+            const runStatusLabel = corrupted ? 'Corrupted' : statusLabel(run.status);
+            return (
+            <button
+              key={run.id}
+              type="button"
+              onClick={() => {
+                if (corrupted) return;
+                queryHydratedRef.current = true;
+                setSelectedRunId(run.id);
+                setIsReportOpen(true);
+                setSearchParams((prevParams) => {
+                  const nextParams = new URLSearchParams(prevParams);
+                  nextParams.set('runId', run.id);
+                  return nextParams;
+                });
+              }}
+              disabled={corrupted}
+              className="w-full rounded-xl border border-gray-200 bg-white p-4 text-left transition-colors hover:border-gray-300 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-65"
+            >
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div className="inline-flex items-center gap-1.5 text-sm font-semibold text-gray-900">
+                  {statusIcon(run.status)}
+                  {runStatusLabel}
+                </div>
+                <span className="text-xs text-gray-500">{formatTime(run.createdAt)}</span>
+              </div>
+              <div className="mt-2 grid grid-cols-2 gap-2 text-xs text-gray-700 md:grid-cols-4">
+                <span>System: <strong>{run.systemId}</strong></span>
+                <span>Score: <strong>{run.score ?? '—'}</strong></span>
+                <span>Tier: <strong>{run.workspaceTier || '—'}</strong></span>
+                <span className="inline-flex items-center gap-1">
+                  <Coins size={12} className="text-amber-500" />
+                  Tokens: <strong>{run.insightTokensRemaining ?? run.creditsRemaining ?? '—'}</strong>
+                </span>
+              </div>
+              {corrupted && (
+                <div className="mt-2 text-xs font-semibold text-red-600">Corrupted run. Report unavailable.</div>
+              )}
+            </button>
+          );
+          })}
+        </div>
+      )}
+
+    </div>
+  );
+}

@@ -1,0 +1,491 @@
+import React, { useCallback, useEffect, useState } from 'react';
+import { Mail, Trash2, Send, X, CheckCircle, AlertCircle, Search, User } from 'lucide-react';
+import { useNavigate, useOutletContext, useParams } from 'react-router-dom';
+import api from '../../../api';
+import LoadingState from '../../../components/LoadingState';
+
+const styles = `
+  @import url('https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700;800&display=swap');
+  .ts-root { font-family: 'Geist', -apple-system, BlinkMacSystemFont, sans-serif; }
+
+  .ts-page-title { font-size: 18px; font-weight: 750; letter-spacing: -0.4px; color: var(--text); margin: 0 0 4px; }
+  .ts-page-sub { font-size: 13px; color: var(--text-muted); margin: 0 0 28px; }
+
+  /* Feedback */
+  .ts-feedback {
+    display: flex; align-items: center; gap: 8px;
+    font-size: 13px; font-weight: 500; padding: 10px 14px;
+    border-radius: 8px; border: 1.5px solid; margin-bottom: 16px;
+    animation: tsFadeIn 0.15s ease;
+  }
+  @keyframes tsFadeIn { from { opacity:0; transform: translateY(-3px); } to { opacity:1; transform: translateY(0); } }
+  .ts-feedback.success { background: rgba(34, 197, 94, 0.12); border-color: rgba(34, 197, 94, 0.35); color: #22c55e; }
+  .ts-feedback.error { background: rgba(239, 68, 68, 0.12); border-color: rgba(239, 68, 68, 0.35); color: var(--danger); }
+
+  /* Card */
+  .ts-card { background: var(--surface); border: 1.5px solid var(--border); border-radius: 12px; margin-bottom: 16px; overflow: hidden; }
+
+  /* Invite section */
+  .ts-invite-head {
+    padding: 16px 20px; border-bottom: 1.5px solid var(--border);
+  }
+  .ts-invite-label { font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em; color: var(--text-muted); margin: 0 0 12px; }
+  .ts-invite-meta {
+    display: flex; justify-content: space-between; align-items: center; gap: 10px;
+    font-size: 12px; color: var(--text-subtle); margin-bottom: 10px;
+  }
+  .ts-invite-note { font-weight: 600; color: var(--text-muted); }
+  .ts-invite-note.warn { color: #f59e0b; }
+  .ts-invite-note.disabled { color: var(--text-subtle); }
+  .ts-invite-row { display: flex; gap: 8px; align-items: stretch; }
+  .ts-invite-input-wrap { flex: 1; position: relative; }
+  .ts-invite-input-icon { position: absolute; left: 11px; top: 50%; transform: translateY(-50%); color: var(--text-subtle); pointer-events: none; }
+  .ts-invite-input {
+    width: 100%; height: 38px; padding: 0 14px 0 34px;
+    border: 1.5px solid var(--border); border-radius: 8px;
+    font-size: 13px; font-family: inherit;
+    color: var(--text); background: var(--surface-2); outline: none;
+    transition: border-color 0.15s, box-shadow 0.15s, background 0.15s;
+  }
+  .ts-invite-input:focus { border-color: var(--accent); background: var(--surface); box-shadow: 0 0 0 3px rgba(37,99,235,0.08); }
+  .ts-invite-input::placeholder { color: var(--text-subtle); }
+  .ts-invite-input:disabled { background: var(--surface-3); color: var(--text-subtle); cursor: not-allowed; }
+  .ts-invite-btn {
+    height: 38px; padding: 0 16px;
+    background: var(--text); color: var(--bg);
+    border: none; border-radius: 8px;
+    font-size: 13px; font-weight: 650;
+    cursor: pointer; font-family: inherit;
+    display: flex; align-items: center; gap: 6px;
+    transition: background 0.15s; white-space: nowrap;
+  }
+  .ts-invite-btn:hover { background: color-mix(in srgb, var(--text), #000 12%); }
+  .ts-invite-btn:disabled { background: var(--border); color: var(--text-subtle); cursor: not-allowed; }
+
+  .ts-user-search-body { padding: 14px 18px 16px; }
+  .ts-user-search-input-wrap { position: relative; }
+  .ts-user-search-icon { position: absolute; left: 11px; top: 50%; transform: translateY(-50%); color: var(--text-subtle); pointer-events: none; }
+  .ts-user-search-input {
+    width: 100%; height: 38px; padding: 0 12px 0 34px;
+    border: 1.5px solid var(--border); border-radius: 8px;
+    font-size: 13px; font-family: inherit; color: var(--text); background: var(--surface-2); outline: none;
+    transition: border-color 0.15s, box-shadow 0.15s, background 0.15s;
+  }
+  .ts-user-search-input:focus { border-color: var(--accent); background: var(--surface); box-shadow: 0 0 0 3px rgba(37,99,235,0.08); }
+  .ts-user-search-input::placeholder { color: var(--text-subtle); }
+  .ts-user-search-status { margin-top: 8px; font-size: 12px; color: var(--text-subtle); }
+  .ts-user-search-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 8px; margin-top: 10px; }
+  .ts-user-search-item {
+    border: 1.5px solid var(--border); background: var(--surface-2); border-radius: 8px;
+    padding: 10px; cursor: pointer; text-align: left; font-family: inherit;
+    transition: border-color 0.12s, background 0.12s;
+  }
+  .ts-user-search-item:hover { border-color: var(--accent-2); background: var(--surface); }
+  .ts-user-search-name { font-size: 13px; font-weight: 650; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .ts-user-search-username { margin-top: 2px; font-size: 11.5px; font-weight: 600; color: var(--accent); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+  /* Sections */
+  .ts-section-head {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 14px 18px; border-bottom: 1.5px solid var(--border);
+    background: var(--surface-2);
+  }
+  .ts-section-label { font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em; color: var(--text-muted); }
+  .ts-count { font-size: 11px; font-weight: 700; background: var(--surface-2); border: 1px solid var(--border); color: var(--text-muted); padding: 2px 8px; border-radius: 20px; }
+
+  /* Rows */
+  .ts-list { padding: 8px 12px; }
+  .ts-empty { padding: 16px 18px; font-size: 13px; color: var(--text-subtle); }
+
+  .ts-row {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 10px 10px; border: 1.5px solid var(--border); border-radius: 9px;
+    margin-bottom: 6px; background: var(--surface); transition: border-color 0.15s;
+  }
+  .ts-row:hover { border-color: var(--border-strong); }
+  .ts-row:last-child { margin-bottom: 0; }
+
+  .ts-row-left { display: flex; align-items: center; gap: 10px; min-width: 0; }
+  .ts-avatar {
+    width: 32px; height: 32px; border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 12px; font-weight: 800; flex-shrink: 0;
+  }
+  .ts-avatar.blue { background: color-mix(in srgb, var(--accent), transparent 75%); color: var(--accent); }
+  .ts-avatar.slate { background: var(--surface-3); color: var(--text-muted); }
+  .ts-avatar.amber { background: color-mix(in srgb, var(--warning), transparent 75%); color: var(--warning); }
+
+  .ts-row-info { min-width: 0; }
+  .ts-row-name { font-size: 13.5px; font-weight: 650; color: var(--text); letter-spacing: -0.1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .ts-row-sub { font-size: 12px; color: var(--text-subtle); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+  .ts-row-right { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+
+  .ts-badge {
+    font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em;
+    padding: 3px 8px; border-radius: 5px; border: 1px solid;
+  }
+  .ts-badge.admin { background: var(--accent-soft); color: var(--accent); border-color: var(--accent-2); }
+  .ts-badge.member { background: var(--surface-2); color: var(--text-muted); border-color: var(--border); }
+  .ts-badge.pending { background: rgba(251, 191, 36, 0.14); color: var(--warning); border-color: rgba(251, 191, 36, 0.35); }
+
+  .ts-delete-btn {
+    background: none; border: none; cursor: pointer;
+    color: var(--border-strong); padding: 6px; border-radius: 7px;
+    display: flex; align-items: center;
+    transition: color 0.1s, background 0.1s;
+  }
+  .ts-delete-btn:hover { color: var(--danger); background: rgba(239, 68, 68, 0.12); }
+  .ts-delete-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+`;
+
+const TeamSettings = () => {
+  const { workspaceId } = useParams();
+  const { isAdmin } = useOutletContext();
+  const navigate = useNavigate();
+
+  const [members, setMembers] = useState([]);
+  const [pendingInvitations, setPendingInvitations] = useState([]);
+  const [workspaceMeta, setWorkspaceMeta] = useState(null);
+  const [inviteEmail, setInviteEmail] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [sendingInvite, setSendingInvite] = useState(false);
+  const [error, setError] = useState('');
+  const [message, setMessage] = useState('');
+  const [userSearchInput, setUserSearchInput] = useState('');
+  const [debouncedUserSearchInput, setDebouncedUserSearchInput] = useState('');
+  const [userSearchLoading, setUserSearchLoading] = useState(false);
+  const [userSearchError, setUserSearchError] = useState('');
+  const [userSearchResults, setUserSearchResults] = useState([]);
+
+  const showAdminOnly = () => setError('Action allowed only for admin.');
+
+  const fetchMembers = useCallback(async () => {
+    const r = await api.get(`workspaces/${workspaceId}/members/`);
+    setMembers(r.data);
+  }, [workspaceId]);
+
+  const fetchPending = useCallback(async () => {
+    if (!isAdmin) { setPendingInvitations([]); return; }
+    const r = await api.get(`workspaces/${workspaceId}/invitations/`);
+    setPendingInvitations(r.data || []);
+  }, [workspaceId, isAdmin]);
+
+  const fetchWorkspaceMeta = useCallback(async () => {
+    const r = await api.get(`workspaces/${workspaceId}/`);
+    setWorkspaceMeta(r.data || null);
+  }, [workspaceId]);
+
+  const refresh = useCallback(async () => {
+    setLoading(true);
+    try { await Promise.all([fetchMembers(), fetchPending(), fetchWorkspaceMeta()]); }
+    catch (e) { setError(e.response?.data?.error || 'Failed to load team data.'); }
+    finally { setLoading(false); }
+  }, [fetchMembers, fetchPending, fetchWorkspaceMeta]);
+
+  const seatCount = workspaceMeta?.seat_count ?? Math.max(members.length, 1);
+  const purchasedSeatCount = workspaceMeta?.purchased_seat_count ?? 1;
+  const billingEstimate = workspaceMeta?.billing_estimate_inr;
+  const memberLimit = workspaceMeta?.member_limit;
+  const workspacePlan = (workspaceMeta?.effective_plan || '').toUpperCase();
+  const showSeatRatio = isAdmin && workspacePlan === 'TEAM';
+  const activeInvitedCount = members.filter((m) => m.role === 'MEMBER').length;
+  const pendingInviteCount = pendingInvitations.length;
+  const teamInviteLimit = Math.max(Number(purchasedSeatCount || 1) - 1, 0);
+  const planInviteLimit = workspacePlan === 'TEAM'
+    ? teamInviteLimit
+    : (Number.isFinite(memberLimit) ? memberLimit : null);
+  const usedInvites = activeInvitedCount + pendingInviteCount;
+  const invitesRemaining = planInviteLimit === null ? null : Math.max(planInviteLimit - usedInvites, 0);
+  const inviteLimitReached = planInviteLimit !== null && usedInvites >= planInviteLimit;
+  const invitesDisabled = !isAdmin || planInviteLimit === 0;
+
+  useEffect(() => { refresh(); }, [refresh]);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedUserSearchInput(userSearchInput.trim());
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [userSearchInput]);
+
+  useEffect(() => {
+    const query = debouncedUserSearchInput.replace(/^@+/, '');
+    if (!query) {
+      setUserSearchResults([]);
+      setUserSearchError('');
+      setUserSearchLoading(false);
+      return;
+    }
+
+    let cancelled = false;
+    setUserSearchLoading(true);
+    setUserSearchError('');
+    api
+      .get('users/search/', { params: { q: query } })
+      .then((response) => {
+        if (cancelled) return;
+        setUserSearchResults(response.data || []);
+      })
+      .catch((e) => {
+        if (cancelled) return;
+        setUserSearchResults([]);
+        setUserSearchError(e.response?.data?.error || 'Failed to search users.');
+      })
+      .finally(() => {
+        if (cancelled) return;
+        setUserSearchLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [debouncedUserSearchInput]);
+
+  const handleInvite = async (e) => {
+    e.preventDefault();
+    if (!isAdmin) { showAdminOnly(); return; }
+    if (planInviteLimit === 0) {
+      setError(workspacePlan === 'CORE' ? 'Invites are disabled on the Core plan.' : 'Invite limit reached.');
+      return;
+    }
+    if (inviteLimitReached) {
+      setError('Invite limit reached for this workspace.');
+      return;
+    }
+    if (!inviteEmail.trim()) return;
+    setSendingInvite(true); setError(''); setMessage('');
+    try {
+      const r = await api.post(`workspaces/${workspaceId}/invitations/`, { email: inviteEmail.trim() });
+      setMessage(r.data?.message || 'Invitation sent.');
+      setInviteEmail('');
+      await refresh();
+    } catch (e) { setError(e.response?.data?.error || 'Failed to send invitation.'); }
+    finally { setSendingInvite(false); }
+  };
+
+  const handleRemoveMember = async (member) => {
+    if (!isAdmin) { showAdminOnly(); return; }
+    if (member.role === 'ADMIN') { setError('Admin members cannot be removed.'); return; }
+    setError(''); setMessage('');
+    try {
+      const r = await api.delete(`workspaces/${workspaceId}/members/${member.user_id}/`);
+      setMessage(r.data?.message || 'Member removed.');
+      await refresh();
+    } catch (e) { setError(e.response?.data?.error || 'Failed to remove member.'); }
+  };
+
+  const handleCancelInvitation = async (token) => {
+    if (!isAdmin) { showAdminOnly(); return; }
+    setError(''); setMessage('');
+    try {
+      const r = await api.delete(`workspaces/${workspaceId}/invitations/${token}/`);
+      setMessage(r.data?.message || 'Invitation cancelled.');
+      await refresh();
+    } catch (e) { setError(e.response?.data?.error || 'Failed to cancel invitation.'); }
+  };
+
+  return (
+    <div className="ts-root">
+      <style>{styles}</style>
+
+      <h2 className="ts-page-title">Team Members</h2>
+      <p className="ts-page-sub">Manage access permissions and roles for your workspace.</p>
+      {isAdmin && (
+        <p className="ts-page-sub" style={{ marginTop: "-18px", marginBottom: "18px" }}>
+          {`Seats active: ${showSeatRatio ? `${seatCount}/${purchasedSeatCount}` : seatCount}${billingEstimate ? ` — ₹${billingEstimate}/month` : ""}${
+            memberLimit != null ? ` • Member limit: ${memberLimit}` : ""
+          }`}
+        </p>
+      )}
+
+      {message && (
+        <div className="ts-feedback success">
+          <CheckCircle size={14} /> {message}
+          <button style={{ background:'none', border:'none', cursor:'pointer', marginLeft:'auto', color:'inherit', opacity:0.6, display:'flex', alignItems:'center' }} onClick={() => setMessage('')}><X size={13} /></button>
+        </div>
+      )}
+      {error && (
+        <div className="ts-feedback error">
+          <AlertCircle size={14} /> {error}
+          <button style={{ background:'none', border:'none', cursor:'pointer', marginLeft:'auto', color:'inherit', opacity:0.6, display:'flex', alignItems:'center' }} onClick={() => setError('')}><X size={13} /></button>
+        </div>
+      )}
+
+      {/* Invite */}
+      <div className="ts-card">
+        <div className="ts-invite-head">
+          <div className="ts-invite-label">Invite new member</div>
+          <div className="ts-invite-meta">
+            {invitesRemaining !== null ? (
+              <span className="ts-invite-note">Invites remaining: {invitesRemaining}</span>
+            ) : (
+              <span className="ts-invite-note">No invite limits on this plan.</span>
+            )}
+            {!isAdmin && <span className="ts-invite-note disabled">Admins only.</span>}
+            {workspacePlan === 'CORE' && (
+              <span className="ts-invite-note disabled">Invites disabled on Core.</span>
+            )}
+            {isAdmin && inviteLimitReached && (
+              <span className="ts-invite-note warn">Invite limit reached.</span>
+            )}
+          </div>
+          <form onSubmit={handleInvite} className="ts-invite-row">
+            <div className="ts-invite-input-wrap">
+              <Mail size={14} className="ts-invite-input-icon" />
+              <input
+                type="email"
+                className="ts-invite-input"
+                value={inviteEmail}
+                onChange={(e) => setInviteEmail(e.target.value)}
+                disabled={sendingInvite || invitesDisabled || inviteLimitReached}
+                placeholder="colleague@company.com"
+              />
+            </div>
+            <button
+              type="submit"
+              className="ts-invite-btn"
+              disabled={sendingInvite || invitesDisabled || inviteLimitReached}
+            >
+              <Send size={13} />
+              {sendingInvite ? 'Sending…' : 'Send Invite'}
+            </button>
+          </form>
+        </div>
+      </div>
+
+      <div className="ts-card">
+        <div className="ts-section-head">
+          <span className="ts-section-label">Find User</span>
+          <span className="ts-count">{userSearchResults.length}</span>
+        </div>
+        <div className="ts-user-search-body">
+          <div className="ts-user-search-input-wrap">
+            <Search size={14} className="ts-user-search-icon" />
+            <input
+              type="text"
+              className="ts-user-search-input"
+              value={userSearchInput}
+              onChange={(e) => setUserSearchInput(e.target.value)}
+              placeholder="Search users by @username or name..."
+            />
+          </div>
+
+          {!debouncedUserSearchInput ? (
+            <div className="ts-user-search-status">Type to search users.</div>
+          ) : userSearchLoading ? (
+            <div className="ts-user-search-status">Searching...</div>
+          ) : userSearchError ? (
+            <div className="ts-user-search-status" style={{ color: 'var(--danger)' }}>{userSearchError}</div>
+          ) : userSearchResults.length === 0 ? (
+            <div className="ts-user-search-status">No users found.</div>
+          ) : (
+            <div className="ts-user-search-grid">
+              {userSearchResults.map((result) => (
+                <button
+                  key={result.id}
+                  type="button"
+                  className="ts-user-search-item"
+                  onClick={() => navigate(`/app/users/${encodeURIComponent(result.username)}`)}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <User size={14} style={{ color: 'var(--text-subtle)', flexShrink: 0 }} />
+                    <div style={{ minWidth: 0 }}>
+                      <div className="ts-user-search-name">{result.full_name || 'Unnamed user'}</div>
+                      <div className="ts-user-search-username">@{result.username}</div>
+                    </div>
+                  </div>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Pending invitations */}
+      {isAdmin && (
+        <div className="ts-card">
+          <div className="ts-section-head">
+            <span className="ts-section-label">Pending Invitations</span>
+            <span className="ts-count">{pendingInvitations.length}</span>
+          </div>
+          {pendingInvitations.length === 0 ? (
+            <div className="ts-empty">No pending invitations.</div>
+          ) : (
+            <div className="ts-list">
+              {pendingInvitations.map((inv) => (
+                <div key={inv.token} className="ts-row">
+                  <div className="ts-row-left">
+                    <div className="ts-avatar amber">{inv.email[0].toUpperCase()}</div>
+                    <div className="ts-row-info">
+                      <div className="ts-row-name">{inv.email}</div>
+                      <div className="ts-row-sub">Role: {inv.role}</div>
+                    </div>
+                  </div>
+                  <div className="ts-row-right">
+                    <span className="ts-badge pending">Pending</span>
+                    <button
+                      type="button"
+                      className="ts-delete-btn"
+                      onClick={() => handleCancelInvitation(inv.token)}
+                      title="Cancel invitation"
+                    >
+                      <Trash2 size={15} />
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Active members */}
+      <div className="ts-card">
+        <div className="ts-section-head">
+          <span className="ts-section-label">Active Members</span>
+          <span className="ts-count">{members.length}</span>
+        </div>
+        {loading ? (
+          <div style={{ padding: '12px 0' }}>
+            <LoadingState message="Loading members" minHeight={220} imageWidth={132} />
+          </div>
+        ) : members.length === 0 ? (
+          <div className="ts-empty">No members found.</div>
+        ) : (
+          <div className="ts-list">
+            {members.map((m) => (
+              <div key={m.user_id} className="ts-row">
+                <div className="ts-row-left">
+                  <div className={`ts-avatar ${m.role === 'ADMIN' ? 'blue' : 'slate'}`}>
+                    {(m.full_name || m.email || 'U')[0].toUpperCase()}
+                  </div>
+                  <div className="ts-row-info">
+                    <div className="ts-row-name">{m.full_name || m.email}</div>
+                    <div className="ts-row-sub">{m.email}</div>
+                  </div>
+                </div>
+                <div className="ts-row-right">
+                  <span className={`ts-badge ${m.role === 'ADMIN' ? 'admin' : 'member'}`}>
+                    {m.role === 'ADMIN' ? 'Admin' : 'Member'}
+                  </span>
+                  <button
+                    type="button"
+                    className="ts-delete-btn"
+                    onClick={() => handleRemoveMember(m)}
+                    disabled={!isAdmin || m.role === 'ADMIN'}
+                    title="Remove member"
+                  >
+                    <Trash2 size={15} />
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+export default TeamSettings;
