@@ -1,0 +1,73 @@
+# -------------------------
+# Python
+# -------------------------
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.pyc
+*.so
+
+# -------------------------
+# Virtual Environment
+# -------------------------
+venv/
+.env/
+.env.*
+!.env.example
+.venv/
+
+# -------------------------
+# Django
+# -------------------------
+*.log
+local_settings.py
+db.sqlite3
+db.sqlite3-journal
+media/
+
+# Django migrations (optional – uncomment if you DON'T want migrations tracked)
+# */migrations/
+# */migrations/__pycache__/
+
+# -------------------------
+# Static files (if collected)
+# -------------------------
+staticfiles/
+static_root/
+
+# -------------------------
+# Secrets & credentials
+# -------------------------
+.env
+.env.local
+.env.production
+.env.development
+
+# -------------------------
+# VS Code
+# -------------------------
+.vscode/
+*.code-workspace
+
+# -------------------------
+# OS files
+# -------------------------
+.DS_Store
+Thumbs.db
+
+# -------------------------
+# Test / Coverage
+# -------------------------
+htmlcov/
+.coverage
+.coverage.*
+.pytest_cache/
+.tox/
+
+# -------------------------
+# Build / Packaging
+# -------------------------
+build/
+dist/
+*.egg-info/
