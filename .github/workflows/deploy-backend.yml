@@ -4,6 +4,8 @@ on:
   push:
     branches:
       - main
+    paths:
+      - 'backend/**'
 
 permissions:
   id-token: write
@@ -31,14 +33,14 @@ jobs:
         env:
           ECR_REGISTRY: 042843883108.dkr.ecr.ap-south-2.amazonaws.com
         run: |
-          docker build -t $ECR_REGISTRY/structra-api:latest -f Dockerfile .
+          docker build -t $ECR_REGISTRY/structra-api:latest -f backend/Dockerfile ./backend
           docker push $ECR_REGISTRY/structra-api:latest
 
       - name: Build and push Worker image
         env:
           ECR_REGISTRY: 042843883108.dkr.ecr.ap-south-2.amazonaws.com
         run: |
-          docker build -t $ECR_REGISTRY/structra-worker:latest -f Dockerfile.worker .
+          docker build -t $ECR_REGISTRY/structra-worker:latest -f backend/Dockerfile.worker ./backend
           docker push $ECR_REGISTRY/structra-worker:latest
 
       - name: Deploy via SSM
