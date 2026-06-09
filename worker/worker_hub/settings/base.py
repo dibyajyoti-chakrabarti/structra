@@ -60,8 +60,9 @@ EVALUATION_LOCAL_QUEUE_MAX_ATTEMPTS = int(os.getenv('EVALUATION_LOCAL_QUEUE_MAX_
 EVALUATION_LOCAL_QUEUE_LOCK_TIMEOUT_SECONDS = int(os.getenv('EVALUATION_LOCAL_QUEUE_LOCK_TIMEOUT_SECONDS', '300'))
 
 # AWS Bedrock
-BEDROCK_MODEL_ID = os.getenv('BEDROCK_MODEL_ID', 'global.anthropic.claude-sonnet-4-6')
-BEDROCK_SEMANTIC_MODEL_ID = os.getenv('BEDROCK_SEMANTIC_MODEL_ID', 'global.anthropic.claude-haiku-4-5-20251001-v1:0')
+BEDROCK_MODEL_ID = os.getenv('BEDROCK_MODEL_ID', 'amazon.nova-pro-v1:0')
+BEDROCK_SEMANTIC_MODEL_ID = os.getenv('BEDROCK_SEMANTIC_MODEL_ID', 'amazon.nova-lite-v1:0')
+BEDROCK_REGION = os.getenv('BEDROCK_REGION', 'us-east-1')
 BEDROCK_TIMEOUT_SECONDS = float(os.getenv('BEDROCK_TIMEOUT_SECONDS', '60'))
 AWS_PROFILE = os.getenv('AWS_PROFILE', '')  # set for local dev; empty in prod (EC2 IAM role)
 

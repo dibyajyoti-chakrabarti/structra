@@ -74,7 +74,7 @@ def evaluate_canvas_state(canvas_state, workspace_tier):
 
 
 def _get_bedrock_client(region=None):
-    region = region or settings.AWS_REGION
+    region = region or getattr(settings, 'BEDROCK_REGION', 'us-east-1')
     if getattr(settings, 'AWS_PROFILE', ''):
         session = boto3.Session(profile_name=settings.AWS_PROFILE)
         return session.client('bedrock-runtime', region_name=region)
