@@ -59,6 +59,7 @@ services:
     volumes:
       - ./worker:/app/worker
       - ./backend:/app/backend
+      - ${HOME}/.aws:/root/.aws:ro
     env_file:
       - ./backend/.env.local
     environment:
