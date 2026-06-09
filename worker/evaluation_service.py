@@ -87,7 +87,7 @@ def _call_bedrock(prompt, model_id, timeout_seconds=60):
         response = client.converse(
             modelId=model_id,
             messages=[{'role': 'user', 'content': [{'text': prompt}]}],
-            inferenceConfig={'maxTokens': 4096, 'temperature': 0.2, 'topP': 0.9},
+            inferenceConfig={'maxTokens': 4096, 'temperature': 0.2},
         )
         text = response['output']['message']['content'][0]['text']
         if isinstance(text, str) and text.strip():
