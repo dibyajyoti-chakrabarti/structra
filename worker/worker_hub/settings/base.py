@@ -59,9 +59,11 @@ EVALUATION_LOCAL_QUEUE_RETRY_DELAY_SECONDS = int(os.getenv('EVALUATION_LOCAL_QUE
 EVALUATION_LOCAL_QUEUE_MAX_ATTEMPTS = int(os.getenv('EVALUATION_LOCAL_QUEUE_MAX_ATTEMPTS', '3'))
 EVALUATION_LOCAL_QUEUE_LOCK_TIMEOUT_SECONDS = int(os.getenv('EVALUATION_LOCAL_QUEUE_LOCK_TIMEOUT_SECONDS', '300'))
 
-# Gemini
-GEMINI_API_KEY = os.getenv('GEMINI_API_KEY', '')
-GEMINI_MODEL = os.getenv('GEMINI_MODEL', 'gemini-2.5-flash')
+# AWS Bedrock
+BEDROCK_MODEL_ID = os.getenv('BEDROCK_MODEL_ID', 'us.anthropic.claude-3-5-sonnet-20241022-v2:0')
+BEDROCK_SEMANTIC_MODEL_ID = os.getenv('BEDROCK_SEMANTIC_MODEL_ID', 'us.anthropic.claude-haiku-4-5-20251001-v1:0')
+BEDROCK_TIMEOUT_SECONDS = float(os.getenv('BEDROCK_TIMEOUT_SECONDS', '60'))
+AWS_PROFILE = os.getenv('AWS_PROFILE', '')  # set for local dev; empty in prod (EC2 IAM role)
 
 # Payments (Razorpay) — referenced by workspaces app models/services
 RAZORPAY_KEY_ID = os.getenv('RAZORPAY_KEY_ID', '')

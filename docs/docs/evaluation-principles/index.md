@@ -15,6 +15,8 @@ Structra's evaluation framework is organized into principle sets that progressiv
 
 - [Structra Basics](/evaluation-principles/structra-basics): the primary 50-rule framework used by the evaluation engine
 - [Production System Design Principles](/evaluation-principles/production-system-principles): advanced architecture review principles for high-stakes production systems
+- [AI Evaluation Report](/evaluation-principles/ai-suggestions): the AI-generated analysis that synthesizes rule results into an actionable report
+- [Enterprise Cloud Analysis](/evaluation-principles/cloud-analysis): AWS Well-Architected alignment review available on the Enterprise plan
 
 ## How the Framework Is Organized
 
@@ -52,6 +54,20 @@ Prepare evidence such as:
 
 If these inputs are incomplete, some findings may be missing, ambiguous, or less useful than they should be.
 
+## AI Evaluation Layer
+
+After the deterministic rule engine scores your architecture, Structra generates an AI-powered report that synthesizes the rule results into an actionable analysis. The AI layer does not re-evaluate — it uses the rule findings as evidence and produces structured output covering:
+
+- **Executive Summary**: the overall architectural posture and highest-priority risks
+- **Risk Register**: a table of risks with severity, evidence, business impact, and recommended fix
+- **Findings By Domain**: per-area analysis across connectivity, compute, data, security, reliability, and observability
+- **Remediation Roadmap**: phased action plan with implementation-specific steps (0–2 weeks, 2–6 weeks, 6–12 weeks)
+- **Verification Checklist**: acceptance criteria for each remediation item
+
+The AI report is generated once per evaluation and requires an Insight Token. Tokens reset daily. See [AI Evaluation Report](/evaluation-principles/ai-suggestions) for full details.
+
+Enterprise workspaces additionally receive a [Cloud Architecture Analysis](/evaluation-principles/cloud-analysis) aligned to the AWS Well-Architected Framework.
+
 ## Workspace Plan Enforcement
 
 Everyone can read the full documentation set. Enforcement happens in the evaluation engine based on workspace plan.
@@ -59,7 +75,7 @@ Everyone can read the full documentation set. Enforcement happens in the evaluat
 - `Core`: evaluates `Basic` only (`F-01` to `F-20`)
 - `Individual`: evaluates all standard rules
 - `Team`: evaluates all standard rules
-- `Enterprise`: evaluates all standard rules, with room for future extensions
+- `Enterprise`: evaluates all standard rules plus AWS Well-Architected cloud analysis
 
 ## Recommended Review Flow
 

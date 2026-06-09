@@ -55,6 +55,12 @@ Once the architecture context is in place, run the evaluation and treat the firs
 3. Open each triggered rule and read the explanation, not just the status.
 4. Group findings by theme such as reliability, data correctness, scale, or security.
 
+After the rule engine scores your design, Structra generates an AI report that synthesizes the findings into actionable guidance. The report includes a Risk Register, per-domain findings, a phased Remediation Roadmap, and a Verification Checklist. Each evaluation consumes one Insight Token — tokens reset daily based on your plan.
+
+Read the Remediation Roadmap in phase order: resolve `Immediate` items first. These are typically correctness and security gaps. `Near-term` and `Mid-term` items are scale and operability improvements that can be planned across sprints.
+
+Enterprise workspaces also receive a Cloud Architecture Analysis aligned to the AWS Well-Architected Framework, visible as a separate collapsible section in the evaluation report.
+
 ## How to Interpret Findings
 
 Not every finding carries the same operational weight. A useful review sequence is:

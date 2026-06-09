@@ -72,7 +72,7 @@ const buildFallbackReport = (run) => {
     '## Rule Findings',
     failedSection,
     '',
-    run?.geminiError
+    run?.aiError
       ? '> [!WARNING]\n> AI narrative generation is unavailable in this environment. Showing rule-engine output only.'
       : '> [!NOTE]\n> AI report text was not available for this run. Showing rule-engine output only.',
   ].join('\n');
@@ -212,6 +212,17 @@ export default function WorkspaceEvaluations() {
             <div className={`rounded-xl border p-6 shadow-sm ${isDarkTheme ? 'border-slate-700 bg-slate-900' : 'border-slate-200 bg-white'}`}>
               <StructuredReport text={selectedRun.suggestions || buildFallbackReport(selectedRun)} />
             </div>
+
+            {selectedRun.cloudAnalysis && (
+              <details className={`rounded-xl border shadow-sm ${isDarkTheme ? 'border-amber-800/40 bg-slate-900' : 'border-amber-200 bg-amber-50/30'}`}>
+                <summary className={`cursor-pointer select-none px-6 py-4 text-sm font-semibold ${isDarkTheme ? 'text-amber-400' : 'text-amber-700'}`}>
+                  Cloud Architecture Analysis (Enterprise)
+                </summary>
+                <div className="px-6 pb-6">
+                  <StructuredReport text={selectedRun.cloudAnalysis} />
+                </div>
+              </details>
+            )}
 
             <div className="flex justify-end gap-2">
               <button

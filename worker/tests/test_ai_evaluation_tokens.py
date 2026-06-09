@@ -47,9 +47,10 @@ class ServiceLevelTokenRefundTests(TestCase):
         )
 
     @patch('evaluation_service.close_old_connections', return_value=None)
-    @patch('evaluation_service.call_gemini_for_prompt', return_value=(None, True))
+    @patch('evaluation_service.call_bedrock_for_prompt', return_value=(None, True))
+    @patch('evaluation_service._semantic_enrich_canvas_state', side_effect=lambda cs, _tier: cs)
     @patch('evaluation_service.evaluate_canvas_state')
-    def test_gemini_no_response_refunds_token(self, evaluate_mock, _gemini_mock, _close_connections_mock):
+    def test_ai_no_response_refunds_token(self, evaluate_mock, _enrich_mock, _bedrock_mock, _close_connections_mock):
         ensure_workspace_insight_token_state(self.workspace, now=timezone.now(), force_reset=True)
         self.workspace.insight_tokens_remaining = 2
         self.workspace.save(update_fields=['insight_tokens_remaining'])
@@ -79,12 +80,13 @@ class ServiceLevelTokenRefundTests(TestCase):
         self.assertEqual(self.workspace.insight_tokens_remaining, 2)
         run.refresh_from_db()
         self.assertEqual(run.status, EvaluationRun.Status.COMPLETED)
-        self.assertTrue(run.gemini_error)
+        self.assertTrue(run.ai_error)
         self.assertFalse(run.insight_token_consumed)
 
     @patch('evaluation_service.close_old_connections', return_value=None)
+    @patch('evaluation_service._semantic_enrich_canvas_state', side_effect=lambda cs, _tier: cs)
     @patch('evaluation_service.evaluate_canvas_state', side_effect=RuntimeError('invalid report'))
-    def test_corrupted_run_refunds_token(self, _evaluate_mock, _close_connections_mock):
+    def test_corrupted_run_refunds_token(self, _evaluate_mock, _enrich_mock, _close_connections_mock):
         ensure_workspace_insight_token_state(self.workspace, now=timezone.now(), force_reset=True)
         self.workspace.insight_tokens_remaining = 2
         self.workspace.save(update_fields=['insight_tokens_remaining'])

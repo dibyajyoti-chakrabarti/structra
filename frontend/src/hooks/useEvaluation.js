@@ -8,13 +8,14 @@ const INITIAL_STATE = {
   summary: null,
   results: [],
   suggestions: null,
+  cloudAnalysis: null,
   insightTokensRemaining: null,
   dailyInsightTokens: null,
   tier: null,
   seatCount: null,
   tokenConsumed: false,
   noTokens: false,
-  geminiError: false,
+  aiError: false,
   error: null,
 };
 
@@ -42,8 +43,9 @@ export function useEvaluation() {
       ...prev,
       status: 'scoring',
       error: null,
-      geminiError: false,
+      aiError: false,
       suggestions: null,
+      cloudAnalysis: null,
       tokenConsumed: false,
       noTokens: false,
     }));
@@ -83,7 +85,7 @@ export function useEvaluation() {
       ...prev,
       status: 'awaiting_ai',
       error: null,
-      geminiError: false,
+      aiError: false,
       tokenConsumed: false,
       noTokens: false,
     }));
@@ -102,13 +104,14 @@ export function useEvaluation() {
         summary: data.summary ?? prev.summary,
         results: Array.isArray(data.results) ? data.results : prev.results,
         suggestions: data.suggestions ?? null,
+        cloudAnalysis: data.cloudAnalysis ?? null,
         insightTokensRemaining: data.insightTokensRemaining ?? prev.insightTokensRemaining,
         dailyInsightTokens: data.dailyInsightTokens ?? prev.dailyInsightTokens,
         tier: data.tier ?? data.workspaceTier ?? prev.tier,
         seatCount: data.seatCount ?? prev.seatCount,
         tokenConsumed: Boolean(data.tokenConsumed),
         noTokens: false,
-        geminiError: false,
+        aiError: false,
         error: null,
       }));
     } catch (err) {
@@ -136,11 +139,11 @@ export function useEvaluation() {
         return;
       }
 
-      if (data.error === 'GEMINI_FAILED') {
+      if (data.error === 'AI_FAILED') {
         setState((prev) => ({
           ...prev,
           status: 'complete',
-          geminiError: true,
+          aiError: true,
           insightTokensRemaining: data.insightTokensRemaining ?? prev.insightTokensRemaining,
           tokenConsumed: false,
           error: data.message || 'Could not reach AI service.',

@@ -87,7 +87,7 @@ class EvaluationRunAdmin(admin.ModelAdmin):
         "score",
         "credits_exhausted",
         "insight_token_consumed",
-        "gemini_error",
+        "ai_error",
         "created_at",
         "completed_at",
     )
@@ -107,7 +107,7 @@ class EvaluationRunAdmin(admin.ModelAdmin):
         "workspace_tier",
         "credits_exhausted",
         "insight_token_consumed",
-        "gemini_error",
+        "ai_error",
         "created_at",
     )
     ordering = ("-created_at",)

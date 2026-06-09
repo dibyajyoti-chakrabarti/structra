@@ -1,5 +1,5 @@
 import fs from 'node:fs';
-import { buildGeminiPrompt, evaluateRules, summarizeResults } from './evaluateRules.mjs';
+import { buildEvaluationPrompt, evaluateRules, summarizeResults } from './evaluateRules.mjs';
 
 const raw = fs.readFileSync(0, 'utf8');
 const input = raw ? JSON.parse(raw) : {};
@@ -11,7 +11,7 @@ const canvasState = {
 
 const results = evaluateRules(canvasState);
 const summary = summarizeResults(results);
-const prompt = buildGeminiPrompt(results, canvasState.systemMetadata || {}, workspaceTier);
+const prompt = buildEvaluationPrompt(results, canvasState.systemMetadata || {}, workspaceTier);
 
 process.stdout.write(
   JSON.stringify({

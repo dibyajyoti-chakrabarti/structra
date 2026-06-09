@@ -3,9 +3,9 @@
  * Evaluates all 50 rules (F-01..F-20, P-01..P-30) against a canvasState.
  *
  * Usage:
- *   import { evaluateRules, buildGeminiPrompt } from './evaluateRules';
+ *   import { evaluateRules, buildEvaluationPrompt } from './evaluateRules';
  *   const result = evaluateRules(canvasState);
- *   const prompt = buildGeminiPrompt(result, canvasState.systemMetadata);
+ *   const prompt = buildEvaluationPrompt(result, canvasState.systemMetadata);
  *
  * Each rule returns:
  *   { id, ruleTier, passed, confidence, reason, affectedNodeIds, affectedEdgeIds }
@@ -1467,9 +1467,9 @@ export function summarizeResults(results) {
   };
 }
 
-// ─── Gemini prompt builder ────────────────────────────────────────────────────
+// ─── Evaluation prompt builder ───────────────────────────────────────────────
 
-export function buildGeminiPrompt(results, systemMetadata, workspaceTier = 'core') {
+export function buildEvaluationPrompt(results, systemMetadata, workspaceTier = 'core') {
   const summary = summarizeResults(results);
   const failedRules = results.filter((r) => r.passed === false);
   const passedRules = results.filter((r) => r.passed === true);
