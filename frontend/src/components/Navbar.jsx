@@ -2,11 +2,12 @@ import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import logo from '../assets/logo.png';
 import { Menu, X } from 'lucide-react';
+import { useAuth } from '../contexts/AuthContext.jsx';
 
 export default function Navbar() {
   const navigate = useNavigate();
   const [isOpen, setIsOpen] = useState(false);
-  const isAuthenticated = Boolean(localStorage.getItem("access"));
+  const { isAuthenticated } = useAuth();
 
   return (
     <nav className="fixed top-0 z-50 w-full border-b border-blue-100 bg-white/95 backdrop-blur">

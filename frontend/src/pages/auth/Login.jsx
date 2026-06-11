@@ -1,6 +1,11 @@
-import { useGoogleLogin } from "@react-oauth/google";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useEffect, useState } from "react";
+import {
+  signIn,
+  confirmSignIn,
+  signInWithRedirect,
+  fetchAuthSession,
+} from "aws-amplify/auth";
 import {
   ArrowLeft,
   Mail,
@@ -14,14 +19,17 @@ import {
 import logo from "../../assets/logo.png";
 import LoginIllustration from "../../assets/login-illustration.svg";
 import api from "../../api";
+import { useAuth } from "../../contexts/AuthContext";
 
 export default function Login() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const inviteToken = searchParams.get("invite_token") || "";
   const inviteEmail = searchParams.get("invite_email") || "";
+  const { refreshUserProfile } = useAuth();
 
-  const [formData, setFormData] = useState({ identifier: "", password: "" });
+  const [identifier, setIdentifier] = useState(inviteEmail || "");
+  const [password, setPassword] = useState("");
   const [authMethod, setAuthMethod] = useState("password");
   const [otpCode, setOtpCode] = useState("");
   const [otpSent, setOtpSent] = useState(false);
@@ -32,10 +40,11 @@ export default function Login() {
   const [illustrationSrc, setIllustrationSrc] = useState(
     "/src/assets/login-illustration.svg"
   );
+  // Tracks a pending CUSTOM_AUTH challenge (waiting for OTP input)
+  const [pendingSignIn, setPendingSignIn] = useState(null);
 
   useEffect(() => {
-    if (!inviteEmail) return;
-    setFormData((prev) => ({ ...prev, identifier: prev.identifier || inviteEmail }));
+    if (inviteEmail) setIdentifier(inviteEmail);
   }, [inviteEmail]);
 
   const resolvePostAuthRoute = async (isNewUser) => {
@@ -43,138 +52,118 @@ export default function Login() {
       navigate(`/invite/${encodeURIComponent(inviteToken)}/respond`);
       return;
     }
+    navigate(isNewUser ? "/app/onboarding" : "/app");
+  };
 
-    if (isNewUser) {
-      navigate("/app/onboarding");
-    } else {
-      navigate("/app");
+  const finishAuth = async () => {
+    await refreshUserProfile();
+    const profile = await api.get("auth/profile/");
+    await resolvePostAuthRoute(profile.data?.is_new);
+  };
+
+  // --- Google ---
+  const handleGoogleLogin = async () => {
+    setError("");
+    try {
+      await signInWithRedirect({ provider: "Google" });
+    } catch (err) {
+      setError("Google login failed. Please try again.");
+      console.error(err);
     }
   };
 
-  const googleLogin = useGoogleLogin({
-    onSuccess: async (tokenResponse) => {
-      setLoading(true);
-      try {
-        const res = await api.post("auth/google/", {
-          access_token: tokenResponse.access_token,
-        });
-
-        localStorage.setItem("access", res.data.access);
-        localStorage.setItem("refresh", res.data.refresh);
-
-        await resolvePostAuthRoute(res.data.user.is_new);
-      } catch (err) {
-        console.error("Google Login Failed", err);
-        setError("Google login failed. Please try again.");
-      } finally {
-        setLoading(false);
-      }
-    },
-    onError: () => setError("Google login failed"),
-  });
-
-  const handleGitHubLogin = () => {
-    const CLIENT_ID = import.meta.env.VITE_GITHUB_CLIENT_ID;
-    const REDIRECT_URI = `${import.meta.env.VITE_FRONTEND_URL}/auth/github/callback`;
-
-    if (!CLIENT_ID) {
-      alert("GitHub Client ID not loaded");
-      return;
+  // --- GitHub ---
+  const handleGitHubLogin = async () => {
+    setError("");
+    try {
+      await signInWithRedirect({ provider: { custom: "GitHub" } });
+    } catch (err) {
+      setError("GitHub login failed. Please try again.");
+      console.error(err);
     }
-
-    window.location.href =
-      `https://github.com/login/oauth/authorize` +
-      `?client_id=${CLIENT_ID}` +
-      `&redirect_uri=${encodeURIComponent(REDIRECT_URI)}` +
-      `&scope=user:email`;
   };
 
-  const handleChange = (e) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
-  };
-
-  const handleLogin = async (e) => {
+  // --- Password login ---
+  const handlePasswordLogin = async (e) => {
     e.preventDefault();
     setError("");
     setLoading(true);
     try {
-      const response = await api.post("auth/login/", formData);
-      localStorage.setItem("access", response.data.access);
-      localStorage.setItem("refresh", response.data.refresh);
-
-      const profileRes = await api.get("auth/profile/");
-      await resolvePostAuthRoute(profileRes.data.is_new);
+      const result = await signIn({ username: identifier, password });
+      if (result.isSignedIn) {
+        await finishAuth();
+      } else {
+        setError("Sign-in incomplete. Please try again.");
+      }
     } catch (err) {
       console.error(err);
-      setError("Invalid credentials. Please try again.");
+      setError(err.message || "Invalid credentials. Please try again.");
     } finally {
       setLoading(false);
     }
   };
 
+  // --- OTP: request (initiate CUSTOM_AUTH) ---
   const handleRequestOtp = async () => {
-    if (!formData.identifier.trim()) {
-      setError("Please enter your email or username first.");
+    if (!identifier.trim()) {
+      setError("Please enter your email first.");
       return;
     }
-
     setError("");
     setOtpMessage("");
     setLoading(true);
     try {
-      const res = await api.post("auth/email-otp/request/", {
-        identifier: formData.identifier,
-        purpose: "login",
+      const result = await signIn({
+        username: identifier,
+        options: { authFlowType: "CUSTOM_WITHOUT_SRP" },
       });
-      setOtpSent(true);
-      setOtpMessage(
-        `OTP sent. It expires in ${res.data.expires_in_minutes || 10} minutes.`
-      );
+      if (result.nextStep?.signInStep === "CONFIRM_SIGN_IN_WITH_CUSTOM_CHALLENGE") {
+        setPendingSignIn(result);
+        setOtpSent(true);
+        setOtpMessage("OTP sent to your email. It expires in 10 minutes.");
+      } else {
+        setError("Unexpected auth step. Please try again.");
+      }
     } catch (err) {
-      setError(err.response?.data?.error || "Failed to send OTP. Please try again.");
+      console.error(err);
+      setError(err.message || "Failed to send OTP. Please try again.");
     } finally {
       setLoading(false);
     }
   };
 
+  // --- OTP: verify ---
   const handleVerifyOtp = async () => {
-    if (!formData.identifier.trim() || !otpCode.trim()) {
-      setError("Please enter email/username and OTP.");
+    if (!otpCode.trim()) {
+      setError("Please enter the OTP.");
       return;
     }
-
     setError("");
     setLoading(true);
     try {
-      const response = await api.post("auth/email-otp/verify/", {
-        identifier: formData.identifier,
-        otp: otpCode,
-        purpose: "login",
-      });
-
-      localStorage.setItem("access", response.data.access);
-      localStorage.setItem("refresh", response.data.refresh);
-
-      await resolvePostAuthRoute(response.data.user?.is_new);
+      const result = await confirmSignIn({ challengeResponse: otpCode });
+      if (result.isSignedIn) {
+        await finishAuth();
+      } else {
+        setError("OTP verification failed. Please try again.");
+      }
     } catch (err) {
-      setError(err.response?.data?.error || "OTP verification failed. Please try again.");
+      console.error(err);
+      setError(err.message || "OTP verification failed. Please try again.");
     } finally {
       setLoading(false);
     }
   };
 
   const handleAuthSubmit = async (e) => {
-    if (authMethod === "password") {
-      await handleLogin(e);
-      return;
-    }
-
     e.preventDefault();
-    if (!otpSent) {
+    if (authMethod === "password") {
+      await handlePasswordLogin(e);
+    } else if (!otpSent) {
       await handleRequestOtp();
-      return;
+    } else {
+      await handleVerifyOtp();
     }
-    await handleVerifyOtp();
   };
 
   return (
@@ -213,7 +202,7 @@ export default function Login() {
                 <div className="grid grid-cols-2 gap-2.5">
                   <button
                     type="button"
-                    onClick={() => googleLogin()}
+                    onClick={handleGoogleLogin}
                     className="flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white py-2.5 text-xs font-bold text-slate-700 transition hover:border-blue-200 hover:bg-blue-50"
                   >
                     <Chrome size={14} /> Google
@@ -238,11 +227,7 @@ export default function Login() {
                 <div className="grid grid-cols-2 gap-2 rounded-xl border border-slate-200 bg-slate-50 p-1">
                   <button
                     type="button"
-                    onClick={() => {
-                      setAuthMethod("password");
-                      setError("");
-                      setOtpMessage("");
-                    }}
+                    onClick={() => { setAuthMethod("password"); setError(""); setOtpMessage(""); }}
                     className={`rounded-lg py-2 text-xs font-bold transition ${
                       authMethod === "password"
                         ? "bg-blue-600 text-white"
@@ -253,11 +238,7 @@ export default function Login() {
                   </button>
                   <button
                     type="button"
-                    onClick={() => {
-                      setAuthMethod("otp");
-                      setError("");
-                      setOtpMessage("");
-                    }}
+                    onClick={() => { setAuthMethod("otp"); setError(""); setOtpMessage(""); }}
                     className={`flex items-center justify-center gap-1.5 rounded-lg py-2 text-xs font-bold transition ${
                       authMethod === "otp"
                         ? "bg-blue-600 text-white"
@@ -275,11 +256,10 @@ export default function Login() {
                       size={16}
                     />
                     <input
-                      name="identifier"
-                      value={formData.identifier}
-                      onChange={handleChange}
-                      type="text"
-                      placeholder="Email or Username"
+                      value={identifier}
+                      onChange={(e) => setIdentifier(e.target.value)}
+                      type="email"
+                      placeholder="Email"
                       required
                       readOnly={!!inviteEmail}
                       className="w-full rounded-xl border border-slate-200 bg-white py-3 pl-10 pr-4 text-sm text-slate-800 placeholder:text-slate-400 focus:border-blue-400 focus:outline-none"
@@ -287,48 +267,28 @@ export default function Login() {
                   </div>
 
                   {authMethod === "password" ? (
-                    <>
-                      <div className="relative">
-                        <Lock
-                          className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
-                          size={16}
-                        />
-                        <input
-                          name="password"
-                          value={formData.password}
-                          onChange={handleChange}
-                          type={showPassword ? "text" : "password"}
-                          placeholder="Password"
-                          required
-                          className="w-full rounded-xl border border-slate-200 bg-white py-3 pl-10 pr-11 text-sm text-slate-800 placeholder:text-slate-400 focus:border-blue-400 focus:outline-none"
-                        />
-                        <button
-                          type="button"
-                          onClick={() => setShowPassword((prev) => !prev)}
-                          className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 transition hover:text-slate-600"
-                          aria-label={showPassword ? "Hide password" : "Show password"}
-                        >
-                          {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
-                        </button>
-                      </div>
-                      <div className="flex justify-end">
-                        <button
-                          type="button"
-                          onClick={() =>
-                            navigate(
-                              `/forgot-password${
-                                formData.identifier.trim()
-                                  ? `?identifier=${encodeURIComponent(formData.identifier.trim())}`
-                                  : ""
-                              }`
-                            )
-                          }
-                          className="text-xs font-semibold text-blue-700 transition hover:text-blue-800"
-                        >
-                          Forgot password?
-                        </button>
-                      </div>
-                    </>
+                    <div className="relative">
+                      <Lock
+                        className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
+                        size={16}
+                      />
+                      <input
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        type={showPassword ? "text" : "password"}
+                        placeholder="Password"
+                        required
+                        className="w-full rounded-xl border border-slate-200 bg-white py-3 pl-10 pr-11 text-sm text-slate-800 placeholder:text-slate-400 focus:border-blue-400 focus:outline-none"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword((prev) => !prev)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 transition hover:text-slate-600"
+                        aria-label={showPassword ? "Hide password" : "Show password"}
+                      >
+                        {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                      </button>
+                    </div>
                   ) : (
                     <>
                       {otpSent && (
@@ -394,9 +354,7 @@ export default function Login() {
                     onClick={() =>
                       navigate(
                         inviteToken
-                          ? `/signup?invite_token=${encodeURIComponent(inviteToken)}&invite_email=${encodeURIComponent(
-                              inviteEmail || (formData.identifier.includes("@") ? formData.identifier : "")
-                            )}`
+                          ? `/signup?invite_token=${encodeURIComponent(inviteToken)}&invite_email=${encodeURIComponent(inviteEmail || identifier)}`
                           : "/signup"
                       )
                     }

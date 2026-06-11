@@ -1,14 +1,14 @@
 import { useEffect, useState } from "react";
-import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom"; // 1. Import Navigate
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
 import PrivateRoute from "./components/PrivateRoute";
 import { useTheme } from "./contexts/ThemeContext.jsx";
+import { useAuth } from "./contexts/AuthContext.jsx";
 
 // Page Imports
 import Lander from "./pages/public/Lander";
 import Login from "./pages/auth/Login";
 import Signup from "./pages/auth/Signup";
-import ForgotPassword from "./pages/auth/ForgotPassword";
-import ResetPassword from "./pages/auth/ResetPassword";
+import CognitoCallback from "./pages/auth/CognitoCallback";
 import WorkspaceHome from "./pages/workspace/WorkspaceHome";
 import DiscoverWorkspaces from "./pages/workspace/DiscoverWorkspaces";
 import WorkspaceInstance, {
@@ -38,17 +38,13 @@ import Pricing from "./pages/public/Pricing";
 import Privacy from "./pages/public/Privacy";
 import Terms from "./pages/public/Terms";
 import OnboardingQuestionnaire from "./pages/onboarding/OnboardingQuestionnaire";
-import GitHubCallback from "./pages/auth/GitHubCallback";
 import PlanExpirationBanner from "./components/PlanExpirationBanner";
 
-// 2. Create a helper component to handle the redirection
 const PublicRoute = ({ children }) => {
-  const isAuthenticated = localStorage.getItem("access");
-
+  const { isAuthenticated } = useAuth();
   if (isAuthenticated) {
     return <Navigate to="/app" replace />;
   }
-
   return children;
 };
 
@@ -133,11 +129,13 @@ function App() {
       <ThemeRouteSync />
       <PlanExpirationBanner />
       <Routes>
-        <Route path="/auth/github/callback" element={<GitHubCallback />} />
-        <Route path="/forgot-password" element={<ForgotPassword />} />
-        <Route path="/reset-password" element={<ResetPassword />} />
-        
-        {/* PUBLIC ROUTES - Wrapped to redirect authenticated users */}
+        {/* Cognito OAuth callback — must be outside PublicRoute */}
+        <Route path="/auth/callback" element={<CognitoCallback />} />
+
+        <Route path="/forgot-password" element={<Login />} />
+        <Route path="/reset-password" element={<Login />} />
+
+        {/* PUBLIC ROUTES */}
         <Route
           path="/"
           element={
@@ -179,7 +177,6 @@ function App() {
           <Route path="/app/create-workspace" element={<CreateWorkspace />} />
           <Route path="/app/home" element={<WorkspaceHome />} />
 
-          {/* NESTED WORKSPACE ROUTES */}
           <Route path="/app/ws/:workspaceId" element={<WorkspaceInstance />}>
             <Route index element={<WorkspaceOverview />} />
             <Route path="create-system" element={<CreateSystem />} />
@@ -193,7 +190,6 @@ function App() {
             </Route>
           </Route>
 
-          {/* System/Canvas Routes */}
           <Route
             path="/app/ws/:workspaceId/systems/:systemId"
             element={<Canvas />}

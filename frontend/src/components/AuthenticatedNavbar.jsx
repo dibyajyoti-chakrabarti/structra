@@ -5,6 +5,7 @@ import { NotificationDrawer } from '../pages/account/Notification';
 import api, { clearApiCache } from '../api';
 import logo from '../assets/logo.png';
 import { useTheme } from '../contexts/ThemeContext.jsx';
+import { useAuth } from '../contexts/AuthContext.jsx';
 
 export default function AuthenticatedNavbar() {
   const SEARCH_DROPDOWN_LIMIT = 8;
@@ -31,10 +32,11 @@ export default function AuthenticatedNavbar() {
     setIsSearchDropdownOpen(false);
   }, [location.pathname]);
 
-  const handleLogout = () => {
+  const { signOut } = useAuth();
+
+  const handleLogout = async () => {
     clearApiCache();
-    localStorage.removeItem('access');
-    localStorage.removeItem('refresh');
+    await signOut();
     navigate('/login');
   };
 

@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
+import { useAuth } from '../../contexts/AuthContext';
 import {
   ArrowRight,
   Building2,
@@ -18,6 +19,7 @@ import logo from '../../assets/logo.png';
 export default function InvitationExperience() {
   const navigate = useNavigate();
   const { token } = useParams();
+  const { isAuthenticated } = useAuth();
 
   const [loading, setLoading] = useState(true);
   const [accepting, setAccepting] = useState(false);
@@ -46,13 +48,11 @@ export default function InvitationExperience() {
 
   const primaryCtaLabel = useMemo(() => {
     if (!details) return 'Accept Invitation';
-    const isAuthenticated = !!localStorage.getItem('access');
     if (isAuthenticated) return 'Accept Invitation';
     return details.has_account ? 'Sign in & Accept' : 'Create account & Accept';
-  }, [details]);
+  }, [details, isAuthenticated]);
 
   const handleAccept = async () => {
-    const isAuthenticated = !!localStorage.getItem('access');
 
     if (!details) return;
 
@@ -187,7 +187,7 @@ export default function InvitationExperience() {
                 disabled={!!error || accepting}
                 className="inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-bold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
               >
-                {!details?.has_account && !localStorage.getItem('access') ? <UserPlus size={15} /> : <LogIn size={15} />}
+                {!details?.has_account && !isAuthenticated ? <UserPlus size={15} /> : <LogIn size={15} />}
                 {accepting ? 'Processing...' : primaryCtaLabel}
                 {!accepting && <ArrowRight size={15} />}
               </button>

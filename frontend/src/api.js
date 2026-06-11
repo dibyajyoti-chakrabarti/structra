@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { fetchAuthSession, signOut } from 'aws-amplify/auth';
 
 const api = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL,
@@ -33,7 +34,7 @@ const cloneData = (data) => {
   return JSON.parse(JSON.stringify(data));
 };
 
-const getSessionCacheScope = () => localStorage.getItem('refresh') || 'anonymous';
+const getSessionCacheScope = () => localStorage.getItem('structra-user-plan') || 'anonymous';
 
 const normalizeUrlPath = (url = '') => url.replace(/^\/+/, '');
 
@@ -51,9 +52,6 @@ const resolveCacheTtlMs = (url = '') => {
   if (/^systems\/[^/]+\/canvas\/$/.test(normalized)) return 8000;
   if (/^workspaces\/[^/]+\/$/.test(normalized)) return 45000;
   if (/^users\/[^/]+\/profile\/$/.test(normalized)) return 45000;
-  if (url === 'auth/profile/') return 120000;
-  if (url === 'users/search/') return 10000;
-  if (url === 'workspaces/') return 60000;
   if (url.includes('/members/') || url.includes('/invitations/')) return 30000;
   if (url.includes('/canvases/') || url.includes('/system-permissions/')) return 30000;
   if (url.startsWith('workspaces/')) return 45000;
@@ -193,63 +191,50 @@ withMutationInvalidation('put');
 withMutationInvalidation('patch');
 withMutationInvalidation('delete');
 
-// 1. Request Interceptor: Attach Token Automatically
+// Request interceptor: attach Cognito ID token
 api.interceptors.request.use(
-  (config) => {
-    const token = localStorage.getItem('access');
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
+  async (config) => {
+    try {
+      const session = await fetchAuthSession();
+      const idToken = session?.tokens?.idToken?.toString();
+      if (idToken) {
+        config.headers.Authorization = `Bearer ${idToken}`;
+      }
+    } catch {
+      // No active session — request goes without auth header
     }
     return config;
   },
   (error) => Promise.reject(error)
 );
 
-// 2. Response Interceptor: Handle Token Refresh
+// Response interceptor: on 401 sign out (Amplify handles token refresh transparently)
 api.interceptors.response.use(
-  (response) => response, // If successful, just return response
+  (response) => response,
   async (error) => {
-    const originalRequest = error.config;
-
-    // Check if error is 401 (Unauthorized) and we haven't already tried to refresh
-    if (error.response?.status === 401 && !originalRequest._retry) {
-      originalRequest._retry = true;
-      const refreshToken = localStorage.getItem('refresh');
-
-      if (refreshToken) {
-        try {
-          // Use a clean axios instance to avoid infinite loops
-          const response = await axios.post(`${import.meta.env.VITE_API_BASE_URL}auth/token/refresh/`, {
-            refresh: refreshToken,
-          });
-
-          // Save new tokens
-          localStorage.setItem('access', response.data.access);
-          
-          // Retry original request with new token
-          originalRequest.headers.Authorization = `Bearer ${response.data.access}`;
-          return api(originalRequest);
-        } catch (refreshError) {
-          // If refresh fails (token expired), logout user
-          console.error("Session expired", refreshError);
+    if (error.response?.status === 401 && !error.config?._retry) {
+      error.config._retry = true;
+      try {
+        // Force a token refresh then retry once
+        const session = await fetchAuthSession({ forceRefresh: true });
+        const idToken = session?.tokens?.idToken?.toString();
+        if (idToken) {
+          error.config.headers.Authorization = `Bearer ${idToken}`;
           clearApiCache();
-          localStorage.clear();
-          window.location.href = '/login';
+          return api(error.config);
         }
-      } else {
-        // No refresh token available, force logout
-        clearApiCache();
-        localStorage.clear();
-        window.location.href = '/login';
+      } catch {
+        // Refresh failed — sign out
       }
+      clearApiCache();
+      await signOut();
+      window.location.href = '/login';
     }
-
     return Promise.reject(error);
   }
 );
 
-// Export helper functions AFTER api is created
-export const createSystem = (workspaceId, systemData) => 
+export const createSystem = (workspaceId, systemData) =>
   api.post(`workspaces/${workspaceId}/canvases/`, systemData);
 export { clearApiCache };
 

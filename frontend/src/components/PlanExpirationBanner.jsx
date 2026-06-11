@@ -7,7 +7,7 @@ export default function PlanExpirationBanner() {
   const { user } = useAuth();
   const [isVisible, setIsVisible] = useState(true);
 
-  const isAuthenticated = Boolean(localStorage.getItem("access"));
+  const { isAuthenticated } = useAuth();
   const currentPlan = (user?.current_plan || "CORE").toUpperCase();
   const expiresAt = user?.plan_expires_at || null;
   const daysRemaining = useMemo(() => getDaysRemaining(expiresAt), [expiresAt]);

@@ -6,37 +6,36 @@ import React, {
   useMemo,
   useState,
 } from "react";
+import { fetchAuthSession, getCurrentUser, signOut as amplifySignOut } from "aws-amplify/auth";
 import api from "../api";
 
 const USER_PLAN_STORAGE_KEY = "structra-user-plan";
 
 const AuthContext = createContext({
   user: null,
+  isAuthenticated: false,
   setUser: () => {},
   updateUserPlan: () => {},
   refreshUserProfile: async () => {},
+  signOut: async () => {},
 });
 
 const getStoredPlan = () => {
   if (typeof window === "undefined") return "CORE";
-  if (!localStorage.getItem("access")) return "CORE";
   const storedPlan = localStorage.getItem(USER_PLAN_STORAGE_KEY);
   return storedPlan ? storedPlan.toUpperCase() : "CORE";
 };
 
 export function AuthProvider({ children }) {
-  const [user, setUser] = useState(() => ({
-    current_plan: getStoredPlan(),
-    plan_expires_at: null,
-    razorpay_subscription_id: null,
-  }));
+  const [user, setUser] = useState(null);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [authChecked, setAuthChecked] = useState(false);
 
   const updateUserPlan = useCallback((currentPlan, expiresAt = null) => {
     const normalizedPlan = (currentPlan || "CORE").toUpperCase();
     if (typeof window !== "undefined") {
       localStorage.setItem(USER_PLAN_STORAGE_KEY, normalizedPlan);
     }
-
     setUser((prev) => ({
       ...(prev || {}),
       current_plan: normalizedPlan,
@@ -45,7 +44,11 @@ export function AuthProvider({ children }) {
   }, []);
 
   const refreshUserProfile = useCallback(async () => {
-    if (!localStorage.getItem("access")) {
+    try {
+      await getCurrentUser();
+    } catch {
+      setIsAuthenticated(false);
+      setUser(null);
       return;
     }
 
@@ -53,29 +56,54 @@ export function AuthProvider({ children }) {
       const response = await api.get("auth/profile/", { cache: false });
       const profile = response.data || {};
       const profilePlan = (profile.current_plan || getStoredPlan()).toUpperCase();
-      updateUserPlan(profilePlan, profile.plan_expires_at || null);
+      localStorage.setItem(USER_PLAN_STORAGE_KEY, profilePlan);
       setUser((prev) => ({
         ...(prev || {}),
         ...profile,
         current_plan: profilePlan,
       }));
-    } catch (_error) {
-      // Keep existing local plan fallback when profile fetch fails.
+      setIsAuthenticated(true);
+    } catch {
+      // Keep existing user state on transient network errors
     }
-  }, [updateUserPlan]);
+  }, []);
+
+  const signOut = useCallback(async () => {
+    await amplifySignOut();
+    localStorage.removeItem(USER_PLAN_STORAGE_KEY);
+    setUser(null);
+    setIsAuthenticated(false);
+  }, []);
 
   useEffect(() => {
-    refreshUserProfile();
+    const init = async () => {
+      try {
+        const session = await fetchAuthSession();
+        if (session?.tokens?.idToken) {
+          await refreshUserProfile();
+        } else {
+          setIsAuthenticated(false);
+        }
+      } catch {
+        setIsAuthenticated(false);
+      } finally {
+        setAuthChecked(true);
+      }
+    };
+    init();
   }, [refreshUserProfile]);
 
   const value = useMemo(
     () => ({
       user,
+      isAuthenticated,
+      authChecked,
       setUser,
       updateUserPlan,
       refreshUserProfile,
+      signOut,
     }),
-    [user, updateUserPlan, refreshUserProfile],
+    [user, isAuthenticated, authChecked, updateUserPlan, refreshUserProfile, signOut],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

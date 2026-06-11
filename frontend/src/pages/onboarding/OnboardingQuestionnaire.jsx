@@ -2,6 +2,7 @@ import { useEffect, useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { ArrowRight, Check, LogOut, ChevronRight } from "lucide-react";
 import api, { clearApiCache } from "../../api";
+import { useAuth } from "../../contexts/AuthContext";
 import logo from "../../assets/logo.png";
 import onboarding1 from "../../assets/onboarding-1.svg";
 import onboarding2 from "../../assets/onboarding-2.svg";
@@ -93,6 +94,7 @@ const normalizeUsername = (v) => v.replace(/^@+/, "").replace(/\s+/g, "");
 
 /* ─── Main component ──────────────────────────────────────── */
 const OnboardingQuestionnaire = () => {
+  const { signOut } = useAuth();
   const [step, setStep] = useState(0);
   const [answers, setAnswers] = useState({ username: "", org_name: "", org_loc: "", user_role: "" });
   const [selectAnswers, setSelectAnswers] = useState({});
@@ -147,10 +149,9 @@ const OnboardingQuestionnaire = () => {
     setTimeout(() => { setStep(next); setAnimating(false); }, 220);
   };
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
     clearApiCache();
-    localStorage.removeItem("access");
-    localStorage.removeItem("refresh");
+    await signOut();
     navigate("/login", { replace: true });
   };
 

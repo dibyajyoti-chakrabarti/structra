@@ -90,7 +90,7 @@ const plans = [
 
 export default function Pricing() {
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, isAuthenticated } = useAuth();
   const {
     startCheckout,
     isLoading: isCheckoutLoading,
@@ -102,7 +102,6 @@ export default function Pricing() {
   const [isCheckoutSummaryOpen, setIsCheckoutSummaryOpen] = useState(false);
   const [checkoutPlan, setCheckoutPlan] = useState(null);
   const [checkoutQuantity, setCheckoutQuantity] = useState(2);
-  const isAuthenticated = Boolean(localStorage.getItem("access"));
   const currentPlan = isAuthenticated
     ? (user?.current_plan || "CORE").toUpperCase()
     : "CORE";
@@ -167,7 +166,7 @@ export default function Pricing() {
     }
 
     if (normalizedPlan === "INDIVIDUAL" || normalizedPlan === "TEAM") {
-      if (!localStorage.getItem("access")) {
+      if (!isAuthenticated) {
         setPaymentStatus("failed");
         setStatusMessage("Please log in first to continue with payment.");
         return;

@@ -1,6 +1,11 @@
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useEffect, useState } from "react";
-import { useGoogleLogin } from "@react-oauth/google";
+import {
+  signUp,
+  confirmSignUp,
+  signIn,
+  signInWithRedirect,
+} from "aws-amplify/auth";
 import {
   ArrowLeft,
   User,
@@ -16,34 +21,31 @@ import logo from "../../assets/logo.png";
 import SignupIllustration from "../../assets/signup-illustration.svg";
 import CtaIllustration from "../../assets/cta-illustration.svg";
 import api from "../../api";
+import { useAuth } from "../../contexts/AuthContext";
 
 export default function Signup() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const inviteToken = searchParams.get("invite_token") || "";
   const inviteEmail = searchParams.get("invite_email") || "";
+  const { refreshUserProfile } = useAuth();
 
-  const [formData, setFormData] = useState({
-    full_name: "",
-    email: inviteEmail,
-    password: "",
-  });
+  const [fullName, setFullName] = useState("");
+  const [email, setEmail] = useState(inviteEmail || "");
+  const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [signupMethod, setSignupMethod] = useState("password");
-  const [otpCode, setOtpCode] = useState("");
-  const [otpSent, setOtpSent] = useState(false);
-  const [otpMessage, setOtpMessage] = useState("");
+  const [verifyCode, setVerifyCode] = useState("");
+  const [codeSent, setCodeSent] = useState(false);
+  const [codeMessage, setCodeMessage] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const [illustrationSrc, setIllustrationSrc] = useState(
-    SignupIllustration
-  );
+  const [illustrationSrc, setIllustrationSrc] = useState(SignupIllustration);
 
   useEffect(() => {
-    if (!inviteEmail) return;
-    setFormData((prev) => ({ ...prev, email: inviteEmail }));
+    if (inviteEmail) setEmail(inviteEmail);
   }, [inviteEmail]);
 
   const resolvePostSignupRoute = (isNewUser) => {
@@ -51,147 +53,132 @@ export default function Signup() {
       navigate(`/invite/${encodeURIComponent(inviteToken)}/respond`);
       return;
     }
+    navigate(isNewUser ? "/app/onboarding" : "/app");
+  };
 
-    if (isNewUser) {
-      navigate("/app/onboarding");
-    } else {
-      navigate("/app");
+  const finishAuth = async () => {
+    await refreshUserProfile();
+    const profile = await api.get("auth/profile/");
+    resolvePostSignupRoute(profile.data?.is_new !== false);
+  };
+
+  // --- Google ---
+  const handleGoogleSignup = async () => {
+    setError("");
+    try {
+      await signInWithRedirect({ provider: "Google" });
+    } catch (err) {
+      setError("Google signup failed. Please try again.");
+      console.error(err);
     }
   };
 
-  const googleLogin = useGoogleLogin({
-    onSuccess: async (tokenResponse) => {
-      setLoading(true);
-      try {
-        const res = await api.post("auth/google/", {
-          access_token: tokenResponse.access_token,
-        });
-
-        localStorage.setItem("access", res.data.access);
-        localStorage.setItem("refresh", res.data.refresh);
-
-        resolvePostSignupRoute(res.data.user.is_new);
-      } catch (err) {
-        console.error("Google Signup Failed", err);
-        setError("Google signup failed. Please try again.");
-      } finally {
-        setLoading(false);
-      }
-    },
-    onError: () => setError("Google signup failed"),
-  });
-
-  const handleGitHubLogin = () => {
-    const CLIENT_ID = import.meta.env.VITE_GITHUB_CLIENT_ID;
-    const REDIRECT_URI = `${import.meta.env.VITE_FRONTEND_URL}/auth/github/callback`;
-
-    if (!CLIENT_ID) {
-      alert("GitHub Client ID not loaded");
-      return;
+  // --- GitHub ---
+  const handleGitHubSignup = async () => {
+    setError("");
+    try {
+      await signInWithRedirect({ provider: { custom: "GitHub" } });
+    } catch (err) {
+      setError("GitHub signup failed. Please try again.");
+      console.error(err);
     }
-
-    window.location.href =
-      `https://github.com/login/oauth/authorize` +
-      `?client_id=${CLIENT_ID}` +
-      `&redirect_uri=${encodeURIComponent(REDIRECT_URI)}` +
-      `&scope=user:email`;
   };
 
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    setFormData({ ...formData, [name]: value });
-  };
-
-  const handleSubmit = async (e) => {
+  // --- Password signup: step 1 register, step 2 verify code ---
+  const handlePasswordSignup = async (e) => {
     e.preventDefault();
     setError("");
 
-    if (formData.password !== confirmPassword) {
+    if (password !== confirmPassword) {
       setError("Passwords do not match.");
       return;
     }
 
     setLoading(true);
     try {
-      await api.post("auth/register/", formData);
-      if (inviteToken) {
-        navigate(
-          `/login?invite_token=${encodeURIComponent(inviteToken)}&invite_email=${encodeURIComponent(formData.email)}`
-        );
-      } else {
-        navigate("/login");
+      const result = await signUp({
+        username: email,
+        password,
+        options: {
+          userAttributes: { email, name: fullName },
+        },
+      });
+
+      if (result.nextStep?.signUpStep === "CONFIRM_SIGN_UP") {
+        setCodeSent(true);
+        setCodeMessage("Verification code sent to your email.");
+      } else if (result.isSignUpComplete) {
+        // Auto-confirmed (e.g., admin flow)
+        await signIn({ username: email, password });
+        await finishAuth();
       }
     } catch (err) {
       console.error(err);
-      const payload = err.response?.data || {};
-      setError(
-        payload.username?.[0] ||
-          payload.email?.[0] ||
-          payload.detail ||
-          "Registration failed. Try again."
-      );
+      setError(err.message || "Registration failed. Try again.");
     } finally {
       setLoading(false);
     }
   };
 
-  const handleRequestOtp = async (e) => {
+  const handleConfirmCode = async (e) => {
     e.preventDefault();
     setError("");
-    setOtpMessage("");
-
-    if (!formData.full_name.trim()) {
-      setError("Full name is required for OTP signup.");
-      return;
-    }
-    if (!formData.email.trim()) {
-      setError("Email is required for OTP signup.");
-      return;
-    }
-
     setLoading(true);
     try {
-      const res = await api.post("auth/email-otp/request/", {
-        email: formData.email,
-        purpose: "signup",
-      });
-      setOtpSent(true);
-      setOtpMessage(
-        `OTP sent. It expires in ${res.data.expires_in_minutes || 10} minutes.`
-      );
+      await confirmSignUp({ username: email, confirmationCode: verifyCode });
+      // Sign in right after confirmation
+      await signIn({ username: email, password });
+      await finishAuth();
     } catch (err) {
-      setError(err.response?.data?.error || "Failed to send OTP. Please try again.");
+      console.error(err);
+      setError(err.message || "Verification failed. Please try again.");
     } finally {
       setLoading(false);
     }
   };
 
-  const handleVerifyOtp = async (e) => {
+  // --- OTP signup: use Cognito's email verification as the OTP step ---
+  // Same as password signup but with a dummy password the user never uses again.
+  const DUMMY_PW_PREFIX = "Str@ctr@-";
+  const handleOtpSignup = async (e) => {
     e.preventDefault();
     setError("");
-
-    if (!otpCode.trim()) {
-      setError("Please enter the OTP.");
-      return;
-    }
-
     setLoading(true);
     try {
-      const response = await api.post("auth/email-otp/verify/", {
-        email: formData.email,
-        otp: otpCode,
-        purpose: "signup",
-        full_name: formData.full_name,
+      const result = await signUp({
+        username: email,
+        password: `${DUMMY_PW_PREFIX}${crypto.randomUUID()}`,
+        options: {
+          userAttributes: { email, name: fullName },
+        },
       });
-
-      localStorage.setItem("access", response.data.access);
-      localStorage.setItem("refresh", response.data.refresh);
-
-      resolvePostSignupRoute(true);
+      if (result.nextStep?.signUpStep === "CONFIRM_SIGN_UP") {
+        setCodeSent(true);
+        setCodeMessage("Verification code sent to your email. It expires shortly.");
+      }
     } catch (err) {
-      setError(
-        err.response?.data?.error || "OTP verification failed. Please try again."
+      console.error(err);
+      setError(err.message || "Failed to send code. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleConfirmOtpCode = async (e) => {
+    e.preventDefault();
+    setError("");
+    setLoading(true);
+    try {
+      await confirmSignUp({ username: email, confirmationCode: verifyCode });
+      // After OTP signup, user logs in via OTP login flow
+      navigate(
+        inviteToken
+          ? `/login?invite_token=${encodeURIComponent(inviteToken)}&invite_email=${encodeURIComponent(email)}`
+          : "/login"
       );
+    } catch (err) {
+      console.error(err);
+      setError(err.message || "Verification failed. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -214,11 +201,7 @@ export default function Signup() {
           <div className="flex flex-1 items-center lg:min-h-0">
             <div className="w-full rounded-2xl border border-slate-200 bg-white p-6 shadow-lg shadow-blue-100/70 sm:p-7 lg:max-h-[calc(100vh-5.25rem)] lg:overflow-auto">
               <div className="mb-6 flex flex-col items-center text-center">
-                <img
-                  src={logo}
-                  alt="Logo"
-                  className="mb-3 h-10 w-auto object-contain"
-                />
+                <img src={logo} alt="Logo" className="mb-3 h-10 w-auto object-contain" />
                 <h1 className="text-3xl font-black tracking-tight text-slate-900">
                   Create your{" "}
                   <span className="text-blue-600">structra.cloud</span> account
@@ -237,14 +220,14 @@ export default function Signup() {
                 <div className="grid grid-cols-2 gap-2.5">
                   <button
                     type="button"
-                    onClick={() => googleLogin()}
+                    onClick={handleGoogleSignup}
                     className="flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white py-2.5 text-xs font-bold text-slate-700 transition hover:border-blue-200 hover:bg-blue-50"
                   >
                     <Chrome size={14} /> Google
                   </button>
                   <button
                     type="button"
-                    onClick={handleGitHubLogin}
+                    onClick={handleGitHubSignup}
                     className="flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white py-2.5 text-xs font-bold text-slate-700 transition hover:border-blue-200 hover:bg-blue-50"
                   >
                     <Github size={14} /> GitHub
@@ -262,11 +245,7 @@ export default function Signup() {
                 <div className="grid grid-cols-2 gap-2 rounded-xl border border-slate-200 bg-slate-50 p-1">
                   <button
                     type="button"
-                    onClick={() => {
-                      setSignupMethod("password");
-                      setError("");
-                      setOtpMessage("");
-                    }}
+                    onClick={() => { setSignupMethod("password"); setError(""); setCodeMessage(""); setCodeSent(false); }}
                     className={`rounded-lg py-2 text-xs font-bold transition ${
                       signupMethod === "password"
                         ? "bg-blue-600 text-white"
@@ -277,11 +256,7 @@ export default function Signup() {
                   </button>
                   <button
                     type="button"
-                    onClick={() => {
-                      setSignupMethod("otp");
-                      setError("");
-                      setOtpMessage("");
-                    }}
+                    onClick={() => { setSignupMethod("otp"); setError(""); setCodeMessage(""); setCodeSent(false); }}
                     className={`flex items-center justify-center gap-1.5 rounded-lg py-2 text-xs font-bold transition ${
                       signupMethod === "otp"
                         ? "bg-blue-600 text-white"
@@ -295,130 +270,101 @@ export default function Signup() {
                 <form
                   onSubmit={
                     signupMethod === "password"
-                      ? handleSubmit
-                      : otpSent
-                      ? handleVerifyOtp
-                      : handleRequestOtp
+                      ? codeSent ? handleConfirmCode : handlePasswordSignup
+                      : codeSent ? handleConfirmOtpCode : handleOtpSignup
                   }
                   className="space-y-3.5"
                 >
-                  <div className="relative">
-                    <User
-                      className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
-                      size={16}
-                    />
-                    <input
-                      name="full_name"
-                      value={formData.full_name}
-                      onChange={handleChange}
-                      type="text"
-                      placeholder="Full name"
-                      required
-                      className="w-full rounded-xl border border-slate-200 bg-white py-3 pl-10 pr-4 text-sm text-slate-800 placeholder:text-slate-400 focus:border-blue-400 focus:outline-none"
-                    />
-                  </div>
-
-                  <div className="relative">
-                    <Mail
-                      className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
-                      size={16}
-                    />
-                    <input
-                      name="email"
-                      value={formData.email}
-                      onChange={handleChange}
-                      type="email"
-                      placeholder="Work email"
-                      required
-                      readOnly={!!inviteEmail}
-                      className="w-full rounded-xl border border-slate-200 bg-white py-3 pl-10 pr-4 text-sm text-slate-800 placeholder:text-slate-400 focus:border-blue-400 focus:outline-none"
-                    />
-                  </div>
-
-                  {signupMethod === "password" ? (
+                  {!codeSent && (
                     <>
                       <div className="relative">
-                        <Lock
-                          className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
-                          size={16}
-                        />
+                        <User className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
                         <input
-                          name="password"
-                          value={formData.password}
-                          onChange={handleChange}
-                          type={showPassword ? "text" : "password"}
-                          placeholder="Password"
+                          value={fullName}
+                          onChange={(e) => setFullName(e.target.value)}
+                          type="text"
+                          placeholder="Full name"
                           required
-                          className="w-full rounded-xl border border-slate-200 bg-white py-3 pl-10 pr-11 text-sm text-slate-800 placeholder:text-slate-400 focus:border-blue-400 focus:outline-none"
+                          className="w-full rounded-xl border border-slate-200 bg-white py-3 pl-10 pr-4 text-sm text-slate-800 placeholder:text-slate-400 focus:border-blue-400 focus:outline-none"
                         />
-                        <button
-                          type="button"
-                          onClick={() => setShowPassword((prev) => !prev)}
-                          className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 transition hover:text-slate-600"
-                          aria-label={showPassword ? "Hide password" : "Show password"}
-                        >
-                          {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
-                        </button>
                       </div>
+
                       <div className="relative">
-                        <Lock
-                          className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
-                          size={16}
-                        />
+                        <Mail className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
                         <input
-                          name="confirmPassword"
-                          value={confirmPassword}
-                          onChange={(e) => setConfirmPassword(e.target.value)}
-                          type={showConfirmPassword ? "text" : "password"}
-                          placeholder="Confirm password"
+                          value={email}
+                          onChange={(e) => setEmail(e.target.value)}
+                          type="email"
+                          placeholder="Work email"
                           required
-                          className="w-full rounded-xl border border-slate-200 bg-white py-3 pl-10 pr-11 text-sm text-slate-800 placeholder:text-slate-400 focus:border-blue-400 focus:outline-none"
+                          readOnly={!!inviteEmail}
+                          className="w-full rounded-xl border border-slate-200 bg-white py-3 pl-10 pr-4 text-sm text-slate-800 placeholder:text-slate-400 focus:border-blue-400 focus:outline-none"
                         />
-                        <button
-                          type="button"
-                          onClick={() => setShowConfirmPassword((prev) => !prev)}
-                          className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 transition hover:text-slate-600"
-                          aria-label={showConfirmPassword ? "Hide confirm password" : "Show confirm password"}
-                        >
-                          {showConfirmPassword ? <EyeOff size={16} /> : <Eye size={16} />}
-                        </button>
                       </div>
-                    </>
-                  ) : (
-                    <>
-                      {otpSent && (
-                        <div className="relative">
-                          <KeyRound
-                            className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
-                            size={16}
-                          />
-                          <input
-                            value={otpCode}
-                            onChange={(e) => setOtpCode(e.target.value)}
-                            type="text"
-                            inputMode="numeric"
-                            maxLength={6}
-                            placeholder="Enter 6-digit OTP"
-                            required
-                            className="w-full rounded-xl border border-slate-200 bg-white py-3 pl-10 pr-4 text-sm text-slate-800 placeholder:text-slate-400 focus:border-blue-400 focus:outline-none"
-                          />
-                        </div>
+
+                      {signupMethod === "password" && (
+                        <>
+                          <div className="relative">
+                            <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                            <input
+                              value={password}
+                              onChange={(e) => setPassword(e.target.value)}
+                              type={showPassword ? "text" : "password"}
+                              placeholder="Password"
+                              required
+                              className="w-full rounded-xl border border-slate-200 bg-white py-3 pl-10 pr-11 text-sm text-slate-800 placeholder:text-slate-400 focus:border-blue-400 focus:outline-none"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => setShowPassword((p) => !p)}
+                              className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 transition hover:text-slate-600"
+                            >
+                              {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                            </button>
+                          </div>
+                          <div className="relative">
+                            <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                            <input
+                              value={confirmPassword}
+                              onChange={(e) => setConfirmPassword(e.target.value)}
+                              type={showConfirmPassword ? "text" : "password"}
+                              placeholder="Confirm password"
+                              required
+                              className="w-full rounded-xl border border-slate-200 bg-white py-3 pl-10 pr-11 text-sm text-slate-800 placeholder:text-slate-400 focus:border-blue-400 focus:outline-none"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => setShowConfirmPassword((p) => !p)}
+                              className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 transition hover:text-slate-600"
+                            >
+                              {showConfirmPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                            </button>
+                          </div>
+                        </>
                       )}
-                      {otpMessage && (
+                    </>
+                  )}
+
+                  {codeSent && (
+                    <>
+                      {codeMessage && (
                         <p className="rounded-lg border border-green-200 bg-green-50 px-3 py-2 text-xs font-medium text-green-700">
-                          {otpMessage}
+                          {codeMessage}
                         </p>
                       )}
-                      {otpSent && (
-                        <button
-                          type="button"
-                          onClick={handleRequestOtp}
-                          disabled={loading}
-                          className="w-full rounded-xl border border-slate-200 bg-white py-2.5 text-xs font-bold text-slate-600 transition hover:border-blue-200 hover:bg-blue-50 disabled:opacity-50"
-                        >
-                          Resend OTP
-                        </button>
-                      )}
+                      <div className="relative">
+                        <KeyRound className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                        <input
+                          value={verifyCode}
+                          onChange={(e) => setVerifyCode(e.target.value)}
+                          type="text"
+                          inputMode="numeric"
+                          maxLength={6}
+                          placeholder="Enter 6-digit verification code"
+                          required
+                          className="w-full rounded-xl border border-slate-200 bg-white py-3 pl-10 pr-4 text-sm text-slate-800 placeholder:text-slate-400 focus:border-blue-400 focus:outline-none"
+                        />
+                      </div>
                     </>
                   )}
 
@@ -435,11 +381,11 @@ export default function Signup() {
                   >
                     {loading
                       ? "Please wait..."
+                      : codeSent
+                      ? "Verify & Complete Signup"
                       : signupMethod === "password"
                       ? "Create Account"
-                      : otpSent
-                      ? "Verify OTP & Create Account"
-                      : "Send OTP"}
+                      : "Send Verification Code"}
                   </button>
                 </form>
 
@@ -449,7 +395,7 @@ export default function Signup() {
                     onClick={() =>
                       navigate(
                         inviteToken
-                          ? `/login?invite_token=${encodeURIComponent(inviteToken)}&invite_email=${encodeURIComponent(formData.email)}`
+                          ? `/login?invite_token=${encodeURIComponent(inviteToken)}&invite_email=${encodeURIComponent(email)}`
                           : "/login"
                       )
                     }
