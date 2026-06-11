@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { getCurrentUser } from 'aws-amplify/auth';
+import { fetchAuthSession } from 'aws-amplify/auth';
 import api from '../../api';
 
 export default function CognitoCallback() {
@@ -11,12 +11,17 @@ export default function CognitoCallback() {
     if (handled.current) return;
     handled.current = true;
 
-    // Amplify automatically exchanges the auth code in the URL when the page
-    // loads (configured via oauth.responseType = 'code'). We just need to
-    // wait for the session to be ready, then fetch the Django profile.
     const run = async () => {
       try {
-        await getCurrentUser();
+        // Amplify exchanges the auth code automatically on page load.
+        // Wait until tokens are actually populated before hitting the API.
+        let session = await fetchAuthSession();
+        if (!session?.tokens?.idToken) {
+          session = await fetchAuthSession({ forceRefresh: true });
+        }
+        if (!session?.tokens?.idToken) {
+          throw new Error('No tokens after OAuth callback');
+        }
         const profile = await api.get('auth/profile/');
         if (profile.data?.is_new) {
           navigate('/app/onboarding', { replace: true });

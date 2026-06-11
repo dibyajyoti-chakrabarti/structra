@@ -197,11 +197,12 @@ api.interceptors.request.use(
     try {
       const session = await fetchAuthSession();
       const idToken = session?.tokens?.idToken?.toString();
+      console.debug('[api] session.tokens:', session?.tokens, '| idToken present:', !!idToken);
       if (idToken) {
         config.headers.Authorization = `Bearer ${idToken}`;
       }
-    } catch {
-      // No active session — request goes without auth header
+    } catch (e) {
+      console.debug('[api] fetchAuthSession threw:', e);
     }
     return config;
   },

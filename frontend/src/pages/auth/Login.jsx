@@ -5,6 +5,7 @@ import {
   confirmSignIn,
   signInWithRedirect,
   fetchAuthSession,
+  signOut as amplifySignOut,
 } from "aws-amplify/auth";
 import {
   ArrowLeft,
@@ -67,6 +68,12 @@ export default function Login() {
     try {
       await signInWithRedirect({ provider: "Google" });
     } catch (err) {
+      if (err.name === 'UserAlreadyAuthenticatedException') {
+        // Stale session from a previous failed OAuth attempt — clear it and retry
+        await amplifySignOut({ global: false });
+        await signInWithRedirect({ provider: "Google" });
+        return;
+      }
       setError("Google login failed. Please try again.");
       console.error(err);
     }
@@ -78,6 +85,11 @@ export default function Login() {
     try {
       await signInWithRedirect({ provider: { custom: "GitHub" } });
     } catch (err) {
+      if (err.name === 'UserAlreadyAuthenticatedException') {
+        await amplifySignOut({ global: false });
+        await signInWithRedirect({ provider: { custom: "GitHub" } });
+        return;
+      }
       setError("GitHub login failed. Please try again.");
       console.error(err);
     }

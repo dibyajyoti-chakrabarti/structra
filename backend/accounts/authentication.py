@@ -1,10 +1,10 @@
 import json
 from functools import lru_cache
 
+import jwt
 import requests
 from django.conf import settings
 from django.contrib.auth import get_user_model
-from jwt import PyJWT
 from jwt.algorithms import RSAAlgorithm
 from rest_framework.authentication import BaseAuthentication
 from rest_framework.exceptions import AuthenticationFailed
@@ -28,18 +28,20 @@ def _get_cognito_jwks():
 class CognitoJWTAuthentication(BaseAuthentication):
     def authenticate(self, request):
         header = request.headers.get('Authorization', '')
+        print(f'[CognitoAuth] header present={bool(header)} starts_bearer={header.startswith("Bearer ")}', flush=True)
         if not header.startswith('Bearer '):
             return None
         token = header[7:]
+        print(f'[CognitoAuth] token prefix={token[:30]}', flush=True)
 
         try:
-            unverified_header = PyJWT().get_unverified_header(token)
+            unverified_header = jwt.get_unverified_header(token)
             jwks = _get_cognito_jwks()
             kid = unverified_header.get('kid')
             if kid not in jwks:
                 raise AuthenticationFailed('Unknown token key ID')
             public_key = RSAAlgorithm.from_jwk(jwks[kid])
-            payload = PyJWT().decode(
+            payload = jwt.decode(
                 token,
                 public_key,
                 algorithms=['RS256'],
@@ -48,6 +50,7 @@ class CognitoJWTAuthentication(BaseAuthentication):
         except AuthenticationFailed:
             raise
         except Exception as exc:
+            print(f'[CognitoAuth] validation failed: {exc}', flush=True)
             raise AuthenticationFailed(f'Invalid Cognito token: {exc}')
 
         cognito_sub = payload.get('sub')
