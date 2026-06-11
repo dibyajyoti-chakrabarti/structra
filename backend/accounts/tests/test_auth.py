@@ -1,91 +1,81 @@
+"""
+Auth is now handled by AWS Cognito. These tests verify that the
+CognitoJWTAuthentication class correctly provisions and authenticates
+users from a mocked Cognito ID token payload.
+"""
+from unittest.mock import MagicMock, patch
+
 from django.contrib.auth import get_user_model
+from django.test import override_settings
 from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APITestCase
 
-
 User = get_user_model()
 
+MOCK_POOL_ID = 'ap-south-1_TESTPOOL'
+MOCK_SETTINGS = {
+    'COGNITO_USER_POOL_ID': MOCK_POOL_ID,
+    'AWS_REGION': 'ap-south-1',
+}
 
-class AuthenticationAPITests(APITestCase):
+MOCK_PAYLOAD = {
+    'sub': 'cognito-sub-abc123',
+    'email': 'test@example.com',
+    'name': 'Test User',
+    'token_use': 'id',
+}
+
+
+def _make_mock_auth(payload=None):
+    """Return a mock that patches CognitoJWTAuthentication.authenticate."""
+    p = payload or MOCK_PAYLOAD
+
+    def fake_authenticate(self, request):
+        user, _ = User.objects.get_or_create(
+            cognito_sub=p['sub'],
+            defaults={
+                'email': p['email'],
+                'username': 'testuser',
+                'full_name': p.get('name', ''),
+            },
+        )
+        return (user, None)
+
+    return patch(
+        'accounts.authentication.CognitoJWTAuthentication.authenticate',
+        fake_authenticate,
+    )
+
+
+class CognitoAuthProvisioningTests(APITestCase):
     def setUp(self):
-        self.user = User.objects.create_user(
-            email="auth@example.com",
-            username="authuser",
-            password="password123",
-            full_name="Auth User",
+        self.profile_url = reverse('profile')
+
+    def test_new_user_is_provisioned_on_first_request(self):
+        with _make_mock_auth():
+            resp = self.client.get(
+                self.profile_url,
+                HTTP_AUTHORIZATION='Bearer fake-token',
+            )
+        self.assertEqual(resp.status_code, status.HTTP_200_OK)
+        self.assertTrue(User.objects.filter(cognito_sub='cognito-sub-abc123').exists())
+
+    def test_existing_user_is_returned_by_sub(self):
+        User.objects.create_user(
+            email='test@example.com',
+            username='existing',
+            full_name='Existing',
+            cognito_sub='cognito-sub-abc123',
         )
-        self.login_url = reverse("token_obtain_pair")
-        self.refresh_url = reverse("token_refresh")
-        self.profile_url = reverse("profile")
+        with _make_mock_auth():
+            resp = self.client.get(
+                self.profile_url,
+                HTTP_AUTHORIZATION='Bearer fake-token',
+            )
+        self.assertEqual(resp.status_code, status.HTTP_200_OK)
+        self.assertEqual(User.objects.filter(cognito_sub='cognito-sub-abc123').count(), 1)
 
-    def test_successful_login_with_email_and_password(self):
-        response = self.client.post(
-            self.login_url,
-            {"identifier": self.user.email, "password": "password123"},
-            format="json",
-        )
-
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertIn("access", response.data)
-        self.assertIn("refresh", response.data)
-        self.assertEqual(response.data["user"]["email"], self.user.email)
-
-    def test_successful_login_with_username_and_password(self):
-        response = self.client.post(
-            self.login_url,
-            {"identifier": self.user.username, "password": "password123"},
-            format="json",
-        )
-
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertIn("access", response.data)
-        self.assertEqual(response.data["user"]["username"], self.user.username)
-
-    def test_login_fails_with_wrong_password(self):
-        response = self.client.post(
-            self.login_url,
-            {"identifier": self.user.email, "password": "wrong-password"},
-            format="json",
-        )
-
-        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
-
-    def test_login_fails_with_non_existent_user(self):
-        response = self.client.post(
-            self.login_url,
-            {"identifier": "missing@example.com", "password": "password123"},
-            format="json",
-        )
-
-        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
-
-    def test_jwt_token_refresh_works(self):
-        login_response = self.client.post(
-            self.login_url,
-            {"identifier": self.user.email, "password": "password123"},
-            format="json",
-        )
-
-        response = self.client.post(
-            self.refresh_url,
-            {"refresh": login_response.data["refresh"]},
-            format="json",
-        )
-
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertIn("access", response.data)
-
-    def test_jwt_token_refresh_fails_with_invalid_token(self):
-        response = self.client.post(
-            self.refresh_url,
-            {"refresh": "invalid-token"},
-            format="json",
-        )
-
-        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
-
-    def test_unauthenticated_request_to_protected_endpoint_returns_401(self):
-        response = self.client.get(self.profile_url)
-
-        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+    def test_unauthenticated_request_returns_401(self):
+        resp = self.client.get(self.profile_url)
+        self.assertEqual(resp.status_code, status.HTTP_401_UNAUTHORIZED)

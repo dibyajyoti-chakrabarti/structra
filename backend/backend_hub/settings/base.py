@@ -34,8 +34,7 @@ INSTALLED_APPS = [
     'django.contrib.postgres',
     'corsheaders',
     'rest_framework',
-    'rest_framework_simplejwt',
-    
+
     #local apps
     'accounts',
     'workspaces',
@@ -107,7 +106,7 @@ AUTH_PASSWORD_VALIDATORS = [
 # DRF Configuration
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
-        'accounts.authentication.ExpiryEnforcingJWTAuthentication',
+        'accounts.authentication.CognitoJWTAuthentication',
         'rest_framework.authentication.SessionAuthentication',
     ),
     'DEFAULT_THROTTLE_RATES': {
@@ -115,15 +114,13 @@ REST_FRAMEWORK = {
     },
 }
 
-SIMPLE_JWT = {
-    'USER_ID_FIELD': 'user_id',
-    'USER_ID_CLAIM': 'user_id',
-}
+# Cognito
+COGNITO_USER_POOL_ID = os.getenv('COGNITO_USER_POOL_ID', '')
+COGNITO_CLIENT_ID = os.getenv('COGNITO_CLIENT_ID', '')
 
 # Custom User Model
 AUTH_USER_MODEL = 'accounts.User'
 AUTHENTICATION_BACKENDS = [
-    'accounts.backends.EmailOrUsernameBackend',
     'django.contrib.auth.backends.ModelBackend',
 ]
 
@@ -158,7 +155,7 @@ RAZORPAY_PLAN_ID_TEAM = os.getenv('RAZORPAY_PLAN_ID_TEAM', '')
 
 USE_SQS = os.getenv("USE_SQS", "false").lower() == "true"
 SQS_QUEUE_URL = os.getenv("SQS_QUEUE_URL", "")
-AWS_REGION = os.getenv("AWS_REGION", "ap-south-2")
+AWS_REGION = os.getenv("AWS_REGION", "ap-south-1")
 EVALUATION_LOCAL_QUEUE_POLL_INTERVAL_SECONDS = int(os.getenv("EVALUATION_LOCAL_QUEUE_POLL_INTERVAL_SECONDS", "5"))
 EVALUATION_LOCAL_QUEUE_RETRY_DELAY_SECONDS = int(os.getenv("EVALUATION_LOCAL_QUEUE_RETRY_DELAY_SECONDS", "10"))
 EVALUATION_LOCAL_QUEUE_MAX_ATTEMPTS = int(os.getenv("EVALUATION_LOCAL_QUEUE_MAX_ATTEMPTS", "3"))
