@@ -7,6 +7,7 @@ import {
   fetchAuthSession,
   signOut as amplifySignOut,
 } from "aws-amplify/auth";
+import { storeOAuthProvider } from "./CognitoCallback";
 import {
   ArrowLeft,
   Mail,
@@ -66,11 +67,12 @@ export default function Login() {
   const handleGoogleLogin = async () => {
     setError("");
     try {
+      storeOAuthProvider("Google");
       await signInWithRedirect({ provider: "Google" });
     } catch (err) {
       if (err.name === 'UserAlreadyAuthenticatedException') {
-        // Stale session from a previous failed OAuth attempt — clear it and retry
         await amplifySignOut({ global: false });
+        storeOAuthProvider("Google");
         await signInWithRedirect({ provider: "Google" });
         return;
       }
@@ -83,10 +85,12 @@ export default function Login() {
   const handleGitHubLogin = async () => {
     setError("");
     try {
+      storeOAuthProvider({ custom: "GitHub" });
       await signInWithRedirect({ provider: { custom: "GitHub" } });
     } catch (err) {
       if (err.name === 'UserAlreadyAuthenticatedException') {
         await amplifySignOut({ global: false });
+        storeOAuthProvider({ custom: "GitHub" });
         await signInWithRedirect({ provider: { custom: "GitHub" } });
         return;
       }

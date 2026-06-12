@@ -3,9 +3,11 @@ import { useEffect, useState } from "react";
 import {
   signUp,
   confirmSignUp,
+  resendSignUpCode,
   signIn,
   signInWithRedirect,
 } from "aws-amplify/auth";
+import { storeOAuthProvider } from "./CognitoCallback";
 import {
   ArrowLeft,
   User,
@@ -66,6 +68,7 @@ export default function Signup() {
   const handleGoogleSignup = async () => {
     setError("");
     try {
+      storeOAuthProvider("Google");
       await signInWithRedirect({ provider: "Google" });
     } catch (err) {
       setError("Google signup failed. Please try again.");
@@ -77,6 +80,7 @@ export default function Signup() {
   const handleGitHubSignup = async () => {
     setError("");
     try {
+      storeOAuthProvider({ custom: "GitHub" });
       await signInWithRedirect({ provider: { custom: "GitHub" } });
     } catch (err) {
       setError("GitHub signup failed. Please try again.");
@@ -108,13 +112,23 @@ export default function Signup() {
         setCodeSent(true);
         setCodeMessage("Verification code sent to your email.");
       } else if (result.isSignUpComplete) {
-        // Auto-confirmed (e.g., admin flow)
         await signIn({ username: email, password });
         await finishAuth();
       }
     } catch (err) {
-      console.error(err);
-      setError(err.message || "Registration failed. Try again.");
+      if (err.name === "UsernameExistsException") {
+        // User registered before but never verified — resend the code
+        try {
+          await resendSignUpCode({ username: email });
+          setCodeSent(true);
+          setCodeMessage("This email was registered but not verified. A new code has been sent.");
+        } catch {
+          setError("An account with this email already exists. Please log in.");
+        }
+      } else {
+        console.error(err);
+        setError(err.message || "Registration failed. Try again.");
+      }
     } finally {
       setLoading(false);
     }
@@ -157,8 +171,18 @@ export default function Signup() {
         setCodeMessage("Verification code sent to your email. It expires shortly.");
       }
     } catch (err) {
-      console.error(err);
-      setError(err.message || "Failed to send code. Please try again.");
+      if (err.name === "UsernameExistsException") {
+        try {
+          await resendSignUpCode({ username: email });
+          setCodeSent(true);
+          setCodeMessage("This email was registered but not verified. A new code has been sent.");
+        } catch {
+          setError("An account with this email already exists. Please log in.");
+        }
+      } else {
+        console.error(err);
+        setError(err.message || "Failed to send code. Please try again.");
+      }
     } finally {
       setLoading(false);
     }
