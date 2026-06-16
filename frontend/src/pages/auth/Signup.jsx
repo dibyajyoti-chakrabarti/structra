@@ -376,6 +376,9 @@ export default function Signup() {
                           {codeMessage}
                         </p>
                       )}
+                      <p className="text-xs text-slate-400">
+                        Can&apos;t find it? Check your spam or junk folder.
+                      </p>
                       <div className="relative">
                         <KeyRound className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
                         <input
