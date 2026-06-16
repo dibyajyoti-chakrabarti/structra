@@ -91,7 +91,7 @@ def _send_invitation_email(invitation):
     message = EmailMultiAlternatives(
         subject=subject,
         body=text_message,
-        from_email=getattr(settings, "DEFAULT_FROM_EMAIL", "sarthshah333@gmail.com"),
+        from_email=settings.DEFAULT_FROM_EMAIL,
         to=[invitation.email],
     )
     message.attach_alternative(html_message, "text/html")
