@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import User, EmailOTP
+from .models import User
 
 
 @admin.register(User)
@@ -24,11 +24,3 @@ class UserAdmin(admin.ModelAdmin):
     readonly_fields = ('user_id', 'created_at', 'last_login')
 
 
-@admin.register(EmailOTP)
-class EmailOTPAdmin(admin.ModelAdmin):
-    list_display = ('id', 'email', 'purpose', 'attempts', 'is_used', 'created_at', 'expires_at')
-    search_fields = ('id', 'email')
-    list_filter = ('purpose', 'is_used', 'created_at')
-    ordering = ('-created_at',)
-    date_hierarchy = 'created_at'
-    readonly_fields = ('id', 'created_at')
