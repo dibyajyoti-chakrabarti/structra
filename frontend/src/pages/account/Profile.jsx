@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import AuthenticatedNavbar from '../../components/AuthenticatedNavbar';
-import { User, Mail, MapPin, Calendar, Building, Globe, Lock, ArrowRight, Settings, Check, X, Camera, Edit2, Copy, Star, Search, AtSign, Inbox } from 'lucide-react';
+import { User, Mail, MapPin, Calendar, Building, Globe, Lock, ArrowRight, Settings, Check, X, Camera, Edit2, Copy, Star, Search, AtSign, Inbox, Trash2, AlertTriangle } from 'lucide-react';
+import { signOut as amplifySignOut } from 'aws-amplify/auth';
 import api from '../../api';
 import { formatDistanceToNow } from 'date-fns';
 import LoadingState from '../../components/LoadingState';
@@ -34,6 +35,11 @@ export default function Profile() {
   
   const [emailCopied, setEmailCopied] = useState(false);
   const [profileSaveError, setProfileSaveError] = useState('');
+
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleteConfirmEmail, setDeleteConfirmEmail] = useState('');
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState('');
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -239,6 +245,21 @@ export default function Profile() {
       return;
     }
     setFormData({ ...formData, [name]: value });
+  };
+
+  const handleDeleteAccount = async () => {
+    if (deleteConfirmEmail.trim().toLowerCase() !== (user?.email || '').toLowerCase()) return;
+    setIsDeleting(true);
+    setDeleteError('');
+    try {
+      await api.delete('auth/account/delete/');
+      await amplifySignOut({ global: true });
+      navigate('/login', { replace: true });
+    } catch (err) {
+      console.error('Account deletion failed', err);
+      setDeleteError(err.response?.data?.detail || 'Failed to delete account. Please try again.');
+      setIsDeleting(false);
+    }
   };
 
   const handleCancelPlan = async () => {
@@ -499,16 +520,25 @@ export default function Profile() {
             </div>
           </div>
 
-          <div className="p-6 border-t border-gray-100 bg-white mt-auto">
+          <div className="p-6 border-t border-gray-100 bg-white mt-auto space-y-2">
+            {!isEditing && (
+              <button
+                onClick={() => { setShowDeleteModal(true); setDeleteConfirmEmail(''); setDeleteError(''); }}
+                className="w-full py-2.5 flex items-center justify-center gap-2 border border-red-200 rounded-md text-sm font-medium text-red-600 hover:bg-red-50 hover:border-red-300 transition-colors"
+              >
+                <Trash2 size={15} />
+                Delete Account
+              </button>
+            )}
             {isEditing ? (
               <div className="flex gap-2 animate-in slide-in-from-bottom-2 duration-200">
-                <button 
+                <button
                   onClick={handleSave}
                   className="flex-1 py-2.5 flex items-center justify-center gap-2 bg-gray-900 text-white rounded-md text-sm font-medium hover:bg-black transition-colors"
                 >
                   <Check size={16} /> Save
                 </button>
-                <button 
+                <button
                   onClick={handleCancel}
                   className="px-4 py-2.5 flex items-center justify-center gap-2 border border-gray-200 rounded-md text-sm font-medium text-gray-600 hover:bg-gray-50 transition-colors"
                 >
@@ -516,7 +546,7 @@ export default function Profile() {
                 </button>
               </div>
             ) : (
-              <button 
+              <button
                 onClick={handleEdit}
                 className="w-full py-2.5 flex items-center justify-center gap-2 border border-gray-200 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 hover:text-gray-900 transition-colors group"
               >
@@ -529,6 +559,70 @@ export default function Profile() {
             )}
           </div>
         </aside>
+
+        {/* Delete Account confirmation modal */}
+        {showDeleteModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+            <div className="w-full max-w-md rounded-xl bg-white shadow-2xl border border-gray-200">
+              <div className="p-6">
+                <div className="flex items-start gap-4 mb-5">
+                  <div className="flex-shrink-0 w-10 h-10 rounded-full bg-red-100 flex items-center justify-center">
+                    <AlertTriangle size={18} className="text-red-600" />
+                  </div>
+                  <div>
+                    <h2 className="text-base font-semibold text-gray-900">Delete your account</h2>
+                    <p className="mt-1 text-sm text-gray-500">
+                      This permanently deletes your account, all workspaces you own, canvases, and every piece of data associated with your profile. <span className="font-medium text-gray-700">This cannot be undone.</span>
+                    </p>
+                  </div>
+                </div>
+
+                <div className="rounded-lg bg-red-50 border border-red-200 px-4 py-3 mb-5 text-xs text-red-700 space-y-1">
+                  <p className="font-semibold">What will be deleted:</p>
+                  <ul className="list-disc list-inside space-y-0.5 text-red-600">
+                    <li>Your account and authentication credentials</li>
+                    <li>All workspaces and canvases you own</li>
+                    <li>All workspace memberships and invitations</li>
+                    <li>All notifications and activity history</li>
+                  </ul>
+                </div>
+
+                <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                  To confirm, type your email address:{' '}
+                  <span className="font-mono text-gray-900">{user?.email}</span>
+                </label>
+                <input
+                  type="email"
+                  autoFocus
+                  value={deleteConfirmEmail}
+                  onChange={(e) => { setDeleteConfirmEmail(e.target.value); setDeleteError(''); }}
+                  placeholder={user?.email}
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm text-gray-900 outline-none focus:border-red-400 focus:ring-2 focus:ring-red-100"
+                />
+                {deleteError && (
+                  <p className="mt-2 text-xs font-medium text-red-600">{deleteError}</p>
+                )}
+              </div>
+
+              <div className="flex gap-3 px-6 pb-6">
+                <button
+                  onClick={() => { setShowDeleteModal(false); setDeleteConfirmEmail(''); setDeleteError(''); }}
+                  disabled={isDeleting}
+                  className="flex-1 py-2.5 rounded-lg border border-gray-200 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleDeleteAccount}
+                  disabled={deleteConfirmEmail.trim().toLowerCase() !== (user?.email || '').toLowerCase() || isDeleting}
+                  className="flex-1 py-2.5 rounded-lg bg-red-600 text-sm font-medium text-white hover:bg-red-700 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  {isDeleting ? 'Deleting…' : 'Delete my account'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* RIGHT CONTENT (workspaces + right sidebar search) */}
         <main className="flex-1 md:overflow-y-auto bg-gray-50 p-4 sm:p-8 md:p-10">

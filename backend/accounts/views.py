@@ -1,17 +1,25 @@
-from rest_framework import generics, permissions
-from django.contrib.postgres.search import TrigramSimilarity
+import logging
+
+import boto3
+from botocore.exceptions import ClientError
+from django.conf import settings
 from django.contrib.auth import get_user_model
-from rest_framework.permissions import AllowAny
-from .serializers import UserSerializer
-from rest_framework.views import APIView
-from rest_framework.response import Response
-from rest_framework import status
+from django.core.exceptions import ValidationError as DjangoValidationError
 from django.db.models import Count, Value
 from django.db.models.functions import Coalesce
-from .username_utils import normalize_username_input, username_validator
-from django.core.exceptions import ValidationError as DjangoValidationError
-from workspaces.models import Workspace
+from rest_framework import generics, permissions, status
+from rest_framework.permissions import AllowAny
+from rest_framework.response import Response
+from rest_framework.views import APIView
+
 from core.constants import WorkspaceVisibility
+from workspaces.models import Workspace
+
+from .serializers import UserSerializer
+from .username_utils import normalize_username_input, username_validator
+
+logger = logging.getLogger(__name__)
+from django.contrib.postgres.search import TrigramSimilarity
 
 User = get_user_model()
 
@@ -136,3 +144,36 @@ class UserProfileView(generics.RetrieveUpdateAPIView):
 
     def get_object(self):
         return self.request.user
+
+
+class DeleteAccountView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def delete(self, request):
+        user = request.user
+        cognito_sub = user.cognito_sub
+
+        if cognito_sub:
+            try:
+                client = boto3.client('cognito-idp', region_name=getattr(settings, 'AWS_REGION', 'ap-south-1'))
+                client.admin_delete_user(
+                    UserPoolId=settings.COGNITO_USER_POOL_ID,
+                    Username=cognito_sub,
+                )
+            except ClientError as exc:
+                code = exc.response['Error']['Code']
+                if code != 'UserNotFoundException':
+                    logger.error("Cognito admin_delete_user failed for %s: %s", cognito_sub, exc)
+                    return Response(
+                        {'detail': 'Failed to delete account from authentication service. Please try again.'},
+                        status=status.HTTP_502_BAD_GATEWAY,
+                    )
+            except Exception as exc:
+                logger.error("Unexpected error deleting Cognito user %s: %s", cognito_sub, exc)
+                return Response(
+                    {'detail': 'Failed to delete account. Please try again.'},
+                    status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                )
+
+        user.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
