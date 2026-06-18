@@ -151,8 +151,6 @@ export default function Signup() {
     }
   };
 
-  // --- OTP signup: use Cognito's email verification as the OTP step ---
-  // Same as password signup but with a dummy password the user never uses again.
   const DUMMY_PW_PREFIX = "Str@ctr@-";
   const handleOtpSignup = async (e) => {
     e.preventDefault();
@@ -166,22 +164,25 @@ export default function Signup() {
           userAttributes: { email, name: fullName },
         },
       });
-      if (result.nextStep?.signUpStep === "CONFIRM_SIGN_UP") {
+      if (result.nextStep?.signUpStep === "DONE" || result.isSignUpComplete) {
+        // Auto-confirmed — go straight to OTP sign-in
+        const params = new URLSearchParams({ method: "otp", email });
+        if (inviteToken) {
+          params.set("invite_token", inviteToken);
+          params.set("invite_email", email);
+        }
+        navigate(`/login?${params.toString()}`);
+      } else if (result.nextStep?.signUpStep === "CONFIRM_SIGN_UP") {
+        // Fallback for edge cases (e.g. admin-created accounts)
         setCodeSent(true);
         setCodeMessage("Verification code sent to your email. It expires shortly.");
       }
     } catch (err) {
       if (err.name === "UsernameExistsException") {
-        try {
-          await resendSignUpCode({ username: email });
-          setCodeSent(true);
-          setCodeMessage("This email was registered but not verified. A new code has been sent.");
-        } catch {
-          setError("An account with this email already exists. Please log in.");
-        }
+        setError("An account with this email already exists. Please sign in.");
       } else {
         console.error(err);
-        setError(err.message || "Failed to send code. Please try again.");
+        setError(err.message || "Failed to create account. Please try again.");
       }
     } finally {
       setLoading(false);

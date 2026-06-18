@@ -28,11 +28,13 @@ export default function Login() {
   const [searchParams] = useSearchParams();
   const inviteToken = searchParams.get("invite_token") || "";
   const inviteEmail = searchParams.get("invite_email") || "";
+  const initialMethod = searchParams.get("method") === "otp" ? "otp" : "password";
+  const initialEmail = searchParams.get("email") || inviteEmail || "";
   const { refreshUserProfile } = useAuth();
 
-  const [identifier, setIdentifier] = useState(inviteEmail || "");
+  const [identifier, setIdentifier] = useState(initialEmail);
   const [password, setPassword] = useState("");
-  const [authMethod, setAuthMethod] = useState("password");
+  const [authMethod, setAuthMethod] = useState(initialMethod);
   const [otpCode, setOtpCode] = useState("");
   const [otpSent, setOtpSent] = useState(false);
   const [otpMessage, setOtpMessage] = useState("");
@@ -142,7 +144,13 @@ export default function Login() {
       }
     } catch (err) {
       console.error(err);
-      setError(err.message || "Failed to send OTP. Please try again.");
+      if (err.name === "UserNotConfirmedException") {
+        setError("Your account isn't confirmed yet. Please sign up again to resend the verification email.");
+      } else if (err.name === "UserNotFoundException") {
+        setError("No account found for this email. Please sign up first.");
+      } else {
+        setError(err.message || "Failed to send OTP. Please try again.");
+      }
     } finally {
       setLoading(false);
     }
