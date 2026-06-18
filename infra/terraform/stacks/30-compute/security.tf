@@ -3,7 +3,7 @@
 # app-private subnet CIDRs).
 resource "aws_security_group" "lambda" {
   name        = "${var.name_prefix}-lambda"
-  description = "Structra Lambdas — egress only"
+  description = "Structra Lambdas - egress only"
   vpc_id      = data.terraform_remote_state.persistent.outputs.vpc_id
   tags        = { Name = "${var.name_prefix}-lambda" }
 

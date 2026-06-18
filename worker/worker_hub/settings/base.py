@@ -64,6 +64,8 @@ BEDROCK_MODEL_ID = os.getenv('BEDROCK_MODEL_ID', 'amazon.nova-pro-v1:0')
 BEDROCK_SEMANTIC_MODEL_ID = os.getenv('BEDROCK_SEMANTIC_MODEL_ID', 'amazon.nova-lite-v1:0')
 BEDROCK_REGION = os.getenv('BEDROCK_REGION', 'us-east-1')
 BEDROCK_TIMEOUT_SECONDS = float(os.getenv('BEDROCK_TIMEOUT_SECONDS', '60'))
+STRANDS_MODEL_ID = os.getenv('STRANDS_MODEL_ID', BEDROCK_MODEL_ID)
+STRANDS_BEDROCK_REGION = os.getenv('STRANDS_BEDROCK_REGION', BEDROCK_REGION)
 AWS_PROFILE = os.getenv('AWS_PROFILE', '')  # set for local dev; empty in prod (EC2 IAM role)
 
 # Payments (Razorpay) — referenced by workspaces app models/services

@@ -26,8 +26,9 @@ variable "worker_image_tag" {
 
 # --- NAT instance ---
 variable "nat_instance_type" {
-  type    = string
-  default = "t4g.nano"
+  description = "NAT instance type. t4g.micro (arm64) is Free Tier eligible on this account; t4g.nano is not."
+  type        = string
+  default     = "t4g.micro"
 }
 
 # --- Lambda sizing ---

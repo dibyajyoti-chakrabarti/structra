@@ -49,8 +49,9 @@ variable "deletion_protection" {
 }
 
 variable "backup_retention_period" {
-  type    = number
-  default = 7
+  description = "Automated backup retention (days). 0 disables — required on this Free Tier account, which caps retention. Raise once off the free plan."
+  type        = number
+  default     = 0
 }
 
 variable "ssm_db_password_name" {

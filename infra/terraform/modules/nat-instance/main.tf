@@ -58,7 +58,7 @@ resource "aws_iam_instance_profile" "nat" {
 # arbitrary outbound from the private subnets); allow all egress.
 resource "aws_security_group" "nat" {
   name        = "${var.name_prefix}-nat"
-  description = "NAT instance — forwards VPC egress to the internet"
+  description = "NAT instance - forwards VPC egress to the internet"
   vpc_id      = var.vpc_id
   tags        = merge(var.tags, { Name = "${var.name_prefix}-nat" })
 

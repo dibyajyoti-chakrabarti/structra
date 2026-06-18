@@ -12,7 +12,7 @@ resource "aws_db_subnet_group" "this" {
 
 resource "aws_security_group" "db" {
   name        = "${var.name_prefix}-db"
-  description = "RDS — allow PostgreSQL from the app-private subnets only"
+  description = "RDS - allow PostgreSQL from the app-private subnets only"
   vpc_id      = var.vpc_id
   tags        = merge(var.tags, { Name = "${var.name_prefix}-db" })
 

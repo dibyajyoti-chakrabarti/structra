@@ -1,0 +1,22 @@
+FROM public.ecr.aws/lambda/python:3.12
+
+# Node.js is required for the rule engine subprocess (evaluation/runner.mjs)
+RUN dnf install -y nodejs && node --version
+
+# Python dependencies: backend shared deps + Strands agents SDK
+COPY backend/requirements.txt /tmp/requirements.txt
+RUN pip install --no-cache-dir -r /tmp/requirements.txt strands-agents
+
+# Backend source for Django ORM access (models, services, settings)
+COPY backend /var/task/backend
+
+# Worker source
+COPY worker /var/task/worker
+
+ENV PYTHONPATH=/var/task/backend:/var/task/worker
+ENV DJANGO_ENV=production
+ENV DJANGO_SETTINGS_MODULE=worker_hub.settings
+
+WORKDIR /var/task/worker
+
+CMD ["strands_lambda_handler.handler"]

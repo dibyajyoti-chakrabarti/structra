@@ -16,7 +16,8 @@ locals {
     DB_HOST     = local.data_layer.rds_endpoint_address
     DB_PORT     = tostring(local.data_layer.rds_port)
 
-    AWS_REGION                = var.region
+    # AWS_REGION is a reserved Lambda env key (the runtime sets it to the
+    # function's region, ap-south-1) — must not be set here.
     BEDROCK_REGION            = var.bedrock_region
     BEDROCK_MODEL_ID          = var.bedrock_model_id
     BEDROCK_SEMANTIC_MODEL_ID = var.bedrock_semantic_model_id
