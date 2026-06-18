@@ -3,7 +3,6 @@ import { useEffect, useState } from "react";
 import {
   signUp,
   confirmSignUp,
-  resendSignUpCode,
   signIn,
   signInWithRedirect,
 } from "aws-amplify/auth";
@@ -117,14 +116,7 @@ export default function Signup() {
       }
     } catch (err) {
       if (err.name === "UsernameExistsException") {
-        // User registered before but never verified — resend the code
-        try {
-          await resendSignUpCode({ username: email });
-          setCodeSent(true);
-          setCodeMessage("This email was registered but not verified. A new code has been sent.");
-        } catch {
-          setError("An account with this email already exists. Please log in.");
-        }
+        setError("An account with this email already exists. Please sign in.");
       } else {
         console.error(err);
         setError(err.message || "Registration failed. Try again.");
