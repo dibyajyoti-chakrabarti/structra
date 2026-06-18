@@ -112,6 +112,28 @@ deploy-frontend: ## Build frontend (needs VITE_* env) and sync to S3 + invalidat
 	aws s3 sync $(ROOT)/frontend/dist s3://$(FE_BUCKET) --delete --profile $(PROFILE) --region $(REGION)
 	@if [ -n "$(CF_DIST)" ]; then aws cloudfront create-invalidation --distribution-id $(CF_DIST) --paths "/*" --profile $(PROFILE) --region $(REGION); fi
 
+# ---------------------------------------------------------------- migrations / diagnostics
+# Migrations MUST run via the backend image — the worker's INSTALLED_APPS is a
+# subset and would miss backend-only tables (payments, notifications, ...).
+# These temporarily override the Lambda command, invoke once, then revert.
+.PHONY: migrate selftest
+migrate: ## Run Django migrations via the backend Lambda (full app list)
+	aws lambda update-function-configuration --function-name $(BACKEND_FN) --image-config '{"Command":["migrate_handler.handler"]}' --profile $(PROFILE) --region $(REGION) >/dev/null
+	aws lambda wait function-updated --function-name $(BACKEND_FN) --profile $(PROFILE) --region $(REGION)
+	aws lambda invoke --function-name $(BACKEND_FN) --cli-binary-format raw-in-base64-out --payload '{}' /tmp/structra-migrate.json --profile $(PROFILE) --region $(REGION) >/dev/null
+	@echo "migrate result:" && cat /tmp/structra-migrate.json && echo
+	aws lambda update-function-configuration --function-name $(BACKEND_FN) --image-config '{}' --profile $(PROFILE) --region $(REGION) >/dev/null
+	aws lambda wait function-updated --function-name $(BACKEND_FN) --profile $(PROFILE) --region $(REGION)
+	@echo "backend reverted to API handler"
+selftest: ## Verify worker -> RDS + worker -> Bedrock (via NAT) from inside the VPC
+	aws lambda update-function-configuration --function-name $(WORKER_FN) --image-config '{"Command":["selftest_handler.handler"]}' --profile $(PROFILE) --region $(REGION) >/dev/null
+	aws lambda wait function-updated --function-name $(WORKER_FN) --profile $(PROFILE) --region $(REGION)
+	aws lambda invoke --function-name $(WORKER_FN) --cli-binary-format raw-in-base64-out --payload '{}' /tmp/structra-selftest.json --profile $(PROFILE) --region $(REGION) >/dev/null
+	@echo "selftest result:" && cat /tmp/structra-selftest.json && echo
+	aws lambda update-function-configuration --function-name $(WORKER_FN) --image-config '{}' --profile $(PROFILE) --region $(REGION) >/dev/null
+	aws lambda wait function-updated --function-name $(WORKER_FN) --profile $(PROFILE) --region $(REGION)
+	@echo "worker reverted to SQS handler"
+
 # ---------------------------------------------------------------- quality
 .PHONY: fmt validate
 fmt: ## terraform fmt the whole tree
