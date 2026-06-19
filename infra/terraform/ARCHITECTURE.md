@@ -15,46 +15,44 @@ demand. The only machines that run 24/7 are a tiny NAT instance and the database
 ```
                               INTERNET
                                  │
-        ┌────────────────────────┼─────────────────────────────┐
-        │ user's browser         │                             │
-        ▼                        ▼                             ▼
-  ┌───────────┐          ┌──────────────┐              ┌────────────────┐
-  │  Cognito  │          │  CloudFront   │              │  API Gateway    │
-  │ user pool │◀─ auth ─▶│  (CDN, OAC)   │              │  (HTTP API)     │
-  │ +4 triggers          └──────┬───────┘              └───────┬────────┘
-  └───────────┘                 │ static SPA                   │ AWS_PROXY
-                                ▼                              ▼  (invoke)
-                         ┌─────────────┐              ╔═══════════════════════╗
-                         │ S3 (private)│              ║   VPC 10.0.0.0/16      ║
-                         │  frontend   │              ║  (2 Availability Zones)║
-                         └─────────────┘              ║                        ║
-                                                      ║  PUBLIC subnets        ║
-                                                      ║  ┌──────────────────┐  ║
-                              internet egress ◀───────╫──┤  NAT instance     │  ║
-                              (Cognito JWKS,          ║  │  (t4g.micro EC2)  │  ║
-                               Bedrock, Razorpay,     ║  └─────────▲────────┘  ║
-                               Zoho SMTP)             ║            │ 0.0.0.0/0 ║
-                                                      ║  PRIVATE app subnets   ║
-                                                      ║  ┌───────────────────┐ ║
-                                                      ║  │ Backend Lambda     │ ║
-                                            ┌─────────╫──┤ (Django + Mangum)  │ ║
-                                            │  SQS    ║  └───────────────────┘ ║
-                                            │ (queue) ║  ┌───────────────────┐ ║
-                                            └────────▶║  │ Worker Lambda      │ ║
-                                              trigger ║  │ (evaluations)      │ ║
-                                                      ║  └─────────┬─────────┘ ║
-                                                      ║  PRIVATE db subnets    ║
-                                                      ║  ┌───────────────────┐ ║
-                                                      ║  │ RDS PostgreSQL     │ ║
-                                                      ║  │ (private)          │ ║
-                                                      ║  └───────────────────┘ ║
-                                                      ╚═══════════════════════╝
+        ┌────────────────────────┼───────────────┬──────────────────────────┐
+        │ user's browser         │               │                          │
+        ▼                        ▼               │                          ▼
+  ┌───────────┐          ┌──────────────┐         │                  ┌────────────────┐
+  │  Cognito  │          │  CloudFront   │        │                  │  API Gateway    │
+  │ user pool │◀─ auth ─▶│  (CDN, OAC)   │        │                  │  (HTTP API)     │
+  │ +4 triggers          └──────┬───────┘         │                  └───────┬────────┘
+  └───────────┘                 │ static SPA      │                          │ AWS_PROXY
+                                ▼                 │                          ▼  (invoke)
+                         ┌─────────────┐   ┌──────────────────┐    ╔═══════════════════════╗
+                         │ S3 (private)│   │  Worker Lambda    │    ║   VPC 10.0.0.0/16      ║
+                         │  frontend   │   │  STATELESS, no VPC │    ║  (2 AZs)               ║
+                         └─────────────┘   │  Node + Bedrock    │    ║  PUBLIC subnets        ║
+                                           └───▲──────────┬────┘    ║  ┌──────────────────┐  ║
+                                      SQS ─────┘          │ POST    ║  │  NAT instance     │  ║
+                                    (trigger)             │ result  ║  │  (t4g.micro EC2)  │  ║
+                                       ▲                  │(secret) ║  └─────────▲────────┘  ║
+                                       │ send job         ▼         ║   backend egress │     ║
+                                       │            ┌───────────────╫──────────────┐  │     ║
+                                       └────────────┤ Backend Lambda (Django+Mangum)│  │     ║
+                              Cognito JWKS/Razorpay/┤   PRIVATE app subnets (VPC)    │──┘     ║
+                              SMTP ◀──via NAT───────┤                               │        ║
+                                                    └───────────────┬───────────────┘        ║
+                                                    ║  PRIVATE db subnets │                   ║
+                                                    ║         ┌──────────▼─────────┐          ║
+                                                    ║         │ RDS PostgreSQL      │          ║
+                                                    ║         │ (private)           │          ║
+                                                    ║         └────────────────────┘          ║
+                                                    ╚════════════════════════════════════════╝
 ```
 
-**Core idea:** the database is private (unreachable from the internet). The Lambdas
-live *inside* the VPC so they can reach it. But a VPC-attached Lambda loses its default
-internet access, so a **NAT instance** gives them a way out to the public services they
-depend on. The frontend is just static files in S3, served globally by CloudFront.
+**Core idea:** the database is private (unreachable from the internet), and only the
+**backend** lives inside the VPC to reach it — using a **NAT instance** for its outbound
+public calls (Cognito JWKS, Razorpay, SMTP). The **worker is a stateless microservice that
+owns no database**: it gets a self-contained job over SQS, computes, and POSTs the result
+back to a secret-authed backend endpoint that persists it (database-per-service). Because
+it never touches RDS, the worker is **not** in the VPC and reaches Bedrock + the backend API
+directly over the internet (no NAT). The frontend is static files in S3, served by CloudFront.
 
 ---
 
@@ -84,17 +82,21 @@ privately inside the VPC.
 ### C. Running an evaluation (the asynchronous part)
 ```
 1. Browser → API GW → Backend Lambda:  POST /api/evaluation/ai/
-2. Backend Lambda: create EvaluationRun row, send {runId,...} to SQS, return 200 immediately
+2. Backend: create EvaluationRun (status RUNNING), send a SELF-CONTAINED job
+   {runId, canvasState, workspaceTier} to SQS, return 202 immediately
 3. SQS → triggers the Worker Lambda (event source mapping)
-4. Worker Lambda: run_evaluation_job()
+4. Worker (stateless, no DB):
       ├─ Node.js rule engine (subprocess) scores the architecture
-      ├─ Bedrock (Llama 3.3) generates suggestions   ──(NAT)──▶ us-east-1
-      └─ writes results back to RDS
-5. Browser polls GET /api/.../evaluations/  → sees COMPLETED + the report
+      └─ Bedrock (Llama 3.3) generates suggestions   ──direct internet──▶ us-east-1
+5. Worker → POST /api/internal/evaluations/{runId}/result/  (X-Internal-Token)
+6. Backend callback: persists the result to RDS (status COMPLETED, score, EvaluationLog,
+   audit event, token refund on AI error)
+7. Browser polls GET /api/.../evaluations/  → sees COMPLETED + the report
 ```
 The user's request finishes at step 2 — they don't wait for the (slow) evaluation. **SQS
-decouples** the fast web request from the slow background work. This is why the system
-feels responsive even though an evaluation takes ~12 seconds.
+decouples** the fast web request from the slow background work, and the worker never touches
+the database — it hands the result back through a secret-authed callback (**database-per-service**).
+An evaluation takes ~12 seconds, fully in the background.
 
 ---
 
@@ -113,9 +115,10 @@ Three tiers of subnets, spread across two Availability Zones:
 > of the security posture.
 
 ### NAT instance (a small EC2) — **the key cost decision**
-A private-subnet Lambda has **no internet access**. But our Lambdas must reach public
-services: Cognito's JWKS (to validate tokens), Bedrock, Razorpay, Zoho SMTP. Something has
-to give them a path out.
+A private-subnet Lambda has **no internet access**. The **backend** is VPC-attached (it needs
+private RDS) and must still reach public services: Cognito's JWKS (to validate tokens),
+Razorpay, Zoho SMTP. Something has to give it a path out. (The worker is *not* in the VPC, so
+it doesn't use the NAT — see below.)
 
 - **Option considered — NAT Gateway:** AWS-managed, zero-maintenance, ~**$32/mo** even idle.
 - **Option chosen — NAT instance:** a `t4g.micro` EC2 running iptables masquerading. ~**$3/mo**,
@@ -130,7 +133,8 @@ to give them a path out.
 
 Technical notes: the instance has `source_dest_check = false` (so it can forward packets not
 addressed to itself), uses an auto-assigned public IP (no Elastic IP — saves the IPv4 charge
-while stopped), and the private subnets' route tables send `0.0.0.0/0` to its network interface.
+while stopped), and the **backend** private subnets' route tables send `0.0.0.0/0` to its
+network interface.
 
 ### Backend Lambda + API Gateway (HTTP API)
 The Django app runs as a **container-image Lambda**. **Mangum** adapts Lambda/API-Gateway
@@ -141,22 +145,32 @@ rewrite. API Gateway (HTTP API, the cheaper v2) fronts it and proxies every path
 > trade-off is cold starts (~3s on the first request after idle, including VPC ENI attach) —
 > negligible for an evaluation tool.
 
-### Worker Lambda + SQS (and why we dropped Strands)
+### Worker — a stateless microservice (database-per-service)
 Evaluations are slow (rule engine + an LLM call). Doing them inside the web request would
 make the UI hang and risk API Gateway's 29s timeout. So the backend drops a message on **SQS**
 and returns instantly; a separate **worker Lambda** is triggered by the queue to do the work.
 
-The worker calls `run_evaluation_job()` directly — the same code path the local worker uses.
-We originally planned to wrap this in a **Strands agent**, but Strands requires Bedrock's
-*streaming* tool-use API, which on this account hit a marketplace-subscription wall (and the
-open-source model we use doesn't support streaming tool-use anyway). Since the evaluation
-pipeline is a fixed sequence, the agent added no value — so the worker runs the steps directly.
-A dead-letter queue (DLQ) catches messages that fail 3 times.
+The worker is a **stateless microservice that owns no database**. It receives a self-contained
+job (`{runId, canvasState, workspaceTier}`), runs the Node rule engine + Bedrock, and **POSTs
+the result back to a secret-authed backend callback** (`/api/internal/evaluations/{runId}/result/`,
+`X-Internal-Token`), which performs all persistence (run status, `EvaluationLog`, audit, token
+refund). This is the **database-per-service** principle — the worker never reaches into the
+backend's Postgres, avoiding the distributed-monolith anti-pattern.
+
+> **Consequences of statelessness:** because the worker touches no RDS, it is **not** VPC-attached
+> — it reaches Bedrock and the backend API directly over the internet (no NAT, faster cold starts).
+> Its contract is pure JSON in/out, so it's independently deployable and language-agnostic.
+
+We dropped **Strands** (the earlier orchestration idea): it requires Bedrock's *streaming* tool-use
+API, which hit a marketplace-subscription wall on this account, and the open-source model doesn't
+support streaming tool-use anyway. The pipeline is a fixed sequence, so an agent added no value.
+A dead-letter queue (DLQ) catches messages that fail 3 times; a failed compute POSTs a `failed`
+status so the backend still finalizes the run + refunds the token.
 
 ### RDS PostgreSQL (private)
 A single managed Postgres instance in the **private db subnets**, `publicly_accessible = false`.
-Both Lambdas reach it over the VPC's internal network; the security group only allows port 5432
-from the app subnets.
+Only the **backend** reaches it (over the VPC's internal network); the security group allows
+port 5432 from the backend's app subnets. The worker never connects to it.
 
 > **Why private:** the database holds all user/workspace data — it should never be reachable
 > from the internet. The cost of this choice is that migrations can't be run from a laptop;
@@ -232,8 +246,9 @@ make prod-up     # start RDS + NAT        → back in ~2-3 min, no apply needed
 | Internet egress | **NAT instance** (t4g.micro) | ~$3/mo vs ~$32/mo NAT Gateway; stoppable |
 | Endpoints vs NAT | NAT | Endpoints cost more *and* don't cover Cognito/Razorpay (public) |
 | Async work | SQS + worker Lambda | Decouple slow eval from the web request |
-| Orchestration | Direct call, **no Strands** | Bedrock streaming tool-use blocked; fixed pipeline needs no agent |
-| Database | Private RDS | Never internet-reachable; reached only in-VPC |
+| Worker | **Stateless, no DB, no VPC** | database-per-service; result via secret-authed callback; reaches Bedrock/API directly (no NAT) |
+| Orchestration | Direct compute, **no Strands** | Bedrock streaming tool-use blocked; fixed pipeline needs no agent |
+| Database | Private RDS | Never internet-reachable; **backend-only** access in-VPC |
 | Frontend | S3 + CloudFront + OAC | Cheap, global, private origin |
 | Auth | Existing Cognito (referenced) | Irreplaceable; never managed/destroyed by TF |
 | Secrets | SSM SecureString | AWS-native, free, no app change; Lambdas can read it |

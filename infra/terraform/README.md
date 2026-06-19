@@ -10,20 +10,22 @@ read **[ARCHITECTURE.md](./ARCHITECTURE.md)**.
 ## Architecture (at a glance)
 
 ```
-User ─HTTPS─▶ API Gateway (HTTP API) ──▶ Backend Lambda ┐        CloudFront ─OAC─▶ S3 (frontend SPA)
-                                          (VPC, private) │             ▲
-Cognito (existing pool + 4 triggers) ◀──── JWT/OAuth ────┤             └── User (static assets)
-                                                         │
-              Backend Lambda ──send──▶ SQS ──trigger──▶ Worker Lambda (VPC, private)
-                                                         │  run_evaluation_job(): Node rule engine + Bedrock
-              Both Lambdas ──▶ RDS PostgreSQL (private)  │
-              Both Lambdas ──outbound──▶ NAT instance (t4g.micro, public subnet) ──▶ Internet
-                                          (Cognito JWKS, Bedrock, SQS, Razorpay, Zoho SMTP)
+User ─HTTPS─▶ API Gateway (HTTP API) ──▶ Backend Lambda (VPC, private) ──▶ RDS PostgreSQL (private)
+                                              │   ▲                          CloudFront ─OAC─▶ S3 (SPA)
+Cognito (existing pool + 4 triggers) ◀─JWT/OAuth │ │ result callback (X-Internal-Token)
+                                              │   │
+                  Backend ──send job──▶ SQS ──trigger──▶ Worker Lambda (STATELESS, no VPC, no DB)
+                                                              │  Node rule engine + Bedrock
+                                                              └─ POST result ─▶ Backend callback ─┘
+   Backend ──via NAT──▶ Cognito JWKS / Razorpay / SMTP        Worker ──direct internet──▶ Bedrock + Backend API
 ```
 
-VPC-attached Lambdas reach the internet through a **NAT instance** (a small EC2,
-not a managed NAT Gateway) for cost. RDS is private; the Lambdas reach it inside
-the VPC.
+The **worker is a stateless microservice**: it owns no database. It gets a
+self-contained job over SQS, computes (Node rule engine + Bedrock), and POSTs the
+result to a secret-authed backend callback, which persists it (database-per-service).
+Because it touches no RDS, the worker is **not** in the VPC (no NAT, faster cold starts).
+The **backend** is VPC-attached (private RDS) and reaches public services (Cognito JWKS,
+Razorpay, SMTP) through a **NAT instance** (a small EC2, not a managed NAT Gateway, for cost).
 
 ## Layered stacks (each = independent remote state)
 
@@ -32,7 +34,7 @@ the VPC.
 | `bootstrap/` | S3 state bucket + DynamoDB lock | one-time, local state |
 | `stacks/10-persistent/` | VPC, subnets, IGW, route tables; ECR repos; Lambda exec IAM roles; (optional) Cognito 4 triggers; frontend S3 bucket | **never destroyed** |
 | `stacks/20-data/` | RDS PostgreSQL + subnet group + SG | destroyable w/ final snapshot; normally just **stopped** |
-| `stacks/30-compute/` | NAT instance + private routes; backend Lambda + API GW; worker Lambda + SQS/DLQ; CloudFront/OAC | **freely destroyable** |
+| `stacks/30-compute/` | NAT instance + private routes; backend Lambda (VPC) + API GW; worker Lambda (no VPC) + SQS/DLQ; CloudFront/OAC | **freely destroyable** |
 
 Upper stacks read lower ones via `terraform_remote_state`. Only the NAT EC2 and
 RDS cost money at idle — everything else is pay-per-use (~$0).
@@ -44,14 +46,15 @@ RDS cost money at idle — everything else is pay-per-use (~$0).
 
 ## First-time setup
 
-1. **Create the 5 app secrets** in SSM Parameter Store (out-of-band; never in git):
+1. **Create the 6 app secrets** in SSM Parameter Store (out-of-band; never in git):
    ```bash
-   for k in DB_PASSWORD DJANGO_SECRET_KEY RAZORPAY_KEY_SECRET RAZORPAY_WEBHOOK_SECRET EMAIL_HOST_PASSWORD; do
+   for k in DB_PASSWORD DJANGO_SECRET_KEY RAZORPAY_KEY_SECRET RAZORPAY_WEBHOOK_SECRET EMAIL_HOST_PASSWORD INTERNAL_API_TOKEN; do
      read -rsp "$k: " v; echo
      aws ssm put-parameter --profile structra-admin --region ap-south-1 \
        --name "/structra/prod/$k" --type SecureString --value "$v" --overwrite
    done
    ```
+   (`INTERNAL_API_TOKEN` is the shared secret the worker uses to authenticate its result callback to the backend — any random 32+ byte value, e.g. `openssl rand -hex 32`.)
 2. **Bootstrap remote state:** `make bootstrap`
 3. **Apply persistent + build images + apply data + migrate + apply compute:**
    ```bash
@@ -94,7 +97,6 @@ Export these before building (or put them in `frontend/.env.production`):
 | Redeploy backend / worker | `make deploy-backend` / `make deploy-worker` |
 | Redeploy frontend | `make deploy-frontend` |
 | Run migrations | `make migrate` |
-| Verify worker → RDS + Bedrock | `make selftest` |
 | Deep-off (remove compute) | `make destroy-compute` |
 | Remove RDS (guarded) | set `deletion_protection=false`, apply, then `make destroy-data CONFIRM=yes` |
 
@@ -104,7 +106,7 @@ no re-apply to resume. A stopped RDS auto-restarts after 7 days, so re-run `prod
 
 ## Secrets
 
-The 5 secrets live in **SSM Parameter Store SecureString** (`/structra/prod/*`).
+The 6 secrets live in **SSM Parameter Store SecureString** (`/structra/prod/*`).
 Terraform reads them via `data.aws_ssm_parameter` and injects them as Lambda env vars
 (the app reads plain `os.getenv` — no code change). Trade-off: resolved values land in
 the Terraform **state**, which is why the state bucket is private + encrypted; Lambda env
@@ -125,12 +127,13 @@ The functions set `image_uri` initially and use `lifecycle { ignore_changes = [i
 so `make deploy-*` (`update-function-code`) does not cause Terraform drift. Both run on
 `x86_64`.
 
-### Ops / diagnostic entrypoints (in the images)
-- `backend/migrate_handler.py` — runs `migrate` with the full app list (used by `make migrate`).
-- `worker/migrate_handler.py` — worker-scoped migrate (subset of apps; prefer the backend one).
-- `worker/selftest_handler.py` — checks DB + a real Bedrock call (used by `make selftest`).
+The **worker image is minimal** — only `cloud_handler.py`, `evaluation_compute.py`,
+`config.py`, and the Node rule engine (`worker/evaluation/`). No backend code, no Django,
+no DB driver.
 
-These are invoked only by overriding a function's command; they are never wired to API GW or SQS.
+### Ops / diagnostic entrypoints
+- `backend/migrate_handler.py` — runs `migrate` with the full app list (used by `make migrate`,
+  invoked by overriding the backend function's command; never wired to API GW).
 
 ## Cognito triggers
 
