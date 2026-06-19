@@ -132,8 +132,6 @@ export default function Lander() {
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700&family=DM+Mono:wght@400;500&family=Plus+Jakarta+Sans:wght@700;800&display=swap');
         @keyframes blink{0%,100%{opacity:1}50%{opacity:0}}
-        @keyframes scrollX{from{transform:translateX(0)}to{transform:translateX(-50%)}}
-        .logo-scroll{animation:scrollX 40s linear infinite}
         .btn-p{display:inline-flex;align-items:center;gap:8px;background:#2563eb;color:#fff;font-weight:600;border-radius:10px;padding:13px 28px;font-size:14px;border:none;cursor:pointer;transition:background .2s,transform .15s;font-family:'DM Sans',sans-serif}
         .btn-p:hover{background:#1d4ed8;transform:translateY(-1px)}
         .btn-o{display:inline-flex;align-items:center;gap:8px;background:transparent;color:#374151;font-weight:500;border-radius:10px;padding:13px 28px;font-size:14px;border:1.5px solid #d1d5db;cursor:pointer;transition:border-color .2s,color .2s;font-family:'DM Sans',sans-serif}
@@ -319,25 +317,16 @@ export default function Lander() {
       </section>
 
       {/* ──── TECH STRIP ────────────────────────── */}
-      <div style={{borderBottom:"1px solid #e5e7eb",borderTop:"1px solid #e5e7eb",background:"#f9fafb",padding:"20px 0",overflow:"hidden",position:"relative",display:"flex",alignItems:"center"}}>
-        {/* Static label */}
-        <div style={{flexShrink:0,paddingLeft:32,paddingRight:24,zIndex:3,display:"flex",alignItems:"center",gap:0}}>
-          <span style={{fontSize:11,fontWeight:600,color:"#9ca3af",letterSpacing:"0.08em",textTransform:"uppercase",whiteSpace:"nowrap"}}>
+      <div style={{borderBottom:"1px solid #e5e7eb",borderTop:"1px solid #e5e7eb",background:"#f9fafb",padding:"24px 48px"}}>
+        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:"2rem",flexWrap:"wrap"}}>
+          <span style={{fontSize:11,fontWeight:600,color:"#9ca3af",letterSpacing:"0.08em",textTransform:"uppercase",whiteSpace:"nowrap",flexShrink:0}}>
             Built with technologies like
           </span>
-          <div style={{width:1,height:28,background:"#e5e7eb",marginLeft:24}}/>
-        </div>
-        {/* Fade edges */}
-        <div style={{position:"absolute",left:220,top:0,bottom:0,width:60,background:"linear-gradient(90deg,#f9fafb,transparent)",zIndex:2,pointerEvents:"none"}}/>
-        <div style={{position:"absolute",right:0,top:0,bottom:0,width:80,background:"linear-gradient(270deg,#f9fafb,transparent)",zIndex:2,pointerEvents:"none"}}/>
-        {/* Scrolling logos */}
-        <div style={{overflow:"hidden",flex:1}}>
-          <div className="logo-scroll" style={{display:"flex",gap:"2.5rem",width:"max-content",alignItems:"center"}}>
-            {[...TECHS,...TECHS,...TECHS].map((t,i)=>(
-              <img key={i} src={t.img} alt={t.name} title={t.name}
-                style={{height:40,width:"auto",flexShrink:0,opacity:0.85,objectFit:"contain"}}/>
-            ))}
-          </div>
+          <div style={{width:1,height:28,background:"#e5e7eb",flexShrink:0}}/>
+          {TECHS.map(t=>(
+            <img key={t.name} src={t.img} alt={t.name} title={t.name}
+              style={{height:38,width:"auto",opacity:0.8,objectFit:"contain",flexShrink:0}}/>
+          ))}
         </div>
       </div>
 
