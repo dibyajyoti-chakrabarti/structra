@@ -9,8 +9,6 @@ SMTP_PORT = int(os.environ.get('SMTP_PORT', 587))
 SMTP_USER = os.environ.get('SMTP_USER', 'support@structra.cloud')
 SMTP_PASS = os.environ.get('SMTP_PASS', '')
 
-LOGO_URL = 'https://structra.cloud/logo.png'
-
 HTML_TEMPLATE = """\
 <!DOCTYPE html>
 <html lang="en">
@@ -28,8 +26,7 @@ HTML_TEMPLATE = """\
           <!-- Header -->
           <tr>
             <td style="background:linear-gradient(135deg,#1d4ed8 0%,#2563eb 100%);padding:32px 40px 28px;text-align:center;">
-              <img src="{logo_url}" alt="Structra" width="120" style="display:block;margin:0 auto 12px;max-height:40px;object-fit:contain;" />
-              <p style="margin:0;color:#bfdbfe;font-size:13px;letter-spacing:0.5px;font-weight:500;">structra.cloud</p>
+              <p style="margin:0;color:#ffffff;font-size:22px;font-weight:800;letter-spacing:0.5px;">structra.cloud</p>
             </td>
           </tr>
 
@@ -92,7 +89,7 @@ def handler(event, context):
     msg['To'] = email
 
     msg.attach(MIMEText(PLAIN_TEMPLATE.format(otp=otp), 'plain'))
-    msg.attach(MIMEText(HTML_TEMPLATE.format(logo_url=LOGO_URL, otp=otp), 'html'))
+    msg.attach(MIMEText(HTML_TEMPLATE.format(otp=otp), 'html'))
 
     with smtplib.SMTP(SMTP_HOST, SMTP_PORT) as smtp:
         smtp.starttls()
