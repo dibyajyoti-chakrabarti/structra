@@ -12,7 +12,7 @@ read **[ARCHITECTURE.md](./ARCHITECTURE.md)**.
 ```
 User ─HTTPS─▶ API Gateway (HTTP API) ──▶ Backend Lambda (VPC, private) ──▶ RDS PostgreSQL (private)
                                               │   ▲                          CloudFront ─OAC─▶ S3 (SPA)
-Cognito (existing pool + 4 triggers) ◀─JWT/OAuth │ │ result callback (X-Internal-Token)
+Cognito (managed pool + 5 triggers) ◀─JWT/OAuth │ │ result callback (X-Internal-Token)
                                               │   │
                   Backend ──send job──▶ SQS ──trigger──▶ Worker Lambda (STATELESS, no VPC, no DB)
                                                               │  Node rule engine + Bedrock
@@ -32,7 +32,7 @@ Razorpay, SMTP) through a **NAT instance** (a small EC2, not a managed NAT Gatew
 | Stack | Contents | Lifecycle |
 |---|---|---|
 | `bootstrap/` | S3 state bucket + DynamoDB lock | one-time, local state |
-| `stacks/10-persistent/` | VPC, subnets, IGW, route tables; ECR repos; Lambda exec IAM roles; (optional) Cognito 4 triggers; frontend S3 bucket | **never destroyed** |
+| `stacks/10-persistent/` | VPC, subnets, IGW, route tables; ECR repos; Lambda exec IAM roles; full Cognito stack (pool + client + IdPs + domain + 5 triggers); frontend S3 bucket | **never destroyed** |
 | `stacks/20-data/` | RDS PostgreSQL + subnet group + SG | destroyable w/ final snapshot; normally just **stopped** |
 | `stacks/30-compute/` | NAT instance + private routes; backend Lambda (VPC) + API GW; worker Lambda (no VPC) + SQS/DLQ; CloudFront/OAC | **freely destroyable** |
 
@@ -135,13 +135,22 @@ no DB driver.
 - `backend/migrate_handler.py` — runs `migrate` with the full app list (used by `make migrate`,
   invoked by overriding the backend function's command; never wired to API GW).
 
-## Cognito triggers
+## Cognito (`modules/cognito`)
 
-The user pool (`ap-south-1_QD5vjF5ej`) is **referenced** via data source — Terraform never
-manages or destroys it. The 4 trigger Lambdas already exist and serve live auth, so trigger
-management is gated by `manage_cognito_triggers` (default **false**). To bring them under
-Terraform, import the existing functions + log groups first (commands in
-`modules/cognito-triggers/main.tf`), then set the flag true.
+The full auth stack is **managed** by Terraform — the live pool was **imported** (via
+`modules/cognito/import.sh`), not recreated, so the pool ID, app-client ID, domain, and triggers
+are all preserved. Terraform owns the user pool (`ap-south-1_QD5vjF5ej`), the public SPA app client
+(`structra-web`), the Google + GitHub identity providers, the `structra-auth` hosted-UI domain,
+and all **5 trigger Lambdas** (pre-signup, post-confirmation, define/create/verify-auth). Email
+OTP is delivered by the `create_auth` trigger over **Zoho SMTP** (no SES).
+
+Three secrets must exist in SSM (SecureString) — `<ssm_prefix>/GOOGLE_OAUTH_CLIENT_SECRET`,
+`<ssm_prefix>/GITHUB_OAUTH_CLIENT_SECRET`, `<ssm_prefix>/COGNITO_SMTP_PASSWORD`.
+
+The GitHub IdP federates through the `modules/github-oidc-shim` OIDC shim (API Gateway + 5
+Lambdas), **imported** from the original `github-oidc-wrapper` CloudFormation stack via
+`modules/github-oidc-shim/import.sh` — preserving the issuer URL and the bundle's embedded signing
+key (its Lambda code and env are intentionally left unmanaged).
 
 ## Free Tier constraints applied
 

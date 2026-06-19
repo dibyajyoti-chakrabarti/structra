@@ -44,15 +44,15 @@ output "worker_lambda_role_arn" {
   value = aws_iam_role.worker.arn
 }
 
-# --- Cognito (referenced) ---
+# --- Cognito (managed) ---
 output "cognito_user_pool_id" {
-  value = data.aws_cognito_user_pool.this.id
+  value = module.cognito.user_pool_id
 }
 output "cognito_user_pool_arn" {
-  value = data.aws_cognito_user_pool.this.arn
+  value = module.cognito.user_pool_arn
 }
 output "cognito_app_client_id" {
-  value = var.cognito_app_client_id
+  value = module.cognito.app_client_id
 }
 
 # --- frontend bucket ---

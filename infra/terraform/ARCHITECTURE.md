@@ -21,7 +21,7 @@ demand. The only machines that run 24/7 are a tiny NAT instance and the database
   ┌───────────┐          ┌──────────────┐         │                  ┌────────────────┐
   │  Cognito  │          │  CloudFront   │        │                  │  API Gateway    │
   │ user pool │◀─ auth ─▶│  (CDN, OAC)   │        │                  │  (HTTP API)     │
-  │ +4 triggers          └──────┬───────┘         │                  └───────┬────────┘
+  │ +5 triggers          └──────┬───────┘         │                  └───────┬────────┘
   └───────────┘                 │ static SPA      │                          │ AWS_PROXY
                                 ▼                 │                          ▼  (invoke)
                          ┌─────────────┐   ┌──────────────────┐    ╔═══════════════════════╗
@@ -181,12 +181,29 @@ The React app is built to static files and uploaded to a **private** S3 bucket. 
 serves it worldwide over HTTPS with caching. **Origin Access Control (OAC)** is the mechanism
 that lets *only* CloudFront read the private bucket — the bucket itself blocks all public access.
 
-### Cognito (referenced, not created)
-Auth (email OTP + Google/GitHub OAuth) is handled by an **existing** Cognito user pool with 4
-Lambda triggers (pre-signup, create/define/verify-auth). Terraform **references** the pool (a
-read-only data source) and never manages or destroys it — losing it would mean losing every
-user identity. Trigger management is available but gated off by default, because importing live
-auth functions is a deliberate, careful step rather than something a routine apply should do.
+### Cognito (fully managed, imported)
+Auth (email OTP + Google/GitHub OAuth) is the `modules/cognito` module. The live pool was
+**imported** into Terraform (see `modules/cognito/import.sh`) rather than recreated — so the pool
+ID, app-client ID, hosted-UI domain, and triggers are all preserved (no downtime, no ID churn).
+Terraform now owns the **user pool** (`ap-south-1_QD5vjF5ej`), the **public SPA app client**
+(`structra-web`), both **identity providers** (Google native + GitHub via the OIDC shim, below),
+the **hosted-UI domain** (`structra-auth`), and all **5 trigger Lambdas** (pre-signup,
+post-confirmation, define/create/verify-auth). Email OTP is sent by the `create_auth` trigger
+over **Zoho SMTP** (no SES). IdP client secrets and the SMTP password are read from SSM.
+
+> **Import fidelity notes:** the module mirrors live exactly so the import plan stays clean —
+> `generate_secret` and the IdP `client_secret`s are `ignore_changes`d (Cognito never returns them
+> on read), the `email` schema attribute and per-function Lambda timeouts (3s/10s) are declared to
+> match, and trigger log groups never expire. The trigger Lambda *code* is managed from the repo
+> `lambdas/*.py` (synced byte-for-byte from live).
+
+> **GitHub OIDC shim:** GitHub is OAuth2, not OIDC, so Cognito can't federate it directly. The
+> `modules/github-oidc-shim` module (the `github-cognito-openid-wrapper` — API Gateway + 5
+> Lambdas) exposes the standard OIDC endpoints GitHub lacks; the Cognito GitHub IdP points its
+> `oidc_issuer` at it. It was **imported** from the original `github-oidc-wrapper` CloudFormation
+> stack (see `modules/github-oidc-shim/import.sh`), so the issuer URL and the Lambdas' embedded
+> RSA signing key are preserved. The Lambda *code* is left unmanaged (imported, never redeployed)
+> because the built bundle embeds that signing key and has no source repo.
 
 ### SSM Parameter Store (secrets) — **the secrets decision**
 Five secrets (DB password, Django secret key, Razorpay secret + webhook secret, email password)
@@ -222,7 +239,7 @@ stacks/30-compute/    → NAT, Lambdas, SQS, API GW, CloudFront  (stop NAT / des
 
 Upper layers read lower layers' outputs through `terraform_remote_state`, so they stay loosely
 coupled. Reusable building blocks live in `modules/` (networking, nat-instance, rds, lambda-fn,
-api-gateway, frontend-cdn, cognito-triggers).
+api-gateway, frontend-cdn, cognito).
 
 **The cost model:** only **two** resources cost money while idle — the NAT instance (EC2) and
 RDS. Everything else (Lambda, API GW, SQS, CloudFront, S3) is pay-per-use and costs ≈ $0 when
@@ -250,7 +267,7 @@ make prod-up     # start RDS + NAT        → back in ~2-3 min, no apply needed
 | Orchestration | Direct compute, **no Strands** | Bedrock streaming tool-use blocked; fixed pipeline needs no agent |
 | Database | Private RDS | Never internet-reachable; **backend-only** access in-VPC |
 | Frontend | S3 + CloudFront + OAC | Cheap, global, private origin |
-| Auth | Existing Cognito (referenced) | Irreplaceable; never managed/destroyed by TF |
+| Auth | Cognito, fully managed in TF | Pool + client + Google/GitHub IdPs + domain + 5 triggers; OTP via Zoho SMTP |
 | Secrets | SSM SecureString | AWS-native, free, no app change; Lambdas can read it |
 | AI model | Llama 3.3 (us-east-1) | On-demand without marketplace wall; cheaper |
 | IaC layout | Layered stacks | Stop/destroy expensive layers independently |
@@ -264,8 +281,7 @@ make prod-up     # start RDS + NAT        → back in ~2-3 min, no apply needed
   URLs.
 - **CI/CD pipeline** — deploys are `make deploy-*` for now; GitHub Actions can be added later.
 - **RDS Proxy** — connection pooling; only needed at higher concurrency.
-- **New SES setup** — Cognito login OTP uses the existing verified SES identity; app email uses
-  Zoho SMTP.
+- **New SES setup** — not used anywhere; both Cognito login OTP and app email go over Zoho SMTP.
 - **Multi-AZ NAT / RDS** — single-AZ for cost; upgrade when uptime matters more than spend.
 
 ---

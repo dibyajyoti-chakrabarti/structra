@@ -6,6 +6,12 @@ logger.setLevel(logging.INFO)
 
 
 def handler(event, context):
+    # Auto-confirm native sign-ups — OTP sign-in itself proves email ownership
+    if event.get('triggerSource') in ('PreSignUp_SignUp', 'PreSignUp_AdminCreateUser'):
+        event['response']['autoConfirmUser'] = True
+        event['response']['autoVerifyEmail'] = True
+        return event
+
     # Only act on federated (external) provider sign-ups
     if event.get('triggerSource') != 'PreSignUp_ExternalProvider':
         return event

@@ -38,30 +38,15 @@ variable "db_private_subnet_cidrs" {
   default = ["10.0.20.0/24", "10.0.21.0/24"]
 }
 
-variable "cognito_user_pool_id" {
-  type    = string
-  default = "ap-south-1_QD5vjF5ej"
-}
-
-variable "cognito_app_client_id" {
-  type    = string
-  default = "2dmikoh9ligfjqe9auo8ioh21m"
-}
-
 variable "frontend_bucket_name" {
   description = "Globally-unique name for the NEW frontend bucket (separate from the existing structra-frontend-prod)"
   type        = string
   default     = "structra-frontend-042843883108"
 }
 
-variable "ses_identity_arn" {
-  description = "SES identity ARN for the Cognito create_auth trigger (null = allow any)"
-  type        = string
-  default     = null
-}
-
-variable "manage_cognito_triggers" {
-  description = "Manage the 4 Cognito trigger Lambdas in Terraform. Default false — they already exist and handle live auth; enable only after importing them (see modules/cognito-triggers)."
-  type        = bool
-  default     = false
+# SSM prefix for SecureString secrets (Cognito IdP secrets + SMTP password),
+# created out-of-band. Matches the convention used by the 30-compute stack.
+variable "ssm_prefix" {
+  type    = string
+  default = "/structra/prod"
 }
