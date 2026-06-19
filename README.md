@@ -1,8 +1,24 @@
-# Structra
+<p align="center">
+  <img src="frontend/src/assets/logo.png" alt="Structra" width="120" />
+</p>
 
-Structra is a collaborative platform for designing, evaluating, and sharing software system architectures. Teams create system diagrams on an interactive canvas, run AI-assisted evaluations against a rule library, and manage workspace access and billing — all from a single product surface.
+<h1 align="center">Structra</h1>
 
-**Production:** [structra.cloud](https://structra.cloud) · **Docs:** [docs.structra.cloud](https://docs.structra.cloud)
+<p align="center">
+  Collaborative software architecture design, AI-assisted evaluation, and team workspace management — all in one platform.
+</p>
+
+<p align="center">
+  <a href="https://structra.cloud"><strong>structra.cloud</strong></a> &nbsp;·&nbsp;
+  <a href="https://docs.structra.cloud">Docs</a> &nbsp;·&nbsp;
+  <a href="https://structra.cloud/pricing">Pricing</a>
+</p>
+
+<p align="center">
+  <img src="https://img.shields.io/badge/stack-Django%20%7C%20React%20%7C%20AWS-blue?style=flat-square" alt="Stack" />
+  <img src="https://img.shields.io/badge/region-ap--south--2-orange?style=flat-square" alt="Region" />
+  <img src="https://img.shields.io/badge/license-proprietary-lightgrey?style=flat-square" alt="License" />
+</p>
 
 ---
 
