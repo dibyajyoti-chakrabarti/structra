@@ -14,6 +14,6 @@ class Migration(migrations.Migration):
         migrations.AlterField(
             model_name='canvas',
             name='canvas_state',
-            field=models.JSONField(blank=True, default=canvases.models.default_canvas_state),
+            field=models.JSONField(blank=True, default=systems.models.default_canvas_state),
         ),
     ]
