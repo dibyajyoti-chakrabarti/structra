@@ -1,4 +1,5 @@
 from datetime import timedelta
+import hmac
 import logging
 
 from django.db import transaction
@@ -16,7 +17,7 @@ from canvases.models import Canvas
 from canvases.queue_publisher import enqueue_evaluation_job
 from permissions.checks import user_has_system_read_access
 from permissions.models import WorkspaceMember
-from workspaces.models import EvaluationRun, Workspace
+from workspaces.models import EvaluationLog, EvaluationRun, Workspace
 from workspaces.credit_service import (
     CreditExhaustedError,
     TeamSoftThrottleError,
@@ -73,10 +74,15 @@ def _dispatch_evaluation_job(*, run, workspace, system, canvas_state):
         'runId': str(run.id),
         'workspaceId': str(workspace.id),
         'systemId': str(system.id),
+        'workspaceTier': run.workspace_tier,
         'canvasState': canvas_state,
     }
     queued = enqueue_evaluation_job(payload)
     if queued:
+        # The stateless worker can no longer set RUNNING (it owns no DB), so mark it here.
+        run.status = EvaluationRun.Status.RUNNING
+        run.started_at = timezone.now()
+        run.save(update_fields=['status', 'started_at'])
         logger.info(
             'evaluation job queued run_id=%s workspace_id=%s system_id=%s transport=%s',
             run.id, workspace.id, system.id, transport,
@@ -345,3 +351,136 @@ class WorkspaceEvaluationListAPIView(APIView):
             },
             status=status.HTTP_200_OK,
         )
+
+
+class EvaluationResultSerializer(serializers.Serializer):
+    status = serializers.ChoiceField(choices=['completed', 'failed'])
+    score = serializers.IntegerField(required=False, default=0)
+    summary = serializers.JSONField(required=False, default=dict)
+    results = serializers.JSONField(required=False, default=list)
+    suggestions = serializers.CharField(required=False, allow_blank=True, default='')
+    cloud_analysis = serializers.CharField(required=False, allow_blank=True, default='')
+    ai_error = serializers.BooleanField(required=False, default=False)
+    error_message = serializers.CharField(required=False, allow_blank=True, default='')
+
+
+class EvaluationResultCallbackAPIView(APIView):
+    """Internal, service-to-service endpoint. The stateless worker POSTs the
+    computed evaluation result here; the backend (which owns the DB) persists it.
+    Authenticated with a shared secret header, not a Cognito JWT.
+    """
+    authentication_classes = []
+    permission_classes = [permissions.AllowAny]
+
+    def post(self, request, run_id):
+        expected = settings.INTERNAL_API_TOKEN
+        provided = request.headers.get('X-Internal-Token', '')
+        if not expected or not hmac.compare_digest(provided, expected):
+            return Response({'error': 'unauthorized'}, status=status.HTTP_401_UNAUTHORIZED)
+
+        serializer = EvaluationResultSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+
+        run = get_object_or_404(
+            EvaluationRun.objects.select_related('workspace__owner', 'user'),
+            id=run_id,
+        )
+        # Idempotent: a retried delivery for an already-finished run is a no-op.
+        if run.status in (EvaluationRun.Status.COMPLETED, EvaluationRun.Status.FAILED):
+            return Response({'status': 'already_terminal'}, status=status.HTTP_200_OK)
+
+        workspace = run.workspace
+        system = Canvas.objects.filter(id=run.system_id, workspace=workspace).first()
+
+        if data['status'] == 'failed':
+            self._finalize_failed(run, workspace, system, data['error_message'] or 'Evaluation failed.')
+            return Response({'status': 'ok'}, status=status.HTTP_200_OK)
+
+        self._finalize_completed(run, workspace, system, data)
+        return Response({'status': 'ok'}, status=status.HTTP_200_OK)
+
+    def _refund_token(self, run):
+        if not run.insight_token_consumed:
+            return False
+        token_state = refund_insight_token(workspace_id=run.workspace_id)
+        run.insight_token_consumed = False
+        run.insight_tokens_remaining = token_state['insightTokensRemaining']
+        return True
+
+    def _finalize_completed(self, run, workspace, system, data):
+        summary = data['summary'] or {}
+        score = int(data['score'] or 0)
+        ai_error = bool(data['ai_error'])
+        failed_count = int(summary.get('failed', 0) or 0)
+
+        token_refunded = self._refund_token(run) if ai_error else False
+
+        if system is not None:
+            EvaluationLog.objects.create(
+                workspace=workspace,
+                system_id=system.id,
+                user=run.user,
+                workspace_tier=run.workspace_tier,
+                score=score,
+                rules_evaluated=int(summary.get('applicable', 0) or 0),
+                rules_passed=int(summary.get('passed', 0) or 0),
+                credit_consumed=True,
+            )
+
+        run.status = EvaluationRun.Status.COMPLETED
+        run.score = score
+        run.summary = summary
+        run.results = data['results'] or []
+        run.suggestions = data['suggestions'] or ''
+        run.cloud_analysis = data['cloud_analysis'] or ''
+        run.credits_exhausted = False
+        run.ai_error = ai_error
+        run.error_message = 'Insight Token refunded because AI service returned no response.' if token_refunded else ''
+        run.completed_at = timezone.now()
+        run.save(update_fields=[
+            'status', 'score', 'summary', 'results', 'suggestions', 'cloud_analysis',
+            'credits_exhausted', 'ai_error', 'error_message', 'completed_at',
+            'insight_token_consumed', 'insight_tokens_remaining',
+        ])
+
+        _record_evaluation_audit_event(
+            workspace=workspace,
+            system=system,
+            actor=run.user,
+            run=run,
+            action='Evaluation Completed (AI Warning)' if ai_error else 'Evaluation Completed',
+            status='warning' if ai_error else 'success',
+            message='Rule evaluation completed, but AI narrative generation failed.' if ai_error
+                    else 'Rule evaluation and report generation completed.',
+            metadata={
+                'run_id': str(run.id),
+                'score': score,
+                'failed_rules': failed_count,
+                'ai_error': ai_error,
+                'insight_token_refunded': token_refunded,
+                'workspace_tier': run.workspace_tier,
+            },
+        )
+        logger.info('evaluation result persisted run_id=%s score=%s ai_error=%s', run.id, score, ai_error)
+
+    def _finalize_failed(self, run, workspace, system, error_message):
+        token_refunded = self._refund_token(run)
+        run.status = EvaluationRun.Status.FAILED
+        run.error_message = error_message
+        run.completed_at = timezone.now()
+        run.save(update_fields=[
+            'status', 'error_message', 'completed_at',
+            'insight_token_consumed', 'insight_tokens_remaining',
+        ])
+        _record_evaluation_audit_event(
+            workspace=workspace,
+            system=system,
+            actor=run.user,
+            run=run,
+            action='Evaluation Failed',
+            status='error',
+            message=error_message,
+            metadata={'run_id': str(run.id), 'insight_token_refunded': token_refunded},
+        )
+        logger.info('evaluation marked failed run_id=%s', run.id)

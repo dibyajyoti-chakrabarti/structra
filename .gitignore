@@ -34,3 +34,25 @@ build/
 
 # Lambda deployment artifacts
 lambdas/*.zip
+
+# Terraform
+**/.terraform/*
+*.tfstate
+*.tfstate.*
+*.tfplan
+crash.log
+crash.*.log
+*.auto.tfvars
+secrets*.tfvars
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+.terraformrc
+terraform.rc
+# archive_file build artifacts (e.g. zipped cognito triggers)
+infra/terraform/**/build/
+# keep .terraform.lock.hcl committed (provider pinning)
+!.terraform.lock.hcl
+
+structra_architecture.md

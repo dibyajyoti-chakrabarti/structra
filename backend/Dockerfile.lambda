@@ -1,0 +1,23 @@
+FROM python:3.12-slim
+
+WORKDIR /var/task
+
+RUN apt-get update && apt-get install -y gcc --no-install-recommends && rm -rf /var/lib/apt/lists/*
+
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt mangum awslambdaric
+
+COPY . .
+
+RUN DJANGO_SECRET_KEY=build-time-placeholder \
+    DJANGO_ENV=production \
+    CORS_ALLOWED_ORIGINS=http://placeholder.com \
+    CSRF_TRUSTED_ORIGINS=http://placeholder.com \
+    DB_HOST=localhost \
+    python manage.py collectstatic --noinput
+
+ENV DJANGO_ENV=production
+ENV DJANGO_SETTINGS_MODULE=backend_hub.settings.production
+
+ENTRYPOINT ["/usr/local/bin/python", "-m", "awslambdaric"]
+CMD ["lambda_handler.handler"]

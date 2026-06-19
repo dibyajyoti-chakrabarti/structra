@@ -1,0 +1,16 @@
+FROM public.ecr.aws/lambda/python:3.12
+
+# Node.js for the self-contained rule engine subprocess (evaluation/runner.mjs)
+RUN dnf install -y nodejs && node --version
+
+# Standalone worker deps only — no Django, no DB driver, no backend code.
+COPY worker/requirements-worker.txt /tmp/requirements.txt
+RUN pip install --no-cache-dir -r /tmp/requirements.txt
+
+# Worker compute + handler + the Node rule engine. Nothing from backend/.
+COPY worker/config.py ${LAMBDA_TASK_ROOT}/config.py
+COPY worker/evaluation_compute.py ${LAMBDA_TASK_ROOT}/evaluation_compute.py
+COPY worker/cloud_handler.py ${LAMBDA_TASK_ROOT}/cloud_handler.py
+COPY worker/evaluation ${LAMBDA_TASK_ROOT}/evaluation
+
+CMD ["cloud_handler.handler"]

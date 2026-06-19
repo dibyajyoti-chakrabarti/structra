@@ -1,0 +1,181 @@
+# Structra Infrastructure (Terraform)
+
+Production-grade IaC for the Structra serverless architecture on AWS.
+For the *why* behind every component (NAT instance, Lambdas, SSM, layering),
+read **[ARCHITECTURE.md](./ARCHITECTURE.md)**.
+
+- **Account / profile / region:** `042843883108` / `structra-admin` / `ap-south-1`
+- **State:** S3 (`structra-tfstate-042843883108-ap-south-1`) + DynamoDB lock (`structra-tflock`)
+
+## Architecture (at a glance)
+
+```
+User ─HTTPS─▶ API Gateway (HTTP API) ──▶ Backend Lambda (VPC, private) ──▶ RDS PostgreSQL (private)
+                                              │   ▲                          CloudFront ─OAC─▶ S3 (SPA)
+Cognito (managed pool + 5 triggers) ◀─JWT/OAuth │ │ result callback (X-Internal-Token)
+                                              │   │
+                  Backend ──send job──▶ SQS ──trigger──▶ Worker Lambda (STATELESS, no VPC, no DB)
+                                                              │  Node rule engine + Bedrock
+                                                              └─ POST result ─▶ Backend callback ─┘
+   Backend ──via NAT──▶ Cognito JWKS / Razorpay / SMTP        Worker ──direct internet──▶ Bedrock + Backend API
+```
+
+The **worker is a stateless microservice**: it owns no database. It gets a
+self-contained job over SQS, computes (Node rule engine + Bedrock), and POSTs the
+result to a secret-authed backend callback, which persists it (database-per-service).
+Because it touches no RDS, the worker is **not** in the VPC (no NAT, faster cold starts).
+The **backend** is VPC-attached (private RDS) and reaches public services (Cognito JWKS,
+Razorpay, SMTP) through a **NAT instance** (a small EC2, not a managed NAT Gateway, for cost).
+
+## Layered stacks (each = independent remote state)
+
+| Stack | Contents | Lifecycle |
+|---|---|---|
+| `bootstrap/` | S3 state bucket + DynamoDB lock | one-time, local state |
+| `stacks/10-persistent/` | VPC, subnets, IGW, route tables; ECR repos; Lambda exec IAM roles; full Cognito stack (pool + client + IdPs + domain + 5 triggers); frontend S3 bucket | **never destroyed** |
+| `stacks/20-data/` | RDS PostgreSQL + subnet group + SG | destroyable w/ final snapshot; normally just **stopped** |
+| `stacks/30-compute/` | NAT instance + private routes; backend Lambda (VPC) + API GW; worker Lambda (no VPC) + SQS/DLQ; CloudFront/OAC | **freely destroyable** |
+
+Upper stacks read lower ones via `terraform_remote_state`. Only the NAT EC2 and
+RDS cost money at idle — everything else is pay-per-use (~$0).
+
+## Prerequisites
+
+- Terraform >= 1.7, AWS CLI v2, Docker (for Lambda images), Node 20 + npm (frontend).
+- `aws configure --profile structra-admin` for account `042843883108`.
+
+## First-time setup
+
+1. **Create the 6 app secrets** in SSM Parameter Store (out-of-band; never in git):
+   ```bash
+   for k in DB_PASSWORD DJANGO_SECRET_KEY RAZORPAY_KEY_SECRET RAZORPAY_WEBHOOK_SECRET EMAIL_HOST_PASSWORD INTERNAL_API_TOKEN; do
+     read -rsp "$k: " v; echo
+     aws ssm put-parameter --profile structra-admin --region ap-south-1 \
+       --name "/structra/prod/$k" --type SecureString --value "$v" --overwrite
+   done
+   ```
+   (`INTERNAL_API_TOKEN` is the shared secret the worker uses to authenticate its result callback to the backend — any random 32+ byte value, e.g. `openssl rand -hex 32`.)
+2. **Bootstrap remote state:** `make bootstrap`
+3. **Apply persistent + build images + apply data + migrate + apply compute:**
+   ```bash
+   make init-all
+   make apply-persistent
+   make deploy-backend deploy-worker     # build+push initial images (ECR must exist first)
+   make apply-data                       # RDS — wait until 'available'
+   make migrate                          # Django migrations via the BACKEND image (full app list)
+   make apply-compute
+   make deploy-frontend                  # needs VITE_* env (see below)
+   ```
+4. **Point Cognito at the new frontend URL** — add `<cloudfront-url>/auth/callback`
+   to the app client callback URLs and `<cloudfront-url>/` to logout URLs
+   (`aws cognito-idp update-user-pool-client ...`, preserving OAuth flows/scopes/providers).
+
+### Migrations (important)
+
+Run migrations with **`make migrate`**, which executes them through the **backend**
+Lambda image. The backend's `INSTALLED_APPS` is the full set
+(`accounts, admin, audit, auth, canvases, contenttypes, notifications, payments,
+permissions, sessions, workspaces`). The worker's app list is a *subset* — migrating
+via the worker silently omits backend-only tables (e.g. `payment_transactions`),
+which then 500s `/api/auth/profile/`. RDS is private, so migrations can only run
+from inside the VPC; `make migrate` does this by temporarily overriding the backend
+Lambda's command to `migrate_handler.handler`, invoking once, and reverting.
+
+### Frontend build env (`make deploy-frontend`)
+Export these before building (or put them in `frontend/.env.production`):
+`VITE_API_BASE_URL=<api-url>/api/`, `VITE_FRONTEND_URL=<cloudfront-url>`,
+`VITE_COGNITO_USER_POOL_ID`, `VITE_COGNITO_CLIENT_ID`, `VITE_COGNITO_DOMAIN`,
+`VITE_RAZORPAY_KEY_ID`.
+
+## Day-2 operations
+
+| Action | Command |
+|---|---|
+| Turn app **off** (stop NAT + RDS, data kept) | `make prod-down` |
+| Turn app **on** | `make prod-up` |
+| Power status | `make prod-status` |
+| Redeploy backend / worker | `make deploy-backend` / `make deploy-worker` |
+| Redeploy frontend | `make deploy-frontend` |
+| Run migrations | `make migrate` |
+| Deep-off (remove compute) | `make destroy-compute` |
+| Remove RDS (guarded) | set `deletion_protection=false`, apply, then `make destroy-data CONFIRM=yes` |
+
+`prod-down`/`prod-up` are AWS CLI stop/start — **not** Terraform. State is untouched;
+no re-apply to resume. A stopped RDS auto-restarts after 7 days, so re-run `prod-down`
+(or schedule it) for long pauses.
+
+## Secrets
+
+The 6 secrets live in **SSM Parameter Store SecureString** (`/structra/prod/*`).
+Terraform reads them via `data.aws_ssm_parameter` and injects them as Lambda env vars
+(the app reads plain `os.getenv` — no code change). Trade-off: resolved values land in
+the Terraform **state**, which is why the state bucket is private + encrypted; Lambda env
+is KMS-encrypted at rest. Rotate by updating SSM and re-applying (`30-compute`, plus
+`20-data` for `DB_PASSWORD`).
+
+GitHub Secrets are **not** used for app secrets — the running Lambda can't read them (they
+exist only during a CI run). When CI/CD is added, GitHub Secrets hold the AWS deploy
+credentials while the pipeline still reads app secrets from SSM.
+
+## Lambda images
+
+Built from the repo Dockerfiles and pushed to ECR:
+- backend: `docker build -f backend/Dockerfile.lambda -t <repo-api>:<tag> backend/`
+- worker: `docker build -f worker/Dockerfile.lambda -t <repo-worker>:<tag> .` (context = repo root)
+
+The functions set `image_uri` initially and use `lifecycle { ignore_changes = [image_uri] }`,
+so `make deploy-*` (`update-function-code`) does not cause Terraform drift. Both run on
+`x86_64`.
+
+The **worker image is minimal** — only `cloud_handler.py`, `evaluation_compute.py`,
+`config.py`, and the Node rule engine (`worker/evaluation/`). No backend code, no Django,
+no DB driver.
+
+### Ops / diagnostic entrypoints
+- `backend/migrate_handler.py` — runs `migrate` with the full app list (used by `make migrate`,
+  invoked by overriding the backend function's command; never wired to API GW).
+
+## Cognito (`modules/cognito`)
+
+The full auth stack is **managed** by Terraform — the live pool was **imported** (via
+`modules/cognito/import.sh`), not recreated, so the pool ID, app-client ID, domain, and triggers
+are all preserved. Terraform owns the user pool (`ap-south-1_QD5vjF5ej`), the public SPA app client
+(`structra-web`), the Google + GitHub identity providers, the `structra-auth` hosted-UI domain,
+and all **5 trigger Lambdas** (pre-signup, post-confirmation, define/create/verify-auth). Email
+OTP is delivered by the `create_auth` trigger over **Zoho SMTP** (no SES).
+
+Three secrets must exist in SSM (SecureString) — `<ssm_prefix>/GOOGLE_OAUTH_CLIENT_SECRET`,
+`<ssm_prefix>/GITHUB_OAUTH_CLIENT_SECRET`, `<ssm_prefix>/COGNITO_SMTP_PASSWORD`.
+
+The GitHub IdP federates through the `modules/github-oidc-shim` OIDC shim (API Gateway + 5
+Lambdas), **imported** from the original `github-oidc-wrapper` CloudFormation stack via
+`modules/github-oidc-shim/import.sh` — preserving the issuer URL and the bundle's embedded signing
+key (its Lambda code and env are intentionally left unmanaged).
+
+## Free Tier constraints applied
+
+This account is on the AWS Free plan, which forced:
+- RDS `backup_retention_period = 0` (free tier caps retention) — raise when off the free plan.
+- NAT instance `t4g.micro` (free-tier eligible; `t4g.nano` is not).
+
+`AWS_REGION` is **not** set in Lambda env (it is a reserved key the runtime sets to the
+function's region, `ap-south-1`).
+
+## Deployed environment (reference)
+
+| Resource | Value |
+|---|---|
+| Frontend URL | `https://dqltowjnatfxe.cloudfront.net` (dist `E24NYT5QAF6DKT`) |
+| API URL | `https://nh35tf2f0e.execute-api.ap-south-1.amazonaws.com` |
+| VPC | `vpc-044fa20756dafbffb` (10.0.0.0/16, AZs a/b) |
+| RDS | `structra-prod-db` (private) |
+| NAT instance | `i-03c1c6ecd43850cb9` (t4g.micro) |
+| SQS | `structra-eval-queue` (+ `structra-eval-dlq`) |
+| Lambdas | `structra-prod-backend`, `structra-prod-worker` |
+
+(IDs are environment-specific; `terraform output` in each stack is the source of truth.)
+
+## Not included (deferred)
+
+Route53 / custom domain, new SES setup (Cognito login OTP uses the existing verified SES
+identity; app email uses Zoho SMTP), RDS Proxy, CI/CD pipeline.
