@@ -10,6 +10,16 @@ import Footer from "../../components/Footer";
 
 // ─── SVG ASSETS ──────────────────────────────────────────────────────────────
 import MyCanvas        from "../../assets/my-canvas.png";
+import LogoBedrock     from "../../assets/bedrock.png";
+import LogoCloudFront  from "../../assets/cloudfront.png";
+import LogoLambda      from "../../assets/lambda.png";
+import LogoS3          from "../../assets/s3.png";
+import LogoRDS         from "../../assets/rds.png";
+import LogoSQS         from "../../assets/sqs.png";
+import LogoTerraform   from "../../assets/terraform.png";
+import LogoDocker      from "../../assets/docker.png";
+import LogoDjango      from "../../assets/django.png";
+import LogoReact       from "../../assets/react.png";
 import FeatureModeling from "../../assets/feature-modeling.svg";
 import FeatureAI       from "../../assets/feature-ai.svg";
 import FeatureCollab   from "../../assets/feature-collaboration.svg";
@@ -91,133 +101,16 @@ const PERSONAS=[
 ];
 
 const TECHS = [
-  // AWS Bedrock — teal, neural-network pattern
-  { name:"AWS Bedrock", svg:(
-    <svg viewBox="0 0 44 44" width="44" height="44" role="img" aria-label="AWS Bedrock">
-      <rect width="44" height="44" rx="7" fill="#01A88D"/>
-      <circle cx="22" cy="10" r="3.5" fill="white"/>
-      <circle cx="10" cy="30" r="3.5" fill="white"/>
-      <circle cx="34" cy="30" r="3.5" fill="white"/>
-      <circle cx="22" cy="37" r="2.5" fill="white" opacity="0.7"/>
-      <line x1="22" y1="10" x2="10" y2="30" stroke="white" strokeWidth="1.8"/>
-      <line x1="22" y1="10" x2="34" y2="30" stroke="white" strokeWidth="1.8"/>
-      <line x1="10" y1="30" x2="34" y2="30" stroke="white" strokeWidth="1.8"/>
-      <line x1="10" y1="30" x2="22" y2="37" stroke="white" strokeWidth="1.5" opacity="0.8"/>
-      <line x1="34" y1="30" x2="22" y2="37" stroke="white" strokeWidth="1.5" opacity="0.8"/>
-      <line x1="22" y1="10" x2="22" y2="37" stroke="white" strokeWidth="1.2" opacity="0.5"/>
-    </svg>
-  )},
-  // AWS CloudFront — purple, globe with distribution arcs
-  { name:"AWS CloudFront", svg:(
-    <svg viewBox="0 0 44 44" width="44" height="44" role="img" aria-label="AWS CloudFront">
-      <rect width="44" height="44" rx="7" fill="#8C4FFF"/>
-      <circle cx="22" cy="22" r="13" fill="none" stroke="white" strokeWidth="2"/>
-      <ellipse cx="22" cy="22" rx="6" ry="13" fill="none" stroke="white" strokeWidth="1.5"/>
-      <line x1="9" y1="22" x2="35" y2="22" stroke="white" strokeWidth="1.5"/>
-      <line x1="11" y1="16" x2="33" y2="16" stroke="white" strokeWidth="1"/>
-      <line x1="11" y1="28" x2="33" y2="28" stroke="white" strokeWidth="1"/>
-    </svg>
-  )},
-  // AWS Lambda — orange, λ symbol
-  { name:"AWS Lambda", svg:(
-    <svg viewBox="0 0 44 44" width="44" height="44" role="img" aria-label="AWS Lambda">
-      <rect width="44" height="44" rx="7" fill="#E8701A"/>
-      <path d="M9 37 L18 12 L22 12 L13 37 Z" fill="white"/>
-      <path d="M20 25 L27 12 L31 12 L35 37 L29 37 L25 22 L16 37 Z" fill="white"/>
-    </svg>
-  )},
-  // AWS S3 — green, bucket shape
-  { name:"AWS S3", svg:(
-    <svg viewBox="0 0 44 44" width="44" height="44" role="img" aria-label="AWS S3">
-      <rect width="44" height="44" rx="7" fill="#7AA116"/>
-      <ellipse cx="22" cy="13" rx="11" ry="3.5" fill="white"/>
-      <path d="M11 13 L12.5 34 Q22 38 31.5 34 L33 13" fill="white" opacity="0.8"/>
-      <ellipse cx="22" cy="13" rx="11" ry="3.5" fill="white"/>
-      <line x1="12" y1="20" x2="32" y2="20" stroke="#7AA116" strokeWidth="1.5"/>
-      <line x1="12.5" y1="27" x2="31.5" y2="27" stroke="#7AA116" strokeWidth="1.5"/>
-    </svg>
-  )},
-  // AWS RDS — red, stacked database cylinders
-  { name:"AWS RDS", svg:(
-    <svg viewBox="0 0 44 44" width="44" height="44" role="img" aria-label="AWS RDS">
-      <rect width="44" height="44" rx="7" fill="#C7131F"/>
-      <ellipse cx="22" cy="13" rx="12" ry="4" fill="white"/>
-      <rect x="10" y="13" width="24" height="7" fill="white" opacity="0.85"/>
-      <ellipse cx="22" cy="20" rx="12" ry="4" fill="white"/>
-      <rect x="10" y="20" width="24" height="7" fill="white" opacity="0.7"/>
-      <ellipse cx="22" cy="27" rx="12" ry="4" fill="white" opacity="0.85"/>
-      <rect x="10" y="27" width="24" height="5" fill="white" opacity="0.55"/>
-      <ellipse cx="22" cy="32" rx="12" ry="4" fill="white" opacity="0.7"/>
-    </svg>
-  )},
-  // Terraform — purple, three-face geometric T
-  { name:"Terraform", svg:(
-    <svg viewBox="0 0 44 44" width="44" height="44" role="img" aria-label="Terraform">
-      <rect width="44" height="44" rx="7" fill="#7B42BC"/>
-      <path d="M7 36 L7 17 L16 13 L16 32 Z" fill="white"/>
-      <path d="M7 17 L22 9 L31 13 L16 21 Z" fill="white" opacity="0.85"/>
-      <path d="M20 21 L20 38 L29 34 L29 17 Z" fill="white" opacity="0.7"/>
-    </svg>
-  )},
-  // Docker — blue, whale with container boxes
-  { name:"Docker", svg:(
-    <svg viewBox="0 0 44 44" width="44" height="44" role="img" aria-label="Docker">
-      <rect width="44" height="44" rx="7" fill="#2496ED"/>
-      <rect x="6"  y="21" width="7" height="6" rx="1" fill="white"/>
-      <rect x="15" y="21" width="7" height="6" rx="1" fill="white"/>
-      <rect x="24" y="21" width="7" height="6" rx="1" fill="white"/>
-      <rect x="15" y="14" width="7" height="6" rx="1" fill="white"/>
-      <rect x="24" y="14" width="7" height="6" rx="1" fill="white"/>
-      <rect x="24" y="7"  width="7" height="6" rx="1" fill="white"/>
-      <path d="M33 21 Q37 21 37 17 Q37 13 34 13" stroke="white" strokeWidth="1.8" fill="none" strokeLinecap="round"/>
-      <path d="M3 29 Q22 40 40 29 L38 26 Q36 22 32 24 L8 24 Z" fill="white"/>
-      <circle cx="35" cy="26" r="1.5" fill="#2496ED"/>
-    </svg>
-  )},
-  // Django — dark green, "D" letterform
-  { name:"Django", svg:(
-    <svg viewBox="0 0 44 44" width="44" height="44" role="img" aria-label="Django">
-      <rect width="44" height="44" rx="7" fill="#092E20"/>
-      <rect x="11" y="9" width="7" height="27" fill="#44B78B"/>
-      <path d="M18 9 Q35 9 35 22.5 Q35 36 18 36" fill="#44B78B"/>
-      <path d="M18 14 Q29 14 29 22.5 Q29 31 18 31" fill="#092E20"/>
-    </svg>
-  )},
-  // AWS SQS — orange, message queue
-  { name:"AWS SQS", svg:(
-    <svg viewBox="0 0 44 44" width="44" height="44" role="img" aria-label="AWS SQS">
-      <rect width="44" height="44" rx="7" fill="#E8701A"/>
-      <rect x="7"  y="11" width="19" height="6" rx="2" fill="white"/>
-      <rect x="7"  y="20" width="19" height="6" rx="2" fill="white" opacity="0.85"/>
-      <rect x="7"  y="29" width="19" height="6" rx="2" fill="white" opacity="0.7"/>
-      <path d="M30 22 L40 22" stroke="white" strokeWidth="2.5" strokeLinecap="round"/>
-      <path d="M36 17 L40 22 L36 27" stroke="white" strokeWidth="2.5" fill="none" strokeLinecap="round" strokeLinejoin="round"/>
-    </svg>
-  )},
-  // AWS EC2 — orange, server instance
-  { name:"AWS EC2", svg:(
-    <svg viewBox="0 0 44 44" width="44" height="44" role="img" aria-label="AWS EC2">
-      <rect width="44" height="44" rx="7" fill="#E8701A"/>
-      <rect x="7" y="10" width="30" height="24" rx="3" fill="white" opacity="0.9"/>
-      <rect x="11" y="15" width="14" height="3" rx="1" fill="#E8701A"/>
-      <rect x="11" y="21" width="10" height="3" rx="1" fill="#E8701A" opacity="0.75"/>
-      <rect x="11" y="27" width="12" height="3" rx="1" fill="#E8701A" opacity="0.5"/>
-      <circle cx="31" cy="16" r="2.5" fill="#01A88D"/>
-      <circle cx="31" cy="23" r="2.5" fill="#01A88D" opacity="0.7"/>
-      <rect x="7" y="36" width="30" height="3" rx="1.5" fill="white" opacity="0.5"/>
-    </svg>
-  )},
-  // GitHub Actions — dark, octocat + play
-  { name:"GitHub Actions", svg:(
-    <svg viewBox="0 0 44 44" width="44" height="44" role="img" aria-label="GitHub Actions">
-      <rect width="44" height="44" rx="7" fill="#24292E"/>
-      <circle cx="22" cy="22" r="14" fill="none" stroke="white" strokeWidth="1.5" opacity="0.4"/>
-      <circle cx="22" cy="22" r="10" fill="white" opacity="0.15"/>
-      <path d="M18 16 L18 28 L30 22 Z" fill="white"/>
-      <circle cx="33" cy="11" r="4" fill="#238636"/>
-      <path d="M31 11 L33 13 L36 9" stroke="white" strokeWidth="1.5" fill="none" strokeLinecap="round" strokeLinejoin="round"/>
-    </svg>
-  )},
+  { name:"AWS Bedrock",    img: LogoBedrock    },
+  { name:"AWS CloudFront", img: LogoCloudFront },
+  { name:"AWS Lambda",     img: LogoLambda     },
+  { name:"AWS S3",         img: LogoS3         },
+  { name:"AWS RDS",        img: LogoRDS        },
+  { name:"AWS SQS",        img: LogoSQS        },
+  { name:"Terraform",      img: LogoTerraform  },
+  { name:"Docker",         img: LogoDocker     },
+  { name:"Django",         img: LogoDjango     },
+  { name:"React",          img: LogoReact      },
 ];
 
 // ── MAIN ──────────────────────────────────────────────────────────────────────
@@ -441,9 +334,8 @@ export default function Lander() {
         <div style={{overflow:"hidden",flex:1}}>
           <div className="logo-scroll" style={{display:"flex",gap:"2.5rem",width:"max-content",alignItems:"center"}}>
             {[...TECHS,...TECHS,...TECHS].map((t,i)=>(
-              <div key={i} style={{display:"flex",alignItems:"center",opacity:0.8,flexShrink:0}} title={t.name}>
-                {t.svg}
-              </div>
+              <img key={i} src={t.img} alt={t.name} title={t.name}
+                style={{height:40,width:"auto",flexShrink:0,opacity:0.85,objectFit:"contain"}}/>
             ))}
           </div>
         </div>
