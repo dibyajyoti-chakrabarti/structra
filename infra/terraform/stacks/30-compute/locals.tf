@@ -57,17 +57,19 @@ locals {
     # Wildcard avoids a dependency cycle with the API Gateway domain
     # (Django allows a leading-dot host to match any subdomain).
     DJANGO_ALLOWED_HOSTS = ".execute-api.${var.region}.amazonaws.com"
+
+    # Validates the stateless worker's result callback.
+    INTERNAL_API_TOKEN = data.aws_ssm_parameter.internal_api_token.value
   })
 
-  worker_env = merge(local.common_env, {
-    DJANGO_ENV             = "production"
-    DJANGO_SETTINGS_MODULE = "worker_hub.settings"
-
-    COGNITO_USER_POOL_ID = local.persistent.cognito_user_pool_id
-    COGNITO_CLIENT_ID    = local.persistent.cognito_app_client_id
-
-    # Strands is not used at runtime, but worker settings read these.
-    STRANDS_MODEL_ID       = var.bedrock_model_id
-    STRANDS_BEDROCK_REGION = var.bedrock_region
-  })
+  # Stateless worker: no DB, no Django, no shared secrets beyond the callback token.
+  # It only needs Bedrock config + how to call the backend.
+  worker_env = {
+    BEDROCK_REGION            = var.bedrock_region
+    BEDROCK_MODEL_ID          = var.bedrock_model_id
+    BEDROCK_SEMANTIC_MODEL_ID = var.bedrock_semantic_model_id
+    BEDROCK_TIMEOUT_SECONDS   = tostring(var.bedrock_timeout_seconds)
+    BACKEND_CALLBACK_BASE_URL = module.api_gateway.invoke_url
+    INTERNAL_API_TOKEN        = data.aws_ssm_parameter.internal_api_token.value
+  }
 }

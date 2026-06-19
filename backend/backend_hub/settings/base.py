@@ -153,9 +153,18 @@ RAZORPAY_WEBHOOK_SECRET = os.getenv('RAZORPAY_WEBHOOK_SECRET', '')
 RAZORPAY_PLAN_ID_INDIVIDUAL = os.getenv('RAZORPAY_PLAN_ID_INDIVIDUAL', '')
 RAZORPAY_PLAN_ID_TEAM = os.getenv('RAZORPAY_PLAN_ID_TEAM', '')
 
+# Bedrock (AI)
+BEDROCK_REGION = os.getenv('BEDROCK_REGION', 'ap-south-1')
+BEDROCK_MODEL_ID = os.getenv('BEDROCK_MODEL_ID', 'anthropic.claude-3-5-sonnet-20241022-v2:0')
+BEDROCK_SEMANTIC_MODEL_ID = os.getenv('BEDROCK_SEMANTIC_MODEL_ID', 'anthropic.claude-3-haiku-20240307-v1:0')
+BEDROCK_TIMEOUT_SECONDS = int(os.getenv('BEDROCK_TIMEOUT_SECONDS', '60'))
+AWS_PROFILE = os.getenv('AWS_PROFILE', '')
+
 USE_SQS = os.getenv("USE_SQS", "false").lower() == "true"
 SQS_QUEUE_URL = os.getenv("SQS_QUEUE_URL", "")
 AWS_REGION = os.getenv("AWS_REGION", "ap-south-1")
+# Shared secret for the stateless worker's result callback (service-to-service auth).
+INTERNAL_API_TOKEN = os.getenv("INTERNAL_API_TOKEN", "")
 EVALUATION_LOCAL_QUEUE_POLL_INTERVAL_SECONDS = int(os.getenv("EVALUATION_LOCAL_QUEUE_POLL_INTERVAL_SECONDS", "5"))
 EVALUATION_LOCAL_QUEUE_RETRY_DELAY_SECONDS = int(os.getenv("EVALUATION_LOCAL_QUEUE_RETRY_DELAY_SECONDS", "10"))
 EVALUATION_LOCAL_QUEUE_MAX_ATTEMPTS = int(os.getenv("EVALUATION_LOCAL_QUEUE_MAX_ATTEMPTS", "3"))

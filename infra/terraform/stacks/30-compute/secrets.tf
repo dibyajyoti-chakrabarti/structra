@@ -23,3 +23,9 @@ data "aws_ssm_parameter" "email_host_password" {
   name            = "${var.ssm_prefix}/EMAIL_HOST_PASSWORD"
   with_decryption = true
 }
+
+# Shared secret for the worker -> backend result callback.
+data "aws_ssm_parameter" "internal_api_token" {
+  name            = "${var.ssm_prefix}/INTERNAL_API_TOKEN"
+  with_decryption = true
+}

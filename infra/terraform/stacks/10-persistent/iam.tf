@@ -57,9 +57,11 @@ resource "aws_iam_role" "worker" {
   assume_role_policy = data.aws_iam_policy_document.lambda_assume.json
 }
 
-resource "aws_iam_role_policy_attachment" "worker_vpc" {
+# Stateless worker is not VPC-attached, so it only needs basic logging perms
+# (no ENI/VPC permissions).
+resource "aws_iam_role_policy_attachment" "worker_logs" {
   role       = aws_iam_role.worker.name
-  policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole"
+  policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
 }
 
 resource "aws_iam_role_policy" "worker_inline" {

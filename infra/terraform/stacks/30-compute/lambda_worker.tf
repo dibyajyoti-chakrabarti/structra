@@ -13,6 +13,6 @@ module "worker_lambda" {
   timeout       = var.worker_timeout
   environment   = local.worker_env
 
-  vpc_subnet_ids         = local.persistent.app_private_subnet_ids
-  vpc_security_group_ids = [aws_security_group.lambda.id]
+  # Stateless worker is NOT VPC-attached: it owns no DB and reaches Bedrock +
+  # the backend API directly over the internet (no NAT). Faster cold starts.
 }

@@ -1,22 +1,16 @@
 FROM public.ecr.aws/lambda/python:3.12
 
-# Node.js is required for the rule engine subprocess (evaluation/runner.mjs)
+# Node.js for the self-contained rule engine subprocess (evaluation/runner.mjs)
 RUN dnf install -y nodejs && node --version
 
-# Python dependencies: backend shared deps + Strands agents SDK
-COPY backend/requirements.txt /tmp/requirements.txt
-RUN pip install --no-cache-dir -r /tmp/requirements.txt strands-agents
+# Standalone worker deps only — no Django, no DB driver, no backend code.
+COPY worker/requirements-worker.txt /tmp/requirements.txt
+RUN pip install --no-cache-dir -r /tmp/requirements.txt
 
-# Backend source for Django ORM access (models, services, settings)
-COPY backend /var/task/backend
+# Worker compute + handler + the Node rule engine. Nothing from backend/.
+COPY worker/config.py ${LAMBDA_TASK_ROOT}/config.py
+COPY worker/evaluation_compute.py ${LAMBDA_TASK_ROOT}/evaluation_compute.py
+COPY worker/cloud_handler.py ${LAMBDA_TASK_ROOT}/cloud_handler.py
+COPY worker/evaluation ${LAMBDA_TASK_ROOT}/evaluation
 
-# Worker source
-COPY worker /var/task/worker
-
-ENV PYTHONPATH=/var/task/backend:/var/task/worker
-ENV DJANGO_ENV=production
-ENV DJANGO_SETTINGS_MODULE=worker_hub.settings
-
-WORKDIR /var/task/worker
-
-CMD ["strands_lambda_handler.handler"]
+CMD ["cloud_handler.handler"]

@@ -4,6 +4,7 @@ from core.views import health_check
 from canvases.evaluation_views import (
     AIEvaluationAPIView,
     EvaluateAPIView,
+    EvaluationResultCallbackAPIView,
     EvaluationRunStatusAPIView,
     InsightTokenStatusAPIView,
 )
@@ -25,4 +26,6 @@ urlpatterns = [
     path('api/evaluate/<uuid:run_id>/', EvaluationRunStatusAPIView.as_view(), name='system-evaluate-status'),
     path('api/evaluation/ai/', AIEvaluationAPIView.as_view(), name='system-ai-evaluate'),
     path('api/evaluation/insight-tokens/', InsightTokenStatusAPIView.as_view(), name='workspace-insight-token-status'),
+    # Internal service-to-service callback (worker -> backend). Secret-authed, no JWT.
+    path('api/internal/evaluations/<uuid:run_id>/result/', EvaluationResultCallbackAPIView.as_view(), name='evaluation-result-callback'),
 ]
