@@ -16,7 +16,7 @@ from core.constants import WorkspaceVisibility
 from workspaces.models import Workspace
 
 from .serializers import UserSerializer
-from .username_utils import normalize_username_input, username_validator
+from .services.username import normalize_username_input, username_validator
 
 logger = logging.getLogger(__name__)
 from django.contrib.postgres.search import TrigramSimilarity

@@ -38,7 +38,7 @@ INSTALLED_APPS = [
     #local apps
     'accounts',
     'workspaces',
-    'canvases',
+    'systems',
     'permissions',
     'notifications',
     'audit',
@@ -56,7 +56,7 @@ MIDDLEWARE = [
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
 
-ROOT_URLCONF = 'backend_hub.urls'  # UPDATED
+ROOT_URLCONF = 'config.urls'
 
 TEMPLATES = [
     {
@@ -73,7 +73,7 @@ TEMPLATES = [
     },
 ]
 
-WSGI_APPLICATION = 'backend_hub.wsgi.application' # UPDATED
+WSGI_APPLICATION = 'config.wsgi.application'
 
 # Database
 DATABASES = {
@@ -197,12 +197,12 @@ LOGGING = {
             'level': 'ERROR',
             'propagate': False,
         },
-        'canvases.evaluation_views': {
+        'systems.evaluation_views': {
             'handlers': ['console'],
             'level': 'INFO',
             'propagate': False,
         },
-        'canvases.queue_publisher': {
+        'systems.queue_publisher': {
             'handlers': ['console'],
             'level': 'INFO',
             'propagate': False,

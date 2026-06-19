@@ -16,7 +16,7 @@ COPY . .
 
 # Default to production settings; runtime env can override to local.
 ENV DJANGO_ENV=production
-ENV DJANGO_SETTINGS_MODULE=backend_hub.settings
+ENV DJANGO_SETTINGS_MODULE=config.settings
 
 # Collect static
 # Dummy vars only needed at build time for collectstatic
@@ -30,4 +30,4 @@ RUN DJANGO_SECRET_KEY=build-time-placeholder \
 
 EXPOSE 8000
 
-CMD ["gunicorn", "backend_hub.wsgi:application", "--bind", "0.0.0.0:8000", "--workers", "2", "--timeout", "120", "--access-logfile", "-", "--error-logfile", "-"]
+CMD ["gunicorn", "config.wsgi:application", "--bind", "0.0.0.0:8000", "--workers", "2", "--timeout", "120", "--access-logfile", "-", "--error-logfile", "-"]

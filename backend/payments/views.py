@@ -14,7 +14,7 @@ from rest_framework import permissions, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from accounts.downgrade_service import validate_voluntary_downgrade_or_400
+from accounts.services.downgrade import validate_voluntary_downgrade_or_400
 from .constants import PLAN_INDIVIDUAL, PLAN_PRICES
 from core.pricing import PLAN_CORE, PLAN_TEAM
 from .models import PaymentTransaction, WebhookEventLog

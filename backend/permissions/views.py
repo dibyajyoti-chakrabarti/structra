@@ -7,7 +7,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from audit.services import record_system_event, record_workspace_event
-from canvases.models import Canvas
+from systems.models import Canvas
 from core.constants import WorkspaceRole
 from workspaces.models import Workspace
 from .checks import user_is_workspace_admin, user_is_workspace_member

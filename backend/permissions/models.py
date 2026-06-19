@@ -1,7 +1,7 @@
 from django.db import models
 from django.conf import settings
 from workspaces.models import Workspace
-from canvases.models import Canvas
+from systems.models import Canvas
 from core.constants import CanvasRole, WorkspaceRole
 
 

@@ -9,7 +9,7 @@ from core.pricing import (
     get_workspace_monthly_cost_estimate,
     normalize_plan,
 )
-from payments.seat_utils import get_billable_seat_snapshot
+from payments.services.seat import get_billable_seat_snapshot
 from workspaces.services.insight_token_service import (
     get_daily_insight_tokens,
     get_workspace_seat_count,

@@ -1,8 +1,8 @@
 from rest_framework import serializers
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError as DjangoValidationError
-from .plan_utils import get_active_razorpay_subscription_id
-from .username_utils import normalize_username_input, username_validator
+from .services.plan import get_active_razorpay_subscription_id
+from .services.username import normalize_username_input, username_validator
 
 User = get_user_model()
 

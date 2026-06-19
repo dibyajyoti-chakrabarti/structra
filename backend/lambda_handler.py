@@ -1,7 +1,7 @@
 import os
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'backend_hub.settings.production')
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'config.settings.production')
 
 from mangum import Mangum
-from backend_hub.asgi import application
+from config.asgi import application
 
 handler = Mangum(application, lifespan="off")

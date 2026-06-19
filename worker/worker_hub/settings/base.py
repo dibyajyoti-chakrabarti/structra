@@ -23,7 +23,7 @@ INSTALLED_APPS = [
     'django.contrib.auth',
     'accounts',
     'workspaces',
-    'canvases',
+    'systems',
     'audit',
     'core',
 ]

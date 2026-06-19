@@ -11,7 +11,7 @@ from django.db import close_old_connections
 from django.utils import timezone
 
 from audit.services import record_system_event
-from canvases.models import Canvas
+from systems.models import Canvas
 from workspaces.models import EvaluationLog, EvaluationRun
 from workspaces.services.insight_token_service import refund_insight_token
 

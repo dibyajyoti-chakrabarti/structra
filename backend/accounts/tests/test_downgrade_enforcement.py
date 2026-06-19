@@ -5,7 +5,7 @@ from django.core.management import call_command
 from django.utils import timezone
 from rest_framework.test import APITestCase
 
-from canvases.models import Canvas
+from systems.models import Canvas
 from core.constants import WorkspaceRole
 from permissions.models import WorkspaceMember
 from workspaces.models import Workspace

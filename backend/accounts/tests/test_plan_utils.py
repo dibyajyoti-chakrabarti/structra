@@ -1,7 +1,7 @@
 from django.contrib.auth import get_user_model
 from django.test import TestCase
 
-from accounts.plan_utils import get_active_razorpay_subscription_id
+from accounts.services.plan import get_active_razorpay_subscription_id
 from payments.models import PaymentTransaction
 
 User = get_user_model()

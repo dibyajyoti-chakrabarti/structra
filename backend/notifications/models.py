@@ -4,7 +4,7 @@ from django.utils import timezone
 from datetime import timedelta
 from audit.models import AuditLog
 from workspaces.models import Workspace
-from canvases.models import Canvas
+from systems.models import Canvas
 from core.constants import InvitationStatus, NotificationType, WorkspaceRole
 import secrets
 

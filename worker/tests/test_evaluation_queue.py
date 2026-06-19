@@ -10,7 +10,7 @@ from django.contrib.auth import get_user_model
 from django.test import TestCase, override_settings
 from django.utils import timezone
 
-from canvases.models import Canvas, EvaluationQueueJob
+from systems.models import Canvas, EvaluationQueueJob
 from core.constants import WorkspaceRole
 from evaluation_queue import LocalQueue
 from evaluation_worker import process_next_job

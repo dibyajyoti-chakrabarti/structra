@@ -4,7 +4,7 @@ from django.utils import timezone
 from rest_framework import status
 from rest_framework.test import APITestCase
 
-from canvases.models import Canvas, CanvasComment
+from systems.models import Canvas, CanvasComment
 from core.constants import CanvasRole, WorkspaceRole
 from permissions.models import CanvasPermission, WorkspaceMember
 from workspaces.models import Workspace

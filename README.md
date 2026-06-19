@@ -59,14 +59,16 @@ The API server that the frontend talks to. Owns all persistent data, authorizati
 **Structure**
 ```
 backend/
-├── backend_hub/          # Django project config and settings (local / production)
+├── config/               # Django project config and settings (local / production)
 ├── accounts/             # Auth, OTP, OAuth, JWT, profile, user search
+│   └── services/         # Business logic: plan enforcement, downgrade, username utils
 ├── workspaces/           # Workspace CRUD, starring, discovery, credits, evaluation runs
-├── canvases/             # System CRUD, autosave, comments, evaluation API + queue publish
+├── systems/              # System CRUD, autosave, comments, evaluation API + queue publish
 ├── permissions/          # Workspace membership, per-system access control
 ├── notifications/        # Invitations, notification feed
 ├── audit/                # Audit models, event recording, summary endpoints
 ├── payments/             # Razorpay checkout, orders, webhooks, subscription sync
+│   └── services/         # Billing business logic: seat management
 ├── core/                 # Shared constants, pricing helpers, health endpoint
 ├── Dockerfile
 ├── manage.py

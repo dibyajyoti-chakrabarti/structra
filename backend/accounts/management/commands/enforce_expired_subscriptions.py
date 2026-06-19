@@ -1,8 +1,8 @@
 from django.core.management.base import BaseCommand
 
-from accounts.downgrade_service import enforce_expired_plan_constraints
+from accounts.services.downgrade import enforce_expired_plan_constraints
 from accounts.models import User
-from accounts.plan_utils import get_plan_access_state
+from accounts.services.plan import get_plan_access_state
 
 
 class Command(BaseCommand):

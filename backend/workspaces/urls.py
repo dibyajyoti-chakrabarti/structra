@@ -1,5 +1,5 @@
 from django.urls import path
-from canvases.evaluation_views import WorkspaceEvaluationListAPIView
+from systems.evaluation_views import WorkspaceEvaluationListAPIView
 from .views import (
     WorkspaceListCreateView,
     WorkspaceDetailView,

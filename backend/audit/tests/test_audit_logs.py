@@ -8,7 +8,7 @@ from rest_framework.test import APITestCase
 
 from audit.models import AuditLog, AuditScope
 from audit.services import record_system_event, record_workspace_event
-from canvases.models import Canvas
+from systems.models import Canvas
 from core.constants import CanvasRole, WorkspaceRole
 from permissions.models import WorkspaceMember
 from workspaces.models import Workspace

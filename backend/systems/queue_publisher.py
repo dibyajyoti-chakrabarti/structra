@@ -5,7 +5,7 @@ import boto3
 from django.conf import settings
 from django.utils import timezone
 
-from canvases.models import EvaluationQueueJob
+from systems.models import EvaluationQueueJob
 
 logger = logging.getLogger(__name__)
 

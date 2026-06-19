@@ -10,7 +10,7 @@ from django.contrib.auth import get_user_model
 from django.test import TestCase
 from django.utils import timezone
 
-from canvases.models import Canvas
+from systems.models import Canvas
 from core.constants import WorkspaceRole
 from evaluation_service import run_evaluation_job
 from permissions.models import WorkspaceMember

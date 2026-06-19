@@ -5,7 +5,7 @@ from datetime import timedelta
 from django.utils import timezone
 from rest_framework.exceptions import ValidationError
 
-from canvases.models import Canvas
+from systems.models import Canvas
 from core.constants import WorkspaceRole
 from core.pricing import PLAN_CORE, PLAN_INDIVIDUAL, normalize_plan
 from permissions.models import WorkspaceMember

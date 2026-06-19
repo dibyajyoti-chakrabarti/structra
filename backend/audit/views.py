@@ -8,7 +8,7 @@ from rest_framework.exceptions import PermissionDenied
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from canvases.models import Canvas
+from systems.models import Canvas
 from permissions.checks import user_is_workspace_admin
 from workspaces.models import Workspace
 

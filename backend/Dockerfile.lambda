@@ -17,7 +17,7 @@ RUN DJANGO_SECRET_KEY=build-time-placeholder \
     python manage.py collectstatic --noinput
 
 ENV DJANGO_ENV=production
-ENV DJANGO_SETTINGS_MODULE=backend_hub.settings.production
+ENV DJANGO_SETTINGS_MODULE=config.settings.production
 
 ENTRYPOINT ["/usr/local/bin/python", "-m", "awslambdaric"]
 CMD ["lambda_handler.handler"]

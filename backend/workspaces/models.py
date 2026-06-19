@@ -66,7 +66,7 @@ class Workspace(models.Model):
             and previous_visibility == WorkspaceVisibility.PUBLIC
             and self.visibility == WorkspaceVisibility.PRIVATE
         ):
-            from canvases.models import Canvas
+            from systems.models import Canvas
 
             Canvas.objects.filter(
                 workspace=self,

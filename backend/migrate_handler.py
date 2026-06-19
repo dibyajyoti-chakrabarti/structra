@@ -6,7 +6,7 @@ that production settings require.
 """
 import os
 
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'backend_hub.settings.production')
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'config.settings.production')
 
 import django  # noqa: E402
 

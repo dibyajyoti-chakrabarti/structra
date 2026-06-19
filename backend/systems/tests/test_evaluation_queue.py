@@ -4,7 +4,7 @@ from django.urls import reverse
 from django.utils import timezone
 from rest_framework.test import APITestCase
 
-from canvases.models import Canvas, EvaluationQueueJob
+from systems.models import Canvas, EvaluationQueueJob
 from core.constants import WorkspaceRole
 from permissions.models import WorkspaceMember
 from workspaces.models import EvaluationRun, Workspace

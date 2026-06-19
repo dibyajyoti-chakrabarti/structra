@@ -9,8 +9,8 @@ from jwt.algorithms import RSAAlgorithm
 from rest_framework.authentication import BaseAuthentication
 from rest_framework.exceptions import AuthenticationFailed
 
-from .plan_utils import enforce_plan_expiry
-from .username_utils import generate_unique_username
+from .services.plan import enforce_plan_expiry
+from .services.username import generate_unique_username
 
 User = get_user_model()
 

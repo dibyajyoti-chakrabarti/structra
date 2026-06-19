@@ -9,7 +9,7 @@ from django.db import connection, transaction
 from django.db.models import Q
 from django.utils import timezone
 
-from canvases.models import EvaluationQueueJob
+from systems.models import EvaluationQueueJob
 from workspaces.models import EvaluationRun
 
 logger = logging.getLogger(__name__)

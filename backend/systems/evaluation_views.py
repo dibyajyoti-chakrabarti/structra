@@ -13,8 +13,8 @@ from rest_framework.views import APIView
 from django.conf import settings
 
 from audit.services import record_system_event
-from canvases.models import Canvas
-from canvases.queue_publisher import enqueue_evaluation_job
+from systems.models import Canvas
+from systems.queue_publisher import enqueue_evaluation_job
 from permissions.checks import user_has_system_read_access
 from permissions.models import WorkspaceMember
 from workspaces.models import EvaluationLog, EvaluationRun, Workspace

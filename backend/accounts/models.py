@@ -2,7 +2,7 @@ from django.db import models
 from django.contrib.auth.models import AbstractBaseUser, BaseUserManager, PermissionsMixin
 from django.contrib.postgres.indexes import GinIndex
 import uuid
-from .username_utils import (
+from .services.username import (
     generate_unique_username,
     normalize_username_input,
     username_validator,
