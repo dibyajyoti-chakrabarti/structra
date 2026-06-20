@@ -60,6 +60,8 @@ locals {
 
     # Validates the stateless worker's result callback.
     INTERNAL_API_TOKEN = data.aws_ssm_parameter.internal_api_token.value
+
+    ASSETS_BUCKET_NAME = local.persistent.assets_bucket_name
   })
 
   # Stateless worker: no DB, no Django, no shared secrets beyond the callback token.
