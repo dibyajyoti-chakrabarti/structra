@@ -1,19 +1,19 @@
-name: Deploy Frontend
+name: Deploy Frontend (Manual)
 
 on:
-  push:
-    branches:
-      - main
-    paths:
-      - 'frontend/**'
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: read
 
 jobs:
   deploy:
-    name: Build & Deploy Frontend
+    name: Build and deploy frontend to S3 + CloudFront
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repository
+      - name: Checkout
         uses: actions/checkout@v4
 
       - name: Setup Node.js
@@ -37,14 +37,13 @@ jobs:
           VITE_RAZORPAY_KEY_ID: ${{ secrets.VITE_RAZORPAY_KEY_ID }}
         run: npm run build
 
-      - name: Configure AWS credentials
+      - name: Configure AWS credentials (OIDC)
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          role-to-assume: arn:aws:iam::042843883108:role/structra-github-OIDC-Role
           aws-region: ${{ secrets.AWS_REGION }}
 
-      - name: Upload to S3
+      - name: Sync to S3
         run: |
           aws s3 sync frontend/dist s3://structra-frontend-prod \
             --delete \
@@ -55,3 +54,4 @@ jobs:
           aws cloudfront create-invalidation \
             --distribution-id EH1CRUI3DT7AC \
             --paths "/*"
+          echo "Frontend deployed and CloudFront cache invalidated."

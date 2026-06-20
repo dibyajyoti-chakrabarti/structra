@@ -1,56 +1,61 @@
 import { useEffect, useState } from "react";
 import serverDownIllustration from "../../assets/server-down-illustration.svg";
 
-const JULY_RESTART_IST = "2026-07-01T09:00:00+05:30";
+const IST_OFFSET_MS = 5.5 * 60 * 60 * 1000; // UTC+5:30
+const WINDOW_START_H = 9;  // 9 AM IST
+const WINDOW_END_H = 21;   // 9 PM IST
 
-const getJulyRestartCountdown = (now = new Date()) => {
-  const julyRestart = new Date(JULY_RESTART_IST);
-  const countdownMs = Math.max(0, julyRestart.getTime() - now.getTime());
-  return { countdownMs };
+const getISTHour = (now = new Date()) => {
+  const istMs = now.getTime() + IST_OFFSET_MS;
+  return new Date(istMs).getUTCHours() + new Date(istMs).getUTCMinutes() / 60;
+};
+
+const formatISTTime = (now = new Date()) => {
+  const istMs = now.getTime() + IST_OFFSET_MS;
+  const d = new Date(istMs);
+  const h = d.getUTCHours();
+  const m = String(d.getUTCMinutes()).padStart(2, "0");
+  const s = String(d.getUTCSeconds()).padStart(2, "0");
+  const ampm = h >= 12 ? "PM" : "AM";
+  const h12 = h % 12 || 12;
+  return `${h12}:${m}:${s} ${ampm} IST`;
+};
+
+const getCountdownToNextWindow = (now = new Date()) => {
+  const istMs = now.getTime() + IST_OFFSET_MS;
+  const istNow = new Date(istMs);
+  const nextStart = new Date(istNow);
+  nextStart.setUTCHours(WINDOW_START_H, 0, 0, 0);
+  if (istNow.getUTCHours() >= WINDOW_START_H) {
+    nextStart.setUTCDate(nextStart.getUTCDate() + 1);
+  }
+  return Math.max(0, nextStart.getTime() - istNow.getTime());
+};
+
+const formatCountdown = (ms) => {
+  const totalSeconds = Math.max(0, Math.floor(ms / 1000));
+  const h = Math.floor(totalSeconds / 3600);
+  const m = Math.floor((totalSeconds % 3600) / 60);
+  const s = totalSeconds % 60;
+  return `${String(h).padStart(2, "0")}h ${String(m).padStart(2, "0")}m ${String(s).padStart(2, "0")}s`;
 };
 
 export default function ServerDown() {
-  const [elapsed, setElapsed] = useState(0);
+  const [now, setNow] = useState(() => new Date());
   const [pulseKey, setPulseKey] = useState(0);
-  const [restartCountdown, setRestartCountdown] = useState(() => getJulyRestartCountdown());
 
   useEffect(() => {
-    const elapsedInterval = setInterval(() => {
-      setElapsed((e) => e + 1);
-    }, 1000);
-    const scheduleInterval = setInterval(() => {
-      setRestartCountdown(getJulyRestartCountdown());
-    }, 1000);
-    const pulseInterval = setInterval(() => {
-      setPulseKey((k) => k + 1);
-    }, 15000);
-
+    const tickInterval = setInterval(() => setNow(new Date()), 1000);
+    const pulseInterval = setInterval(() => setPulseKey((k) => k + 1), 15000);
     return () => {
-      clearInterval(elapsedInterval);
-      clearInterval(scheduleInterval);
+      clearInterval(tickInterval);
       clearInterval(pulseInterval);
     };
   }, []);
 
-  const formatElapsed = (secs) => {
-    if (secs < 60) return `${secs}s`;
-    return `${Math.floor(secs / 60)}m ${secs % 60}s`;
-  };
-
-  const formatCountdown = (countdownMs) => {
-    const totalSeconds = Math.max(0, Math.floor(countdownMs / 1000));
-    const hours = Math.floor(totalSeconds / 3600);
-    const minutes = Math.floor((totalSeconds % 3600) / 60);
-    const seconds = totalSeconds % 60;
-    return `${String(hours).padStart(2, "0")}h ${String(minutes).padStart(2, "0")}m ${String(
-      seconds
-    ).padStart(2, "0")}s`;
-  };
-
-  const startupMessage =
-    restartCountdown.countdownMs > 0
-      ? `${formatCountdown(restartCountdown.countdownMs)} to July 1, 2026, 9:00 AM IST`
-      : "July restart window has begun";
+  const istHour = getISTHour(now);
+  const inActiveWindow = istHour >= WINDOW_START_H && istHour < WINDOW_END_H;
+  const countdownMs = getCountdownToNextWindow(now);
 
   return (
     <>
@@ -347,11 +352,11 @@ export default function ServerDown() {
             </div>
 
             <h1 className="sd-heading">
-              Backend is <span>paused until July</span>
+              Backend is <span>{inActiveWindow ? "starting up" : "sleeping"}</span>
             </h1>
 
             <p className="sd-body">
-              Structra infrastructure is temporarily shut down for cost savings. The backend will remain offline until July and will be started again in the July restart window.
+              Structra runs <strong style={{color:"#0b1537"}}>9 AM – 9 PM IST</strong> every day to keep cloud costs low. Come back during those hours and you&apos;ll be all set.
             </p>
 
             <div className="sd-status-card">
@@ -360,20 +365,24 @@ export default function ServerDown() {
               </div>
               <div className="sd-status-rows">
                 <div className="sd-status-row">
-                  <span className="sd-status-label">Auto-retry</span>
-                  <span className="sd-status-value">Paused</span>
+                  <span className="sd-status-label">Service window</span>
+                  <span className="sd-status-value">9:00 AM – 9:00 PM IST, daily</span>
                 </div>
                 <div className="sd-status-row">
-                  <span className="sd-status-label">Expected restart</span>
-                  <span className="sd-status-value">July 1, 2026 - 9:00 AM IST</span>
+                  <span className="sd-status-label">Current IST time</span>
+                  <span className="sd-status-value active">{formatISTTime(now)}</span>
                 </div>
                 <div className="sd-status-row">
-                  <span className="sd-status-label">Time remaining</span>
-                  <span className="sd-status-value">{startupMessage}</span>
+                  <span className="sd-status-label">Next active window</span>
+                  <span className="sd-status-value">
+                    {inActiveWindow ? "Now (starting up…)" : `in ${formatCountdown(countdownMs)}`}
+                  </span>
                 </div>
                 <div className="sd-status-row">
-                  <span className="sd-status-label">Waiting for</span>
-                  <span className="sd-status-value">{formatElapsed(elapsed)}</span>
+                  <span className="sd-status-label">Status</span>
+                  <span className="sd-status-value">
+                    {inActiveWindow ? "Starting…" : "Offline (outside service hours)"}
+                  </span>
                 </div>
               </div>
             </div>
@@ -385,7 +394,7 @@ export default function ServerDown() {
                     <polyline points="20 6 9 17 4 12" />
                   </svg>
                 </div>
-                <span>No action is needed now. <strong>Service access resumes in July</strong>.</span>
+                <span>No action needed. <strong>Come back between 9 AM and 9 PM IST</strong> and the service will be live.</span>
               </div>
               <div className="sd-info-item">
                 <div className="sd-info-icon">
@@ -395,7 +404,7 @@ export default function ServerDown() {
                     <line x1="12" y1="16" x2="12.01" y2="16" />
                   </svg>
                 </div>
-                <span>Service state: <strong>Offline until July</strong>.</span>
+                <span>Service state: <strong>Offline — resumes at 9:00 AM IST tomorrow</strong>.</span>
               </div>
             </div>
           </div>

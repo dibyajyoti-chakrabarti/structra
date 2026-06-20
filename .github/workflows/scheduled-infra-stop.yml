@@ -1,6 +1,8 @@
-name: Infra Stop (Manual)
+name: Scheduled - Stop Infra (9PM IST)
 
 on:
+  schedule:
+    - cron: '30 15 * * *'  # 15:30 UTC = 21:00 IST
   workflow_dispatch:
 
 permissions:
@@ -19,7 +21,7 @@ jobs:
           role-to-assume: arn:aws:iam::042843883108:role/structra-github-OIDC-Role
           aws-region: ${{ secrets.AWS_REGION }}
 
-      - name: Stop NAT EC2
+      - name: Stop NAT EC2 if running
         run: |
           STATE=$(aws ec2 describe-instances \
             --instance-ids ${{ secrets.EC2_INSTANCE_ID }} \
@@ -33,7 +35,7 @@ jobs:
             echo "NAT EC2 is already $STATE — skipping."
           fi
 
-      - name: Stop RDS
+      - name: Stop RDS if available
         run: |
           STATUS=$(aws rds describe-db-instances \
             --db-instance-identifier ${{ secrets.RDS_INSTANCE_ID }} \

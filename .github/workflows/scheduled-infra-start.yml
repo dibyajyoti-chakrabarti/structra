@@ -1,6 +1,8 @@
-name: Infra Start (Manual)
+name: Scheduled - Start Infra (9AM IST)
 
 on:
+  schedule:
+    - cron: '30 3 * * *'  # 03:30 UTC = 09:00 IST
   workflow_dispatch:
 
 permissions:
@@ -19,7 +21,7 @@ jobs:
           role-to-assume: arn:aws:iam::042843883108:role/structra-github-OIDC-Role
           aws-region: ${{ secrets.AWS_REGION }}
 
-      - name: Start RDS
+      - name: Start RDS if stopped
         run: |
           STATUS=$(aws rds describe-db-instances \
             --db-instance-identifier ${{ secrets.RDS_INSTANCE_ID }} \
@@ -35,12 +37,11 @@ jobs:
 
       - name: Wait for RDS to be available
         run: |
-          echo "Waiting for RDS to become available..."
           aws rds wait db-instance-available \
             --db-instance-identifier ${{ secrets.RDS_INSTANCE_ID }}
           echo "RDS is available."
 
-      - name: Start NAT EC2
+      - name: Start NAT EC2 if stopped
         run: |
           STATE=$(aws ec2 describe-instances \
             --instance-ids ${{ secrets.EC2_INSTANCE_ID }} \

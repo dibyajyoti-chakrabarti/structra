@@ -1,0 +1,55 @@
+name: Run Migrations (Manual)
+
+on:
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  migrate:
+    name: Run Django migrations via backend Lambda
+    runs-on: ubuntu-latest
+
+    env:
+      FUNCTION_NAME: structra-prod-backend
+
+    steps:
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::042843883108:role/structra-github-OIDC-Role
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Switch Lambda to migration handler
+        run: |
+          aws lambda update-function-configuration \
+            --function-name $FUNCTION_NAME \
+            --image-config '{"Command":["migrate_handler.handler"]}'
+
+      - name: Wait for configuration update
+        run: aws lambda wait function-updated --function-name $FUNCTION_NAME
+
+      - name: Invoke migration
+        run: |
+          aws lambda invoke \
+            --function-name $FUNCTION_NAME \
+            --cli-binary-format raw-in-base64-out \
+            --payload '{}' \
+            /tmp/migrate-result.json
+          echo "Migration result:"
+          cat /tmp/migrate-result.json
+
+      - name: Revert Lambda to API handler
+        if: always()
+        run: |
+          aws lambda update-function-configuration \
+            --function-name $FUNCTION_NAME \
+            --image-config '{}'
+
+      - name: Wait for revert
+        if: always()
+        run: |
+          aws lambda wait function-updated --function-name $FUNCTION_NAME
+          echo "Backend Lambda reverted to API handler."

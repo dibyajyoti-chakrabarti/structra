@@ -1,4 +1,4 @@
-name: Deploy Backend (Manual)
+name: Deploy Worker (Manual)
 
 on:
   workflow_dispatch:
@@ -9,12 +9,12 @@ permissions:
 
 jobs:
   deploy:
-    name: Build, push, and update backend Lambda
+    name: Build, push, and update worker Lambda
     runs-on: ubuntu-latest
 
     env:
       ECR_REGISTRY: 042843883108.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com
-      FUNCTION_NAME: structra-prod-backend
+      FUNCTION_NAME: structra-prod-worker
 
     steps:
       - name: Checkout
@@ -29,22 +29,22 @@ jobs:
       - name: Login to ECR
         uses: aws-actions/amazon-ecr-login@v2
 
-      - name: Build and push backend image
+      - name: Build and push worker image
         run: |
           docker build \
-            -f backend/Dockerfile.lambda \
-            -t $ECR_REGISTRY/structra-api:latest \
-            ./backend
-          docker push $ECR_REGISTRY/structra-api:latest
+            -f worker/Dockerfile.lambda \
+            -t $ECR_REGISTRY/structra-worker:latest \
+            .
+          docker push $ECR_REGISTRY/structra-worker:latest
 
       - name: Update Lambda function code
         run: |
           aws lambda update-function-code \
             --function-name $FUNCTION_NAME \
-            --image-uri $ECR_REGISTRY/structra-api:latest
+            --image-uri $ECR_REGISTRY/structra-worker:latest
 
       - name: Wait for Lambda update
         run: |
           aws lambda wait function-updated \
             --function-name $FUNCTION_NAME
-          echo "Backend Lambda updated successfully."
+          echo "Worker Lambda updated successfully."
