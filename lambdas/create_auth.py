@@ -26,7 +26,9 @@ HTML_TEMPLATE = """\
           <!-- Header -->
           <tr>
             <td style="background:linear-gradient(135deg,#1d4ed8 0%,#2563eb 100%);padding:32px 40px 28px;text-align:center;">
-              <p style="margin:0;color:#ffffff;font-size:22px;font-weight:800;letter-spacing:0.5px;">structra.cloud</p>
+              <img src="https://structra-assets-042843883108.s3.ap-south-1.amazonaws.com/logo/structra-logo.png"
+                   alt="Structra" width="140"
+                   style="display:block;margin:0 auto;border:0;outline:none;text-decoration:none;" />
             </td>
           </tr>
 
