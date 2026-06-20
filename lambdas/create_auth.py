@@ -25,35 +25,44 @@ HTML_TEMPLATE = """\
 
           <!-- Header -->
           <tr>
-            <td style="background:linear-gradient(135deg,#1d4ed8 0%,#2563eb 100%);padding:32px 40px 28px;text-align:center;">
-              <img src="https://structra-assets-042843883108.s3.ap-south-1.amazonaws.com/logo/structra-logo.png"
-                   alt="Structra" width="140"
-                   style="display:block;margin:0 auto;border:0;outline:none;text-decoration:none;" />
+            <td style="background:linear-gradient(135deg,#1d4ed8 0%,#2563eb 100%);padding:28px 40px;text-align:center;">
+              <table cellpadding="0" cellspacing="0" border="0" style="margin:0 auto;">
+                <tr>
+                  <td style="vertical-align:middle;padding-right:10px;">
+                    <img src="https://structra-assets-042843883108.s3.ap-south-1.amazonaws.com/logo/structra-logo.png"
+                         alt="" width="36" height="36"
+                         style="display:block;border:0;outline:none;text-decoration:none;" />
+                  </td>
+                  <td style="vertical-align:middle;">
+                    <span style="font-size:22px;font-weight:800;color:#ffffff;letter-spacing:-0.5px;font-family:'Segoe UI',Arial,sans-serif;">Structra</span>
+                  </td>
+                </tr>
+              </table>
             </td>
           </tr>
 
           <!-- Body -->
           <tr>
-            <td style="padding:40px 40px 24px;">
-              <h1 style="margin:0 0 8px;font-size:22px;font-weight:700;color:#0f172a;">Your login code</h1>
+            <td style="padding:36px 40px 28px;">
+              <h1 style="margin:0 0 8px;font-size:22px;font-weight:700;color:#0f172a;letter-spacing:-0.3px;">Your login code</h1>
               <p style="margin:0 0 28px;font-size:15px;color:#64748b;line-height:1.6;">
-                Use the code below to sign in to your Structra account. It expires in <strong>10&nbsp;minutes</strong>.
+                Use the code below to sign in to your Structra account. It expires in <strong style="color:#0f172a;">10&nbsp;minutes</strong>.
               </p>
 
               <!-- OTP box -->
-              <div style="background:#f8fafc;border:2px dashed #93c5fd;border-radius:12px;padding:28px 0;text-align:center;margin-bottom:28px;">
-                <span style="font-size:42px;font-weight:800;letter-spacing:10px;color:#1d4ed8;font-family:'Courier New',monospace;">{otp}</span>
+              <div style="background:#f0f7ff;border:2px solid #bfdbfe;border-radius:12px;padding:28px 0;text-align:center;margin-bottom:28px;">
+                <span style="font-size:40px;font-weight:800;letter-spacing:12px;color:#1d4ed8;font-family:'Courier New',monospace;">{otp}</span>
               </div>
 
-              <p style="margin:0 0 8px;font-size:13px;color:#94a3b8;line-height:1.6;">
-                If you didn't request this code, you can safely ignore this email. Someone may have typed your email address by mistake.
+              <p style="margin:0;font-size:13px;color:#94a3b8;line-height:1.6;">
+                If you didn't request this code, you can safely ignore this email.
               </p>
             </td>
           </tr>
 
           <!-- Footer -->
           <tr>
-            <td style="background:#f8fafc;border-top:1px solid #e2e8f0;padding:20px 40px;text-align:center;">
+            <td style="background:#f8fafc;border-top:1px solid #e2e8f0;padding:18px 40px;text-align:center;">
               <p style="margin:0;font-size:12px;color:#94a3b8;">
                 &copy; 2025 Structra &mdash; <a href="https://structra.cloud" style="color:#3b82f6;text-decoration:none;">structra.cloud</a>
               </p>
