@@ -20,6 +20,7 @@ resource "aws_cloudfront_distribution" "this" {
   price_class         = var.price_class
   comment             = "${var.name_prefix} frontend"
   tags                = var.tags
+  aliases             = var.aliases
 
   origin {
     origin_id                = "s3-frontend"
@@ -57,7 +58,10 @@ resource "aws_cloudfront_distribution" "this" {
   }
 
   viewer_certificate {
-    cloudfront_default_certificate = true
+    cloudfront_default_certificate = var.acm_certificate_arn == null
+    acm_certificate_arn            = var.acm_certificate_arn
+    ssl_support_method             = var.acm_certificate_arn != null ? "sni-only" : null
+    minimum_protocol_version       = var.acm_certificate_arn != null ? "TLSv1.2_2021" : null
   }
 }
 

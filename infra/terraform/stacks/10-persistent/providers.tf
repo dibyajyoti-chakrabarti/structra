@@ -11,3 +11,19 @@ provider "aws" {
     }
   }
 }
+
+# ACM certificates for CloudFront must be in us-east-1
+provider "aws" {
+  alias   = "us_east_1"
+  region  = "us-east-1"
+  profile = var.profile
+
+  default_tags {
+    tags = {
+      Project   = "structra"
+      Env       = "prod"
+      ManagedBy = "terraform"
+      Stack     = "10-persistent"
+    }
+  }
+}

@@ -73,3 +73,14 @@ output "region" {
 output "name_prefix" {
   value = var.name_prefix
 }
+
+# --- DNS / TLS ---
+output "route53_zone_id" {
+  value = aws_route53_zone.main.zone_id
+}
+output "route53_zone_name_servers" {
+  value = aws_route53_zone.main.name_servers
+}
+output "acm_certificate_arn" {
+  value = aws_acm_certificate_validation.main.certificate_arn
+}
