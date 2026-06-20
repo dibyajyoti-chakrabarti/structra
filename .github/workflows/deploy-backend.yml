@@ -43,8 +43,38 @@ jobs:
             --function-name $FUNCTION_NAME \
             --image-uri $ECR_REGISTRY/structra-api:latest
 
-      - name: Wait for Lambda update
+      - name: Wait for code update
+        run: aws lambda wait function-updated --function-name $FUNCTION_NAME
+
+      - name: Switch Lambda to migration handler
         run: |
-          aws lambda wait function-updated \
-            --function-name $FUNCTION_NAME
-          echo "Backend Lambda updated successfully."
+          aws lambda update-function-configuration \
+            --function-name $FUNCTION_NAME \
+            --image-config '{"Command":["migrate_handler.handler"]}'
+
+      - name: Wait for configuration update
+        run: aws lambda wait function-updated --function-name $FUNCTION_NAME
+
+      - name: Run migrations
+        run: |
+          aws lambda invoke \
+            --function-name $FUNCTION_NAME \
+            --cli-binary-format raw-in-base64-out \
+            --payload '{}' \
+            /tmp/migrate-result.json
+          echo "Migration result:"
+          cat /tmp/migrate-result.json
+          grep -q '"status": "ok"' /tmp/migrate-result.json || (echo "Migration failed!" && exit 1)
+
+      - name: Revert Lambda to API handler
+        if: always()
+        run: |
+          aws lambda update-function-configuration \
+            --function-name $FUNCTION_NAME \
+            --image-config '{}'
+
+      - name: Wait for revert
+        if: always()
+        run: |
+          aws lambda wait function-updated --function-name $FUNCTION_NAME
+          echo "Backend Lambda updated and migrations applied successfully."
