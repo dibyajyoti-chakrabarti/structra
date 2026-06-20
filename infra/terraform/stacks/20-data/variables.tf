@@ -10,7 +10,7 @@ variable "region" {
 
 variable "profile" {
   type    = string
-  default = "structra-admin"
+  default = "structra"
 }
 
 variable "engine_version" {

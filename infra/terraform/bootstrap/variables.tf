@@ -5,7 +5,7 @@ variable "region" {
 
 variable "profile" {
   type    = string
-  default = "structra-admin"
+  default = "structra"
 }
 
 variable "state_bucket_name" {

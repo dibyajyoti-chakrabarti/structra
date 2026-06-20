@@ -3,7 +3,7 @@ terraform {
     bucket         = "structra-tfstate-042843883108-ap-south-1"
     key            = "structra/30-compute.tfstate"
     region         = "ap-south-1"
-    profile        = "structra-admin"
+    profile        = "structra"
     dynamodb_table = "structra-tflock"
     encrypt        = true
   }
