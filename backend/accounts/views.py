@@ -163,7 +163,12 @@ class AvatarUploadUrlView(APIView):
         object_url = f"https://{bucket}.s3.ap-south-1.amazonaws.com/{key}"
 
         try:
-            s3 = boto3.client('s3', region_name=getattr(settings, 'AWS_REGION', 'ap-south-1'))
+            region = getattr(settings, 'AWS_REGION', 'ap-south-1')
+            s3 = boto3.client(
+                's3',
+                region_name=region,
+                endpoint_url=f'https://s3.{region}.amazonaws.com',
+            )
             upload_url = s3.generate_presigned_url(
                 'put_object',
                 Params={'Bucket': bucket, 'Key': key, 'ContentType': f'image/{ext}'},
