@@ -43,3 +43,30 @@ resource "aws_acm_certificate_validation" "main" {
   certificate_arn         = aws_acm_certificate.main.arn
   validation_record_fqdns = [for r in aws_route53_record.acm_validation : r.fqdn]
 }
+
+###############################################################################
+# Email authentication — SPF, DMARC
+# DKIM: generate the key in the Zoho Mail admin panel
+# (Mail Admin → Email Authentication → DKIM) and add the record manually
+# or add a aws_route53_record.dkim resource below once you have the key.
+###############################################################################
+
+resource "aws_route53_record" "spf" {
+  zone_id = aws_route53_zone.main.zone_id
+  name    = "structra.cloud"
+  type    = "TXT"
+  ttl     = 300
+  records = [
+    "v=spf1 include:zoho.in ~all"
+  ]
+}
+
+resource "aws_route53_record" "dmarc" {
+  zone_id = aws_route53_zone.main.zone_id
+  name    = "_dmarc.structra.cloud"
+  type    = "TXT"
+  ttl     = 300
+  records = [
+    "v=DMARC1; p=quarantine; rua=mailto:support@structra.cloud; adkim=r; aspf=r"
+  ]
+}
