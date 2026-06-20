@@ -61,6 +61,16 @@ resource "aws_route53_record" "spf" {
   ]
 }
 
+resource "aws_route53_record" "dkim" {
+  zone_id = aws_route53_zone.main.zone_id
+  name    = "zoho._domainkey.structra.cloud"
+  type    = "TXT"
+  ttl     = 300
+  records = [
+    "v=DKIM1; k=rsa; p=MIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBgQCi/Yw/RqDETj/JUXiOEfkJJ5L1CG/Vqroj/3VROh6dqchtEz5qZrk9Qk3pgkcYtXneNmDAfdjawevHo0dAZUnz2b143ZvVC9aFPR1X5HYn6EOSxrvELEzd6w/4Hw35UNqT6mDXir5S4ulth5HzpcNvLbyYSyEFGpiG1f9qNFErzQIDAQAB"
+  ]
+}
+
 resource "aws_route53_record" "dmarc" {
   zone_id = aws_route53_zone.main.zone_id
   name    = "_dmarc.structra.cloud"
