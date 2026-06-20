@@ -45,6 +45,7 @@ class UserSerializer(serializers.ModelSerializer):
             'org_loc',
             'is_new',
             'created_at',
+            'avatar_url',
         )
         read_only_fields = (
             'user_id',

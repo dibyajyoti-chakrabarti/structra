@@ -51,7 +51,7 @@ class UserTrigramSearchView(generics.ListAPIView):
                 'id': str(user.user_id),
                 'username': user.username,
                 'full_name': user.full_name,
-                'avatar': None,
+                'avatar': user.avatar_url,
             }
             for user in users
         ]
@@ -125,7 +125,7 @@ class PublicUserProfileView(APIView):
                 'id': str(profile_user.user_id),
                 'username': profile_user.username,
                 'full_name': profile_user.full_name,
-                'avatar': None,
+                'avatar': user.avatar_url,
                 'org_name': profile_user.org_name,
                 'org_loc': profile_user.org_loc,
                 'joined_at': profile_user.created_at,
@@ -144,6 +144,36 @@ class UserProfileView(generics.RetrieveUpdateAPIView):
 
     def get_object(self):
         return self.request.user
+
+
+class AvatarUploadUrlView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        ext = request.query_params.get('ext', 'png').lower().lstrip('.')
+        if ext not in ('png', 'jpg', 'jpeg', 'webp', 'gif'):
+            ext = 'png'
+
+        bucket = getattr(settings, 'ASSETS_BUCKET_NAME', '')
+        if not bucket:
+            return Response({'detail': 'Asset storage not configured.'}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
+
+        user_id = str(request.user.user_id)
+        key = f"users/{user_id}/avatar.{ext}"
+        object_url = f"https://{bucket}.s3.ap-south-1.amazonaws.com/{key}"
+
+        try:
+            s3 = boto3.client('s3', region_name=getattr(settings, 'AWS_REGION', 'ap-south-1'))
+            upload_url = s3.generate_presigned_url(
+                'put_object',
+                Params={'Bucket': bucket, 'Key': key, 'ContentType': f'image/{ext}'},
+                ExpiresIn=60,
+            )
+        except ClientError as exc:
+            logger.error("Failed to generate presigned URL: %s", exc)
+            return Response({'detail': 'Could not generate upload URL.'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+        return Response({'upload_url': upload_url, 'object_url': object_url})
 
 
 class DeleteAccountView(APIView):

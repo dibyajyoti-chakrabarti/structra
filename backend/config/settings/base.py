@@ -163,6 +163,7 @@ AWS_PROFILE = os.getenv('AWS_PROFILE', '')
 USE_SQS = os.getenv("USE_SQS", "false").lower() == "true"
 SQS_QUEUE_URL = os.getenv("SQS_QUEUE_URL", "")
 AWS_REGION = os.getenv("AWS_REGION", "ap-south-1")
+ASSETS_BUCKET_NAME = os.getenv("ASSETS_BUCKET_NAME", "")
 # Shared secret for the stateless worker's result callback (service-to-service auth).
 INTERNAL_API_TOKEN = os.getenv("INTERNAL_API_TOKEN", "")
 EVALUATION_LOCAL_QUEUE_POLL_INTERVAL_SECONDS = int(os.getenv("EVALUATION_LOCAL_QUEUE_POLL_INTERVAL_SECONDS", "5"))

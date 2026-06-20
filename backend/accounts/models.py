@@ -67,6 +67,7 @@ class User(AbstractBaseUser, PermissionsMixin):
     plan_expires_at = models.DateTimeField(null=True, blank=True)
     purchased_team_seats = models.IntegerField(default=1)
     cognito_sub = models.CharField(max_length=128, unique=True, null=True, blank=True, db_index=True)
+    avatar_url = models.URLField(max_length=500, blank=True, null=True)
 
     objects = UserManager()
 
