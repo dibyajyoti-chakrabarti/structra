@@ -32,7 +32,7 @@ export default function AuthenticatedNavbar() {
     setIsSearchDropdownOpen(false);
   }, [location.pathname]);
 
-  const { signOut } = useAuth();
+  const { signOut, user } = useAuth();
 
   const handleLogout = async () => {
     clearApiCache();
@@ -402,21 +402,25 @@ export default function AuthenticatedNavbar() {
         }
 
         .nav-avatar-btn {
-          background: var(--text);
-          border: none;
+          background: var(--surface-2);
+          border: 1.5px solid var(--border);
           cursor: pointer;
-          color: var(--bg);
+          color: var(--text-muted);
           width: 32px;
           height: 32px;
-          border-radius: 8px;
+          border-radius: 50%;
           display: flex;
           align-items: center;
           justify-content: center;
-          transition: background 0.1s, transform 0.1s;
+          overflow: hidden;
+          transition: border-color 0.1s, transform 0.1s, box-shadow 0.1s;
           margin-left: 2px;
+          padding: 0;
+          flex-shrink: 0;
         }
-        .nav-avatar-btn:hover { background: color-mix(in srgb, var(--text), #000 12%); }
+        .nav-avatar-btn:hover { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-soft); }
         .nav-avatar-btn:active { transform: scale(0.95); }
+        .nav-avatar-btn img { width: 100%; height: 100%; object-fit: cover; display: block; }
 
         /* Mobile */
         .nav-mobile-toggle {
@@ -613,7 +617,10 @@ export default function AuthenticatedNavbar() {
               onClick={() => navigate('/app/profile')}
               title="Profile"
             >
-              <User size={15} />
+              {user?.avatar_url
+                ? <img src={user.avatar_url} alt="Profile" />
+                : <User size={15} />
+              }
             </button>
           </div>
 
@@ -660,7 +667,10 @@ export default function AuthenticatedNavbar() {
                 <Bell size={16} /> Notifications
               </button>
               <button className="nav-mobile-item" onClick={() => navigate('/app/profile')}>
-                <User size={16} /> Profile
+                {user?.avatar_url
+                  ? <img src={user.avatar_url} alt="Profile" style={{ width: 16, height: 16, borderRadius: '50%', objectFit: 'cover' }} />
+                  : <User size={16} />
+                } Profile
               </button>
               <div className="nav-mobile-sep" />
               <button className="nav-mobile-item danger" onClick={handleLogout}>
