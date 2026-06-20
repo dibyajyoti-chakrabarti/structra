@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import AuthenticatedNavbar from '../../components/AuthenticatedNavbar';
 import { User, Mail, MapPin, Calendar, Building, Globe, Lock, ArrowRight, Settings, Check, X, Camera, Edit2, Copy, Star, Search, AtSign, Inbox, Trash2, AlertTriangle } from 'lucide-react';
@@ -41,6 +41,9 @@ export default function Profile() {
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState('');
 
+  const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
+  const avatarInputRef = useRef(null);
+
   useEffect(() => {
     const timer = setTimeout(() => {
       setDebouncedUserSearchInput(userSearchInput.trim());
@@ -64,7 +67,7 @@ export default function Profile() {
       organization: profileData.org_name || 'Organization not set',
       location: profileData.org_loc || 'Location not set',
       joined: formatDate(profileData.created_at),
-      avatar: null,
+      avatar: profileData.avatar_url || null,
       followers_count: profileData.followers_count || 0,
       following_count: profileData.following_count || 0,
       current_plan: (profileData.current_plan || 'CORE').toUpperCase(),
@@ -163,6 +166,33 @@ export default function Profile() {
       navigator.clipboard.writeText(user.email);
       setEmailCopied(true);
       setTimeout(() => setEmailCopied(false), 2000);
+    }
+  };
+
+  const handleAvatarClick = () => {
+    if (!isUploadingAvatar) avatarInputRef.current?.click();
+  };
+
+  const handleAvatarChange = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    e.target.value = '';
+
+    const ext = file.name.split('.').pop().toLowerCase() || 'png';
+    setIsUploadingAvatar(true);
+    try {
+      const { data } = await api.get(`auth/profile/avatar-upload-url/?ext=${ext}`, { cache: false });
+      await fetch(data.upload_url, {
+        method: 'PUT',
+        body: file,
+        headers: { 'Content-Type': file.type || `image/${ext}` },
+      });
+      await api.patch('auth/profile/', { avatar_url: data.object_url });
+      setUser((prev) => ({ ...prev, avatar: data.object_url }));
+    } catch {
+      // silent — avatar upload failing shouldn't block the profile page
+    } finally {
+      setIsUploadingAvatar(false);
     }
   };
 
@@ -395,7 +425,7 @@ export default function Profile() {
           )}
 
           <div className="p-6 md:p-8 flex flex-col items-center text-center border-b border-gray-100">
-            <div className="relative group cursor-pointer mb-6">
+            <div className="relative group cursor-pointer mb-6" onClick={handleAvatarClick}>
               <div className="w-24 h-24 rounded-full bg-gray-50 border border-gray-200 flex items-center justify-center overflow-hidden shadow-sm">
                 {user.avatar ? (
                    <img src={user.avatar} alt="Profile" className="w-full h-full object-cover" />
@@ -403,10 +433,21 @@ export default function Profile() {
                    <User size={40} className="text-gray-400" />
                 )}
               </div>
-              <div className={`absolute inset-0 bg-black/50 rounded-full flex items-center justify-center transition-opacity ${isEditing ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}>
-                <Camera size={24} className="text-white" />
+              <div className={`absolute inset-0 bg-black/50 rounded-full flex items-center justify-center transition-opacity ${isUploadingAvatar ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}>
+                {isUploadingAvatar ? (
+                  <div className="w-6 h-6 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                ) : (
+                  <Camera size={24} className="text-white" />
+                )}
               </div>
             </div>
+            <input
+              ref={avatarInputRef}
+              type="file"
+              accept="image/png,image/jpeg,image/webp,image/gif"
+              className="hidden"
+              onChange={handleAvatarChange}
+            />
             
             {isEditing ? (
               <div className="w-full space-y-3 animate-in fade-in zoom-in-95 duration-200">
