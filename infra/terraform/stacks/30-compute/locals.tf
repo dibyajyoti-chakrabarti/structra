@@ -5,7 +5,7 @@ locals {
   backend_image_uri = "${local.persistent.ecr_backend_repository_url}:${var.backend_image_tag}"
   worker_image_uri  = "${local.persistent.ecr_worker_repository_url}:${var.worker_image_tag}"
 
-  frontend_url = module.frontend_cdn.url
+  frontend_url = module.frontend_cdn.canonical_url
 
   # Shared DB / Bedrock / email / SQS config injected into both Lambdas.
   common_env = {
@@ -45,7 +45,7 @@ locals {
 
   backend_env = merge(local.common_env, {
     DJANGO_ENV             = "production"
-    DJANGO_SETTINGS_MODULE = "backend_hub.settings.production"
+    DJANGO_SETTINGS_MODULE = "config.settings.production"
 
     COGNITO_USER_POOL_ID = local.persistent.cognito_user_pool_id
     COGNITO_CLIENT_ID    = local.persistent.cognito_app_client_id
