@@ -46,13 +46,13 @@ jobs:
 
       - name: Sync to S3
         run: |
-          aws s3 sync frontend/dist s3://structra-frontend-prod \
+          aws s3 sync frontend/dist s3://structra-frontend-042843883108 \
             --delete \
             --cache-control "max-age=31536000,public"
 
       - name: Invalidate CloudFront cache
         run: |
           aws cloudfront create-invalidation \
-            --distribution-id EH1CRUI3DT7AC \
+            --distribution-id E24NYT5QAF6DKT \
             --paths "/*"
           echo "Frontend deployed and CloudFront cache invalidated."
