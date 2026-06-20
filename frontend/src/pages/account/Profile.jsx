@@ -185,7 +185,7 @@ export default function Profile() {
       await fetch(data.upload_url, {
         method: 'PUT',
         body: file,
-        headers: { 'Content-Type': file.type || `image/${ext}` },
+        headers: { 'Content-Type': data.content_type },
       });
       await api.patch('auth/profile/', { avatar_url: data.object_url });
       setUser((prev) => ({ ...prev, avatar: data.object_url }));

@@ -149,10 +149,20 @@ class UserProfileView(generics.RetrieveUpdateAPIView):
 class AvatarUploadUrlView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
+    _MIME_TYPES = {
+        'jpg': 'image/jpeg',
+        'jpeg': 'image/jpeg',
+        'png': 'image/png',
+        'webp': 'image/webp',
+        'gif': 'image/gif',
+    }
+
     def get(self, request):
         ext = request.query_params.get('ext', 'png').lower().lstrip('.')
-        if ext not in ('png', 'jpg', 'jpeg', 'webp', 'gif'):
+        content_type = self._MIME_TYPES.get(ext)
+        if not content_type:
             ext = 'png'
+            content_type = 'image/png'
 
         bucket = getattr(settings, 'ASSETS_BUCKET_NAME', '')
         if not bucket:
@@ -171,14 +181,14 @@ class AvatarUploadUrlView(APIView):
             )
             upload_url = s3.generate_presigned_url(
                 'put_object',
-                Params={'Bucket': bucket, 'Key': key, 'ContentType': f'image/{ext}'},
-                ExpiresIn=60,
+                Params={'Bucket': bucket, 'Key': key, 'ContentType': content_type},
+                ExpiresIn=300,
             )
         except ClientError as exc:
             logger.error("Failed to generate presigned URL: %s", exc)
             return Response({'detail': 'Could not generate upload URL.'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-        return Response({'upload_url': upload_url, 'object_url': object_url})
+        return Response({'upload_url': upload_url, 'object_url': object_url, 'content_type': content_type})
 
 
 class DeleteAccountView(APIView):
