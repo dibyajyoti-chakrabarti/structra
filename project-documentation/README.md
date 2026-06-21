@@ -19,16 +19,6 @@ Internal technical documentation for the Structra monorepo.
 
 ## Architecture Diagram
 
-The Mermaid source for the system architecture diagram is at [assets/architecture.mmd](./assets/architecture.mmd).
+![Structra System Architecture](./assets/architecture.png)
 
-Render it with any Mermaid-compatible tool (GitHub renders `.mmd` files natively in markdown when embedded, or use [mermaid.live](https://mermaid.live) to export a PNG for linking in the main README).
-
-```mermaid
-%%{init: {"theme": "base"}}%%
-flowchart LR
-    Browser --> CloudFront --> S3
-    Browser --> Cognito
-    Browser --> APIGateway --> BackendLambda --> RDS
-    BackendLambda --> SQS --> WorkerLambda --> Bedrock
-    WorkerLambda --> APIGateway
-```
+The Mermaid source is at [assets/architecture.mmd](./assets/architecture.mmd).

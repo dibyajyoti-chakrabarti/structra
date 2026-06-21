@@ -1,6 +1,8 @@
 # Structra — System Architecture
 
-> For the visual diagram see [assets/architecture.mmd](./assets/architecture.mmd) (Mermaid source).
+![Structra System Architecture](./assets/architecture.png)
+
+> Mermaid source: [assets/architecture.mmd](./assets/architecture.mmd)
 
 ---
 

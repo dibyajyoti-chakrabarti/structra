@@ -22,6 +22,14 @@
 
 ---
 
+## Architecture
+
+![Structra System Architecture](project-documentation/assets/architecture.png)
+
+> Full architecture documentation: [project-documentation/architecture.md](project-documentation/architecture.md)
+
+---
+
 ## Repository Structure
 
 This is a monorepo. All three services live here and are deployed independently.
