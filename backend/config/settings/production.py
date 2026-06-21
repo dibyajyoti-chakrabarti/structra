@@ -10,6 +10,11 @@ from .base import *
 
 DEBUG = False
 
+# Fail fast when the database is unreachable (e.g. RDS stopped via prod-down) so
+# the /health/ check returns 503 promptly — within the frontend's 7s timeout —
+# instead of the Lambda hanging on a TCP connect to a stopped RDS endpoint.
+DATABASES['default'].setdefault('OPTIONS', {})['connect_timeout'] = 5
+
 raw_allowed_hosts = os.getenv('DJANGO_ALLOWED_HOSTS') or os.getenv('ALLOWED_HOSTS', '')
 ALLOWED_HOSTS = [host.strip() for host in raw_allowed_hosts.split(',') if host.strip()]
 if not ALLOWED_HOSTS:
