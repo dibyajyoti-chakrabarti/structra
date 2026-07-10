@@ -1,4 +1,4 @@
-# Structra — Backend
+# Chapter 4 — Backend Service
 
 The backend is a **Django 6 REST API** that owns all persistent data, authorization, and business policy. It runs as a container-image Lambda behind AWS API Gateway, adapted by Mangum.
 
@@ -109,6 +109,8 @@ The backend is a **Django 6 REST API** that owns all persistent data, authorizat
 | GET | `/api/evaluation/insight-tokens/` |
 | POST | `/api/internal/evaluations/<run_id>/result/` (worker callback — `X-Internal-Token`) |
 
+The full mechanics behind the evaluation endpoints — dispatch through to the worker's callback — are in [Chapter 5](./ch_5_evaluation_pipeline.md), not repeated here.
+
 ### Payments
 
 | Method | Path |
@@ -122,18 +124,7 @@ The backend is a **Django 6 REST API** that owns all persistent data, authorizat
 
 ## Authentication
 
-All authenticated requests require a Cognito JWT as a Bearer token.
-
-`CognitoJWTAuthentication` (`accounts/authentication.py`):
-
-1. Extracts `Authorization: Bearer <token>` from the request header
-2. Fetches Cognito's JWKS endpoint (`cognito-idp.{region}.amazonaws.com/{pool_id}/.well-known/jwks.json`) — result is cached in-process via `@lru_cache`
-3. Validates the JWT signature using the matching `kid` key
-4. Extracts `sub` claim → looks up `User` by `cognito_sub`
-5. If no user found: provisions a new Django user from the JWT's `email` and `name` claims
-6. Runs `enforce_plan_expiry(user)` to downgrade expired subscriptions
-
-The JWKS fetch goes through the NAT instance (backend is in a private subnet).
+All authenticated requests require a Cognito JWT as a Bearer token, validated by `CognitoJWTAuthentication` (`accounts/authentication.py`). The full 7-step validation flow — JWKS fetch/cache, signature verification, user provisioning, plan enforcement — is the canonical treatment in [Chapter 3](./ch_3_authentication.md#jwt-validation-in-the-backend). One detail worth repeating here: the JWKS fetch goes through the NAT instance, because the backend Lambda sits in a private VPC subnet (see [Chapter 2](./ch_2_architecture.md#nat-instance-t4gmicro-ec2)).
 
 ---
 
@@ -221,7 +212,7 @@ Tracks a single evaluation job end-to-end.
 
 - Packaged as a Docker container image stored in ECR
 - `lambda_handler.py` is the entry point: uses **Mangum** to adapt the API Gateway event to an ASGI call
-- `migrate_handler.py` is a separate Lambda entry point for running `manage.py migrate` (invoked by the `run-migrations` GitHub Actions workflow)
+- `migrate_handler.py` is a separate Lambda entry point for running `manage.py migrate` (invoked by the `run-migrations` GitHub Actions workflow — see [Chapter 7](./ch_7_cicd.md#run-migrationsyml--database-migrations))
 - VPC-attached: `security_group_ids` includes the backend security group; placed in private app subnets
 
 ### Production Settings (`config/settings/production.py`)
@@ -230,11 +221,11 @@ Tracks a single evaluation job end-to-end.
 - `ALLOWED_HOSTS` from env
 - `CORS_ALLOWED_ORIGINS` from env (the CloudFront domain)
 - Static files served from S3 (Whitenoise in Lambda mode)
-- All secrets from environment variables (injected by Terraform from SSM)
+- All secrets from environment variables (injected by Terraform from SSM — see [Chapter 6](./ch_6_infrastructure.md#secrets--ssm-parameter-store))
 
 ---
 
-## Evaluation Dispatch
+## Evaluation Dispatch (the backend's half)
 
 When the browser calls `POST /api/evaluate/`:
 
@@ -244,15 +235,13 @@ When the browser calls `POST /api/evaluate/`:
 4. Job payload `{ runId, canvasState, workspaceTier }` is published to SQS via `systems/queue_publisher.py`
 5. `202 Accepted` is returned immediately with the `run_id`
 
-The browser polls `GET /api/workspaces/{id}/evaluations/{run_id}/` until `status` is `COMPLETED` or `FAILED`.
+The browser polls `GET /api/workspaces/{id}/evaluations/{run_id}/` until `status` is `COMPLETED` or `FAILED`. What happens after the job hits SQS — the worker's consumption, compute, and callback — is told as one continuous story in [Chapter 5](./ch_5_evaluation_pipeline.md), rather than split here.
 
 ---
 
 ## Email
 
-Transactional emails (workspace invitations, etc.) go through **Zoho SMTP** (`smtp.zoho.in:587`).  
-Auth OTP emails are sent by the `create_auth` Cognito trigger Lambda (also Zoho SMTP).  
-AWS SES is not used.
+Transactional emails (workspace invitations, etc.) go through **Zoho SMTP** (`smtp.zoho.in:587`). Auth OTP emails are sent by the `create_auth` Cognito trigger Lambda (also Zoho SMTP — see [Chapter 3](./ch_3_authentication.md#smtp--email)). AWS SES is not used anywhere in the system.
 
 ---
 
@@ -262,3 +251,7 @@ AWS SES is not used.
 |---|---|
 | `enforce_expired_subscriptions` | Downgrade users whose `plan_expires_at` has passed (run periodically) |
 | `reset_ai_credits` | Reset monthly `ai_credits_used` counters (run at billing cycle) |
+
+---
+
+**See also:** [Chapter 3 — Authentication](./ch_3_authentication.md) for the JWT flow behind these endpoints · [Chapter 5 — The Evaluation Pipeline](./ch_5_evaluation_pipeline.md) for what happens after `/api/evaluate/` publishes to SQS.

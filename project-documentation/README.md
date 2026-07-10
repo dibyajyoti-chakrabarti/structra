@@ -1,24 +1,29 @@
-# Structra — Project Documentation
+# Structra — The Book
 
-Internal technical documentation for the Structra monorepo.
+This is the internal technical documentation for the Structra monorepo, written as a study book rather than a flat reference. Read it front to back to build a full mental model of the system — product, architecture, every service, infrastructure, and how it all deploys. Each chapter ends with a **See also** line pointing to related chapters, so you can also jump around once you've done one full pass.
+
+**Live at:** [structra.cloud](https://structra.cloud) · **Public docs:** [docs.structra.cloud](https://docs.structra.cloud)
 
 ---
 
-## Contents
+## Table of Contents
 
-| Document | What it covers |
+| Chapter | Covers |
 |---|---|
-| [overview.md](./overview.md) | What Structra is, product concepts, tech stack, subscription plans |
-| [architecture.md](./architecture.md) | Full system architecture — components, request flows, security |
-| [aws.md](./aws.md) | AWS infrastructure, Terraform stacks, IAM, secrets, cost model |
-| [auth.md](./auth.md) | Cognito setup, OTP flow, Google/GitHub OAuth, JWT validation |
-| [backend.md](./backend.md) | Django apps, API endpoints, key models, evaluation dispatch |
-| [worker.md](./worker.md) | Evaluation worker, rule engine, Bedrock AI, SQS queue |
-| [local-dev.md](./local-dev.md) | How to run the full stack locally with Docker Compose |
-| [cicd.md](./cicd.md) | GitHub Actions workflows, deployment order, OIDC setup |
+| [Ch. 1 — Introduction](./ch_1_introduction.md) | What Structra is, core product concepts, subscription plans, monorepo layout, design philosophy |
+| [Ch. 2 — System Architecture](./ch_2_architecture.md) | The big picture, network topology, the three request flows, security posture. **Home of the architecture diagram.** |
+| [Ch. 3 — Authentication](./ch_3_authentication.md) | Cognito, the 5 trigger Lambdas, OTP/Google/GitHub login, JWT validation, plan enforcement |
+| [Ch. 4 — Backend Service](./ch_4_backend_service.md) | Django apps, API endpoints, key models, Lambda deployment, production settings |
+| [Ch. 5 — The Evaluation Pipeline](./ch_5_evaluation_pipeline.md) | The full async evaluation story end-to-end: dispatch → SQS → worker → rule engine → Bedrock AI → callback |
+| [Ch. 6 — Infrastructure](./ch_6_infrastructure.md) | Terraform stacks, IAM, networking, secrets, the cost on/off switch |
+| [Ch. 7 — CI/CD](./ch_7_cicd.md) | GitHub Actions workflows, OIDC, deployment order, rollback |
+| [Ch. 8 — Local Development](./ch_8_local_development.md) | Docker Compose setup, environment files, running services natively, testing |
+| [Ch. 9 — Reference](./ch_9_reference.md) | Cram sheet: every endpoint, env var, secret, and resource name in one place |
+
+---
 
 ## Architecture Diagram
 
 ![Structra System Architecture](./assets/architecture.png)
 
-The Mermaid source is at [assets/architecture.mmd](./assets/architecture.mmd).
+Mermaid source: [assets/architecture.mmd](./assets/architecture.mmd). Full explanation in [Chapter 2](./ch_2_architecture.md).

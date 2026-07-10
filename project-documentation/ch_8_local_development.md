@@ -1,6 +1,4 @@
-# Structra — Local Development
-
----
+# Chapter 8 — Local Development
 
 ## Prerequisites
 
@@ -134,7 +132,7 @@ pip install -r requirements-worker.txt
 PYTHONPATH=../backend DJANGO_ENV=local python evaluation_worker.py
 ```
 
-The worker shares models with the backend by setting `PYTHONPATH=../backend`. In local mode (`USE_SQS=false`) it polls the `EvaluationQueueJob` table every 5 seconds.
+The worker shares models with the backend by setting `PYTHONPATH=../backend`. In local mode (`USE_SQS=false`) it polls the `EvaluationQueueJob` table every 5 seconds — the same `LocalQueue` abstraction described in [Chapter 5](./ch_5_evaluation_pipeline.md#queue-abstraction).
 
 ### Frontend Only
 
@@ -194,6 +192,8 @@ python manage.py migrate
 # gh workflow run run-migrations.yml
 ```
 
+Production migrations run through a different path entirely — see [Chapter 7](./ch_7_cicd.md#run-migrationsyml--database-migrations).
+
 ---
 
 ## Testing an Evaluation Locally
@@ -206,7 +206,7 @@ python manage.py migrate
 6. The worker (running in Docker) polls the queue, processes the job, and writes the result back to the DB
 7. The frontend polls the evaluation status and renders the results
 
-The local worker calls Bedrock directly (requires `AWS_PROFILE=structra` in the env and the `structra` AWS profile configured locally). If you don't need AI suggestions, the rule engine will still run and produce scores even if Bedrock fails.
+The local worker calls Bedrock directly (requires `AWS_PROFILE=structra` in the env and the `structra` AWS profile configured locally). If you don't need AI suggestions, the rule engine will still run and produce scores even if Bedrock fails. Compare this against the production flow in [Chapter 5](./ch_5_evaluation_pipeline.md#the-full-flow) — same compute, different queue and persistence path.
 
 ---
 
@@ -242,3 +242,7 @@ docker compose down -v && docker compose up --build
 | AI | Bedrock (real, needs AWS profile) | Bedrock (Lambda role) |
 | Secrets | `.env.local` file | SSM Parameter Store → Lambda env |
 | Email | Zoho SMTP (real or mock) | Zoho SMTP (via Cognito trigger) |
+
+---
+
+**See also:** [Chapter 5 — The Evaluation Pipeline](./ch_5_evaluation_pipeline.md) for what the worker does with a dequeued job · [Chapter 7 — CI/CD](./ch_7_cicd.md) for how these same services get built and deployed to production.

@@ -1,4 +1,4 @@
-# Structra — Authentication
+# Chapter 3 — Authentication
 
 Authentication is handled by **AWS Cognito** with five custom Lambda triggers. The backend validates Cognito JWTs on every API request. Three login methods are supported: email OTP, Google OAuth, and GitHub OAuth.
 
@@ -11,7 +11,7 @@ Authentication is handled by **AWS Cognito** with five custom Lambda triggers. T
 - **Hosted UI domain:** `structra-auth.auth.ap-south-1.amazoncognito.com`
 - **Region:** `ap-south-1`
 
-The pool was **imported** into Terraform (not recreated) to preserve the pool ID, app-client ID, hosted UI domain, and triggers. Terraform now manages it fully via `modules/cognito`.
+The pool was **imported** into Terraform (not recreated) to preserve the pool ID, app-client ID, hosted UI domain, and triggers. Terraform now manages it fully via `modules/cognito` (see [Chapter 6](./ch_6_infrastructure.md)).
 
 ---
 
@@ -70,20 +70,15 @@ All five live in `lambdas/` and are managed in Terraform under `modules/cognito`
 | `create_auth.py` | Create Auth Challenge | Generate 6-digit OTP; send branded HTML email via Zoho SMTP |
 | `verify_auth.py` | Verify Auth Challenge | Compare submitted OTP against `privateChallengeParameters.otp` |
 
-### Timeouts
+**Timeouts:** `define_auth`, `create_auth`, `verify_auth`, `pre_signup` run at 3 seconds; `post_confirmation` at 10 seconds (needs to provision the Django user, may make a DB call).
 
-- `define_auth`, `create_auth`, `verify_auth`, `pre_signup`: 3 seconds
-- `post_confirmation`: 10 seconds (needs to provision Django user, may make a DB call)
-
-### Log Retention
-
-Trigger Lambda log groups have no expiry (declared explicitly to avoid Terraform drift).
+**Log retention:** trigger Lambda log groups have no expiry (declared explicitly in Terraform to avoid drift).
 
 ---
 
 ## JWT Validation in the Backend
 
-`accounts/authentication.py` — `CognitoJWTAuthentication`:
+This is the canonical treatment — `accounts/authentication.py`'s `CognitoJWTAuthentication` class runs on **every authenticated API request** (referenced from [Chapter 4](./ch_4_backend_service.md#authentication)):
 
 1. **Extract** `Authorization: Bearer <token>` header
 2. **Fetch JWKS** from `https://cognito-idp.ap-south-1.amazonaws.com/{pool_id}/.well-known/jwks.json`
@@ -139,6 +134,8 @@ Cognito OTP emails are sent from the `create_auth` Lambda using **Zoho SMTP**:
 
 The email is a branded HTML template with a `{otp}` substitution and a plain-text fallback. OTP expires in 10 minutes (enforced by Cognito challenge expiry configuration).
 
+Zoho SMTP is also used by the backend directly for transactional emails like workspace invitations — same infrastructure, different call site (see [Chapter 4](./ch_4_backend_service.md#email)).
+
 ---
 
 ## Terraform Notes
@@ -147,3 +144,7 @@ The email is a branded HTML template with a `{otp}` substitution and a plain-tex
 - The `email` schema attribute is declared explicitly to match the live pool (import fidelity)
 - Per-function Lambda timeouts (3s/10s) are declared to avoid drift
 - All trigger code lives in `lambdas/*.py`; synced byte-for-byte from live on import
+
+---
+
+**See also:** [Chapter 2 — System Architecture](./ch_2_architecture.md#aws-cognito) for how Cognito fits the wider system · [Chapter 4 — Backend Service](./ch_4_backend_service.md) for the auth API endpoints that call into this flow.

@@ -1,7 +1,7 @@
-# Structra — AWS Infrastructure
+# Chapter 6 — Infrastructure
 
-**Account:** `042843883108`  
-**Primary region:** `ap-south-1` (Mumbai)  
+**Account:** `042843883108`
+**Primary region:** `ap-south-1` (Mumbai)
 **Bedrock region:** `us-east-1` (Llama 3.3 availability)
 
 ---
@@ -46,7 +46,7 @@ Creates the S3 bucket that stores all Terraform state and the DynamoDB table use
 | ECR repositories | `structra-backend`, `structra-worker` |
 | IAM roles | Backend Lambda role, Worker Lambda role |
 | S3 (frontend) | Private bucket; CloudFront OAC policy |
-| Cognito | Imported live pool (see [auth.md](./auth.md)) |
+| Cognito | Imported live pool (see [Chapter 3](./ch_3_authentication.md)) |
 | DNS (Route53 zone) | `structra.cloud` hosted zone |
 
 ### `20-data/` — Stop to Save Cost
@@ -72,6 +72,8 @@ RDS has `backup_retention_period = 0` (AWS Free Tier cap). Increase once off the
 | CloudFront | Distribution with OAC to private S3 bucket |
 | Security groups | Backend Lambda → RDS (5432), NAT → internet |
 
+The full picture of what these resources do at runtime is in [Chapter 2 — System Architecture](./ch_2_architecture.md); this chapter is the "how it's provisioned" view.
+
 ---
 
 ## The Cost On/Off Switch
@@ -88,7 +90,7 @@ make prod-up      # starts RDS + NAT EC2
 
 The Makefile targets call `aws ec2 stop-instances` / `aws rds stop-db-instance` (and their start equivalents). This is an **operational action**, not a Terraform destroy — data is kept.
 
-> **Note:** A stopped RDS auto-restarts after 7 days. For long pauses, run `make prod-down` again after AWS auto-restarts it.
+> **Note:** A stopped RDS auto-restarts after 7 days. For long pauses, run `make prod-down` again after AWS auto-restarts it. This same start/stop mechanism is also automated by GitHub Actions — see `infra-start.yml`, `infra-stop.yml`, and `scheduled-infra-stop.yml` in [Chapter 7](./ch_7_cicd.md#infrastructure-workflows).
 
 ---
 
@@ -115,7 +117,7 @@ Permissions granted:
 
 ## Secrets — SSM Parameter Store
 
-All five secrets are **SecureStrings** (KMS-encrypted), created manually so they never enter git. Terraform reads them at `apply` time using `data "aws_ssm_parameter"` and injects them as Lambda environment variables.
+All secrets are **SecureStrings** (KMS-encrypted), created manually so they never enter git. Terraform reads them at `apply` time using `data "aws_ssm_parameter"` and injects them as Lambda environment variables.
 
 | Parameter path | Injected as |
 |---|---|
@@ -128,21 +130,7 @@ All five secrets are **SecureStrings** (KMS-encrypted), created manually so they
 
 To rotate a secret: update the SSM value, then run `terraform apply` on `30-compute` to push the new env var to the Lambda (or update the Lambda env directly via CLI for zero-downtime rotation).
 
----
-
-## GitHub Actions CI/CD
-
-| Workflow | Trigger | What it does |
-|---|---|---|
-| `deploy-backend.yml` | Push to `main`, `backend/**` changed | Build + push backend Docker image to ECR, update Lambda function code |
-| `deploy-worker.yml` | Push to `main`, `worker/**` changed | Build + push worker Docker image to ECR, update Lambda function code |
-| `deploy-frontend.yml` | Push to `main`, `frontend/**` changed | `npm run build`, `aws s3 sync`, CloudFront invalidation |
-| `run-migrations.yml` | Manual | Invokes backend Lambda with `{ "migrate": true }` event (handled by `migrate_handler.py`) |
-| `infra-start.yml` | Manual | Start EC2 NAT + RDS |
-| `infra-stop.yml` | Manual | Stop EC2 NAT + RDS |
-| `scheduled-infra-stop.yml` | Cron | Auto-stop RDS every 6h if running (cost guard) |
-
-GitHub Actions uses OIDC to assume an IAM role in the AWS account — no long-lived access keys stored as secrets.
+These are strictly **application** secrets. CI-only deployment values (Lambda names, bucket names, role ARNs) live in GitHub repository secrets instead — see [Chapter 7](./ch_7_cicd.md#secrets-in-github-ci-only).
 
 ---
 
@@ -169,7 +157,7 @@ VPC: 10.0.0.0/16
   └─────────────────────┘       └─────────────────────┘
 ```
 
-Private app subnets route `0.0.0.0/0` → NAT instance network interface.  
+Private app subnets route `0.0.0.0/0` → NAT instance network interface.
 Private DB subnets have no `0.0.0.0/0` route at all.
 
 ---
@@ -183,3 +171,7 @@ This account is on the AWS Free plan, which influenced two settings:
 - `AWS_REGION` is never set in Lambda env (reserved variable the runtime fills automatically)
 
 Revisit instance sizing and enable backup retention once off the free plan.
+
+---
+
+**See also:** [Chapter 2 — System Architecture](./ch_2_architecture.md) for what these resources do at runtime · [Chapter 7 — CI/CD](./ch_7_cicd.md) for how these resources get deployed and updated.

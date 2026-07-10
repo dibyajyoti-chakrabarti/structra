@@ -1,6 +1,6 @@
-# Structra — Evaluation Worker
+# Chapter 5 — The Evaluation Pipeline
 
-The worker is a **stateless Lambda microservice** that consumes evaluation jobs from SQS, runs a Node.js rule engine, calls AWS Bedrock for AI suggestions, and POSTs the result back to the backend via a secret-authenticated HTTP callback. It owns no database.
+This chapter tells the full story of an AI evaluation, end-to-end, in one place — from the moment the browser clicks "Run Evaluation" to the moment the result lands back in the database. It merges the dispatch side (owned by the backend, `systems`/`workspaces` apps) with the consumption side (owned by the standalone worker service), because in the running system they're really one pipeline split across two Lambdas connected by SQS.
 
 ---
 
@@ -15,6 +15,29 @@ SQS decouples the web request from the compute. The backend publishes a job and 
 
 ---
 
+## The Full Flow
+
+```
+1. Browser → API GW → Backend: POST /api/evaluate/
+2. Backend: checks insight token balance, creates EvaluationRun (PENDING),
+   consumes an insight token, publishes self-contained job
+   { runId, canvasState, workspaceTier } to SQS → returns 202 immediately
+3. SQS event source mapping → triggers Worker Lambda (batch_size=1)
+4. Worker (stateless, no DB):
+      ├── Node.js rule engine (subprocess) scores the canvas
+      └── Bedrock Llama 3.3 70B generates narrative suggestions
+            (enterprise: second Bedrock call for cloud-specific analysis)
+5. Worker → POST /api/internal/evaluations/{runId}/result/
+                (X-Internal-Token header — shared secret)
+6. Backend callback: persists result (EvaluationRun → COMPLETED,
+   EvaluationLog, audit event, insight token refund if AI error)
+7. Browser polls GET /api/workspaces/{id}/evaluations/{run_id}/ → sees COMPLETED
+```
+
+Step 2 is where the backend's `POST /api/evaluate/` handler does its work (see the endpoint table in [Chapter 4](./ch_4_backend_service.md#evaluation)). Everything from step 3 onward is the worker service, detailed below.
+
+---
+
 ## Stateless Design (database-per-service)
 
 The worker **never connects to RDS**. Instead:
@@ -24,11 +47,11 @@ The worker **never connects to RDS**. Instead:
 - It **POSTs the result** back to the backend callback endpoint with a shared-secret header (`X-Internal-Token`)
 - The backend performs all persistence (EvaluationRun update, EvaluationLog, audit event, token refund)
 
-Because it never touches RDS, the worker is **not VPC-attached** — it reaches Bedrock and the backend API directly over the internet (no NAT, faster cold starts).
+Because it never touches RDS, the worker is **not VPC-attached** — it reaches Bedrock and the backend API directly over the internet (no NAT, faster cold starts). This is the "database-per-service" pattern referenced as a core design decision in [Chapter 1](./ch_1_introduction.md#design-philosophy).
 
 ---
 
-## Files
+## Worker Files
 
 ```
 worker/
@@ -87,7 +110,7 @@ DB queue (EvaluationQueueJob) → evaluation_worker.py
          └── evaluation_service.run_evaluation_job() → writes directly to RDS
 ```
 
-In local dev the worker IS connected to Django ORM (it has `PYTHONPATH=/app/backend`), so it writes results directly to the database. The `evaluation_service.py` module handles all persistence for this path.
+In local dev the worker IS connected to Django ORM (it has `PYTHONPATH=/app/backend`), so it writes results directly to the database. The `evaluation_service.py` module handles all persistence for this path — the only place the worker touches a database at all. See [Chapter 8](./ch_8_local_development.md) for how this is set up and run.
 
 ---
 
@@ -112,7 +135,11 @@ python: subprocess.run(["node", "evaluation/runner.mjs", "--input", json_payload
 }
 ```
 
-Rules are tier-gated: `CORE` rules apply to all plans; `INDIVIDUAL`, `TEAM`, `ENTERPRISE` rules only apply to canvases evaluated under that plan tier or above. The prompt string is pre-built by the rule engine and passed directly to Bedrock.
+Rules are tier-gated: `CORE` rules apply to all plans; `INDIVIDUAL`, `TEAM`, `ENTERPRISE` rules only apply to canvases evaluated under that plan tier or above (using `workspaceTier` from the job payload — this is the mechanism that enforces the plan quotas described in [Chapter 1](./ch_1_introduction.md#subscription-plans)). The prompt string is pre-built by the rule engine and passed directly to Bedrock.
+
+### Semantic Enrichment
+
+Before the rule engine runs, `_semantic_enrich_canvas_state(canvas_state, workspace_tier)` adds derived metadata to the canvas (e.g. inferred service types, connectivity patterns). This improves rule accuracy and provides richer context to the AI prompt.
 
 ---
 
@@ -147,12 +174,6 @@ The model was previously referred to as Gemini in some older files — the backe
 
 ---
 
-## Semantic Enrichment
-
-Before the rule engine runs, `_semantic_enrich_canvas_state(canvas_state, workspace_tier)` adds derived metadata to the canvas (e.g. inferred service types, connectivity patterns). This improves rule accuracy and provides richer context to the AI prompt.
-
----
-
 ## Queue Abstraction
 
 `evaluation_queue.py` provides a unified interface with two backends:
@@ -170,7 +191,7 @@ def get_evaluation_queue() -> LocalQueue | SQSQueue:
     # returns SQSQueue if USE_SQS=true, else LocalQueue
 ```
 
-Both implement `dequeue()`, `ack(job)`, and `fail(job, exc)`.
+Both implement `dequeue()`, `ack(job)`, and `fail(job, exc)`. The SQS side is described from the infrastructure angle (queue name, DLQ, visibility timeout) in [Chapter 6](./ch_6_infrastructure.md#30-compute--destroystop-freely); this is the code-level abstraction over both backends.
 
 ---
 
@@ -183,6 +204,8 @@ Both implement `dequeue()`, `ack(job)`, and `fail(job, exc)`.
 | Backend callback POST fails | Lambda fails → SQS retries the entire job → DLQ after 3 |
 | `runId` missing or run not found | Job acknowledged immediately (no retry) |
 | Run already COMPLETED or FAILED | Job acknowledged immediately (idempotency) |
+
+The last row is the mechanism behind the "SQS message replay" mitigation in the [security posture table](./ch_2_architecture.md#security-posture-summary).
 
 ---
 
@@ -216,3 +239,7 @@ This gives the worker full Django ORM access to `workspaces`, `systems`, `accoun
 Two Dockerfiles:
 - `Dockerfile` — standard long-running process (local dev)
 - `Dockerfile.lambda` — Lambda container image (production)
+
+---
+
+**See also:** [Chapter 4 — Backend Service](./ch_4_backend_service.md#evaluation-dispatch-the-backends-half) for the dispatch side of this flow · [Chapter 2 — Architecture](./ch_2_architecture.md#3-running-an-ai-evaluation-async) for the short version · [Chapter 8 — Local Development](./ch_8_local_development.md#testing-an-evaluation-locally) for running this end-to-end on your machine.

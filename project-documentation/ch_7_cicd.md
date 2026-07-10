@@ -1,4 +1,4 @@
-# Structra — CI/CD
+# Chapter 7 — CI/CD
 
 All workflows live in `.github/workflows/`. GitHub Actions uses **OIDC** to assume an IAM role in AWS account `042843883108` — no long-lived access keys are stored as secrets.
 
@@ -60,6 +60,8 @@ All workflows live in `.github/workflows/`. GitHub Actions uses **OIDC** to assu
 1. Stop the NAT EC2 instance
 2. Stop the RDS instance
 
+These two workflows automate the same `stop-instances`/`start-instances`/`stop-db-instance` calls the `make prod-down`/`make prod-up` Makefile targets wrap manually — see [Chapter 6](./ch_6_infrastructure.md#the-cost-onoff-switch).
+
 ### `scheduled-infra-stop.yml` — Automatic Cost Guard
 
 **Trigger:** Cron schedule (every 6 hours)
@@ -83,7 +85,7 @@ This prevents RDS from running idle if someone forgets to stop it after testing.
 3. `migrate_handler.py` (the Lambda's secondary entry point) runs `django.core.management.call_command('migrate')`
 4. Logs the migration output from the Lambda invocation response
 
-Migrations must run from inside the VPC (only the backend Lambda can reach private RDS). Running them from a laptop is not possible.
+Migrations must run from inside the VPC (only the backend Lambda can reach private RDS — see [Chapter 2](./ch_2_architecture.md#rds-postgresql)). Running them from a laptop is not possible.
 
 ---
 
@@ -114,7 +116,7 @@ GitHub repository secrets hold deployment-time values that the CI runner needs (
 | `RDS_INSTANCE_ID` | For start/stop |
 | `NAT_INSTANCE_ID` | For start/stop |
 
-Application secrets (DB password, Django key, etc.) are in **SSM Parameter Store** and never in GitHub.
+Application secrets (DB password, Django key, etc.) are in **SSM Parameter Store** and never in GitHub — see the full table in [Chapter 6](./ch_6_infrastructure.md#secrets--ssm-parameter-store).
 
 ---
 
@@ -144,3 +146,7 @@ aws lambda update-function-code \
   --function-name structra-backend \
   --image-uri <ecr-registry>/structra-backend:<previous-sha>
 ```
+
+---
+
+**See also:** [Chapter 6 — Infrastructure](./ch_6_infrastructure.md) for the Terraform stacks these workflows deploy into · [Chapter 8 — Local Development](./ch_8_local_development.md) for running migrations locally instead.
