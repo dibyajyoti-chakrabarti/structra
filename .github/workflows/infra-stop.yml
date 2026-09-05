@@ -16,7 +16,7 @@ jobs:
       - name: Configure AWS credentials (OIDC)
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: arn:aws:iam::469465348250:role/structra-github-OIDC-Role
+          role-to-assume: arn:aws:iam::190084967282:role/structra-github-OIDC-Role
           aws-region: ${{ secrets.AWS_REGION }}
 
       - name: Stop NAT EC2

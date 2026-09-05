@@ -102,7 +102,7 @@ jobs:
 
       - uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: arn:aws:iam::469465348250:role/structra-github-terraform-plan
+          role-to-assume: arn:aws:iam::190084967282:role/structra-github-terraform-plan
           aws-region: ${{ env.AWS_REGION }}
 
       - uses: hashicorp/setup-terraform@v3
@@ -181,7 +181,7 @@ jobs:
 
       - uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: arn:aws:iam::469465348250:role/structra-github-terraform-apply
+          role-to-assume: arn:aws:iam::190084967282:role/structra-github-terraform-apply
           aws-region: ${{ env.AWS_REGION }}
 
       - uses: hashicorp/setup-terraform@v3

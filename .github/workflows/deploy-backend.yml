@@ -13,7 +13,7 @@ jobs:
     runs-on: ubuntu-latest
 
     env:
-      ECR_REGISTRY: 469465348250.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com
+      ECR_REGISTRY: 190084967282.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com
       FUNCTION_NAME: structra-prod-backend
 
     steps:
@@ -23,7 +23,7 @@ jobs:
       - name: Configure AWS credentials (OIDC)
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: arn:aws:iam::469465348250:role/structra-github-OIDC-Role
+          role-to-assume: arn:aws:iam::190084967282:role/structra-github-OIDC-Role
           aws-region: ${{ secrets.AWS_REGION }}
 
       - name: Login to ECR

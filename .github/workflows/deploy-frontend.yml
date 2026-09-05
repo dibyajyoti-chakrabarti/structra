@@ -41,12 +41,12 @@ jobs:
       - name: Configure AWS credentials (OIDC)
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: arn:aws:iam::469465348250:role/structra-github-OIDC-Role
+          role-to-assume: arn:aws:iam::190084967282:role/structra-github-OIDC-Role
           aws-region: ${{ secrets.AWS_REGION }}
 
       - name: Sync to S3
         run: |
-          aws s3 sync frontend/dist s3://structra-frontend-469465348250 \
+          aws s3 sync frontend/dist s3://structra-frontend-190084967282 \
             --delete \
             --cache-control "max-age=31536000,public"
 
