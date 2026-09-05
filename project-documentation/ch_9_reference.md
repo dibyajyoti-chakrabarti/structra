@@ -57,20 +57,20 @@ Full context: [Chapter 4](./ch_4_backend_service.md).
 
 | Resource | Value |
 |---|---|
-| AWS Account ID | `042843883108` |
+| AWS Account ID | `469465348250` |
 | Primary region | `ap-south-1` (Mumbai) |
 | Bedrock region | `us-east-1` |
 | VPC CIDR | `10.0.0.0/16` |
-| Cognito User Pool ID | `ap-south-1_QD5vjF5ej` |
+| Cognito User Pool ID | minted on first apply, see `terraform output cognito_user_pool_id` |
 | Cognito app client | `structra-web` |
-| Cognito hosted UI domain | `structra-auth.auth.ap-south-1.amazoncognito.com` |
-| ECR repos | `structra-backend`, `structra-worker` |
+| Cognito hosted UI domain | `auth.structra.cloud` |
+| ECR repos | `structra-api`, `structra-worker` |
 | SQS main queue | `structra-eval-queue` |
 | SQS DLQ | `structra-eval-dlq` (14-day retention, 3 max receives) |
 | Bedrock model ID | `us.meta.llama3-3-70b-instruct-v1:0` |
 | RDS instance class | `db.t3.micro`, PostgreSQL 16 |
 | NAT instance type | `t4g.micro` |
-| GitHub Actions IAM role | `structra-github-actions-role` |
+| GitHub Actions IAM role | `structra-github-OIDC-Role` |
 | Route53 hosted zone | `structra.cloud` |
 | GitHub repo | `dibyajyoti-chakrabarti/structra` |
 

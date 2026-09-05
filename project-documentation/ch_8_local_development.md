@@ -55,7 +55,7 @@ DB_HOST=localhost
 DB_PORT=5432
 
 # Cognito (required for JWT auth in local dev)
-COGNITO_USER_POOL_ID=ap-south-1_QD5vjF5ej
+COGNITO_USER_POOL_ID=<terraform output cognito_user_pool_id>
 COGNITO_CLIENT_ID=<app-client-id>
 
 # OAuth (optional — only needed for Google/GitHub login)

@@ -1,6 +1,6 @@
 # Chapter 6 — Infrastructure
 
-**Account:** `042843883108`
+**Account:** `469465348250`
 **Primary region:** `ap-south-1` (Mumbai)
 **Bedrock region:** `us-east-1` (Llama 3.3 availability)
 

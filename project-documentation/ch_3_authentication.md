@@ -6,12 +6,12 @@ Authentication is handled by **AWS Cognito** with five custom Lambda triggers. T
 
 ## Cognito User Pool
 
-- **Pool ID:** `ap-south-1_QD5vjF5ej`
+- **Pool ID:** minted on first apply; read it from `terraform output cognito_user_pool_id`
 - **App client:** `structra-web` (public SPA client, no client secret)
-- **Hosted UI domain:** `structra-auth.auth.ap-south-1.amazoncognito.com`
+- **Hosted UI domain:** `auth.structra.cloud` (custom domain)
 - **Region:** `ap-south-1`
 
-The pool was **imported** into Terraform (not recreated) to preserve the pool ID, app-client ID, hosted UI domain, and triggers. Terraform now manages it fully via `modules/cognito` (see [Chapter 6](./ch_6_infrastructure.md)).
+Terraform manages the pool fully via `modules/cognito` (see [Chapter 6](./ch_6_infrastructure.md)). It is built from scratch, so the pool ID and app-client ID are whatever the first apply mints; `terraform output` in `stacks/10-persistent` is the source of truth and the frontend's `VITE_COGNITO_*` values must match.
 
 ---
 

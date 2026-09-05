@@ -6,7 +6,7 @@ flowchart TD
 
     %% ── AWS managed services (outside VPC) ───────────────────────────
     subgraph AWS_Global["AWS (Global / ap-south-1)"]
-        Cognito["🔐 AWS Cognito\nUser Pool\nap-south-1_QD5vjF5ej\n5 trigger Lambdas"]
+        Cognito["🔐 AWS Cognito\nUser Pool\n5 trigger Lambdas"]
         CF["☁️ CloudFront\nCDN + OAC\nglobal edge"]
         S3["🪣 S3\nprivate bucket\n(frontend SPA)"]
         APIGW["🔀 API Gateway\nHTTP API v2\nAWS_PROXY"]

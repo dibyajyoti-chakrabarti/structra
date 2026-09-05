@@ -1,6 +1,30 @@
 # Chapter 7 — CI/CD
 
-All workflows live in `.github/workflows/`. GitHub Actions uses **OIDC** to assume an IAM role in AWS account `042843883108` — no long-lived access keys are stored as secrets.
+All workflows live in `.github/workflows/`. GitHub Actions uses **OIDC** to assume an IAM role in AWS account `469465348250`, no long-lived access keys are stored as secrets.
+
+Three roles, split by blast radius rather than one role for everything:
+
+| Role | Used by | Rights |
+|---|---|---|
+| `structra-github-OIDC-Role` | the deploy and power workflows below | push images, update Lambda code, sync the SPA, invalidate CloudFront, stop/start NAT and RDS |
+| `structra-github-terraform-plan` | `terraform.yml` plan | ReadOnlyAccess plus remote-state access |
+| `structra-github-terraform-apply` | `terraform.yml` apply | PowerUserAccess, IAM scoped to `structra-*`, SSM SecureString reads |
+
+---
+
+## Infrastructure Workflow
+
+### `terraform.yml` — Infrastructure changes
+
+**Trigger:** pull requests touching `infra/terraform/**` or `services/github-oidc-shim/**` run a plan for all three stacks and post it as a PR comment. Applies are `workflow_dispatch` only, taking a stack (or `all`) and an action.
+
+Apply runs in the `production` GitHub environment, and the apply role's trust policy names that environment in its OIDC subject condition. A workflow run outside the environment cannot assume the role even if someone edits the workflow file, so the gate holds at the AWS end rather than only in GitHub.
+
+Applies are serialised by a concurrency group: parallel runs would contend for the DynamoDB state lock, and `all` depends on the stacks being applied bottom-up, since upper stacks read lower ones through `terraform_remote_state`.
+
+For `10-persistent` the job builds `services/github-oidc-shim` first, because that stack zips `dist-lambda/`, which is not committed.
+
+`bootstrap/` is deliberately not in the workflow: it creates the state bucket and lock table the other stacks depend on, uses local state, and is a one-time manual step.
 
 ---
 

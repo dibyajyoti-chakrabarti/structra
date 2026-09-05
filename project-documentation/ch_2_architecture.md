@@ -128,7 +128,7 @@ Full internals — execution modes, queue abstraction, error handling — are in
 
 ### AWS Cognito
 
-Manages all authentication. The user pool is `ap-south-1_QD5vjF5ej`. Five trigger Lambdas handle sign-up, confirmation, and the custom OTP challenge flow; Google and GitHub are federated identity providers. Full detail — including the GitHub OIDC shim and the exact JWT validation steps — is in [Chapter 3](./ch_3_authentication.md).
+Manages all authentication. Five trigger Lambdas handle sign-up, confirmation, and the custom OTP challenge flow; Google and GitHub are federated identity providers. Full detail — including the GitHub OIDC shim and the exact JWT validation steps — is in [Chapter 3](./ch_3_authentication.md).
 
 ### SQS Evaluation Queue
 

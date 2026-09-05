@@ -4,8 +4,9 @@ Production-grade IaC for the Structra serverless architecture on AWS.
 For the *why* behind every component (NAT instance, Lambdas, SSM, layering),
 read **[ARCHITECTURE.md](./ARCHITECTURE.md)**.
 
-- **Account / profile / region:** `042843883108` / `structra-admin` / `ap-south-1`
-- **State:** S3 (`structra-tfstate-042843883108-ap-south-1`) + DynamoDB lock (`structra-tflock`)
+- **Account / profile / region:** `469465348250` / `home` / `ap-south-1`
+- **State:** S3 (`structra-tfstate-469465348250-ap-south-1`) + DynamoDB lock (`structra-tflock`)
+- **Domain:** `structra.cloud`, registered at GoDaddy, delegated to the Route 53 zone in this account
 
 ## Architecture (at a glance)
 
@@ -42,33 +43,44 @@ RDS cost money at idle — everything else is pay-per-use (~$0).
 ## Prerequisites
 
 - Terraform >= 1.7, AWS CLI v2, Docker (for Lambda images), Node 20 + npm (frontend).
-- `aws configure --profile structra-admin` for account `042843883108`.
+- `aws configure --profile home` for account `469465348250`.
 
 ## First-time setup
 
-1. **Create the 6 app secrets** in SSM Parameter Store (out-of-band; never in git):
+1. **Create the 9 app secrets** in SSM Parameter Store (out-of-band; never in git):
    ```bash
-   for k in DB_PASSWORD DJANGO_SECRET_KEY RAZORPAY_KEY_SECRET RAZORPAY_WEBHOOK_SECRET EMAIL_HOST_PASSWORD INTERNAL_API_TOKEN; do
+   for k in DB_PASSWORD DJANGO_SECRET_KEY RAZORPAY_KEY_SECRET RAZORPAY_WEBHOOK_SECRET \
+            EMAIL_HOST_PASSWORD INTERNAL_API_TOKEN GOOGLE_OAUTH_CLIENT_SECRET \
+            GITHUB_OAUTH_CLIENT_SECRET COGNITO_SMTP_PASSWORD; do
      read -rsp "$k: " v; echo
-     aws ssm put-parameter --profile structra-admin --region ap-south-1 \
+     aws ssm put-parameter --profile home --region ap-south-1 \
        --name "/structra/prod/$k" --type SecureString --value "$v" --overwrite
    done
    ```
-   (`INTERNAL_API_TOKEN` is the shared secret the worker uses to authenticate its result callback to the backend — any random 32+ byte value, e.g. `openssl rand -hex 32`.)
+   (`INTERNAL_API_TOKEN` is the shared secret the worker uses to authenticate its result callback to the backend, any random 32+ byte value, e.g. `openssl rand -hex 32`.)
 2. **Bootstrap remote state:** `make bootstrap`
-3. **Apply persistent + build images + apply data + migrate + apply compute:**
+3. **Stand up the stacks.** The Cognito hosted UI is a custom domain
+   (`auth.structra.cloud`), and AWS refuses to create one until the parent
+   domain has an A record. That record is the apex alias to CloudFront, created
+   by `30-compute`, so the persistent stack is applied twice:
    ```bash
    make init-all
-   make apply-persistent
+   make apply-persistent TF_VAR_create_cognito_hosted_ui_domain=false
    make deploy-backend deploy-worker     # build+push initial images (ECR must exist first)
-   make apply-data                       # RDS — wait until 'available'
-   make migrate                          # Django migrations via the BACKEND image (full app list)
-   make apply-compute
+   make apply-data                       # RDS, wait until 'available'
+   make apply-compute                    # Lambdas, API GW, CloudFront, apex A record
+   make migrate                          # Django migrations via the BACKEND Lambda
+   make apply-persistent                 # now creates auth.structra.cloud
    make deploy-frontend                  # needs VITE_* env (see below)
    ```
-4. **Point Cognito at the new frontend URL** — add `<cloudfront-url>/auth/callback`
-   to the app client callback URLs and `<cloudfront-url>/` to logout URLs
-   (`aws cognito-idp update-user-pool-client ...`, preserving OAuth flows/scopes/providers).
+   Subsequent applies are single-pass; the two-phase order only matters for a
+   from-scratch build.
+4. **Update the external OAuth apps** with the values the apply reports:
+   - Google console: authorised redirect URI `https://auth.structra.cloud/oauth2/idpresponse`.
+   - GitHub OAuth app: callback URL `<terraform output github_oidc_issuer_url>/token`.
+5. **Set the GitHub Actions repo secrets** so CI can deploy:
+   `CLOUDFRONT_DISTRIBUTION_ID`, `EC2_INSTANCE_ID`, `RDS_INSTANCE_ID`, `AWS_REGION`,
+   and the `VITE_*` build values.
 
 ### Migrations (important)
 
@@ -86,6 +98,38 @@ Export these before building (or put them in `frontend/.env.production`):
 `VITE_API_BASE_URL=<api-url>/api/`, `VITE_FRONTEND_URL=<cloudfront-url>`,
 `VITE_COGNITO_USER_POOL_ID`, `VITE_COGNITO_CLIENT_ID`, `VITE_COGNITO_DOMAIN`,
 `VITE_RAZORPAY_KEY_ID`.
+
+## CI/CD
+
+All workflows authenticate with GitHub OIDC; no AWS keys are stored as secrets.
+Three roles, deliberately split by blast radius:
+
+| Role | Used by | Rights |
+|---|---|---|
+| `structra-github-OIDC-Role` | app deploys, power on/off | push images, update Lambda code, sync the SPA, invalidate CloudFront, stop/start NAT and RDS |
+| `structra-github-terraform-plan` | `terraform.yml` plan | ReadOnlyAccess plus remote-state access |
+| `structra-github-terraform-apply` | `terraform.yml` apply | PowerUserAccess, IAM scoped to `structra-*`, plus SSM SecureString reads |
+
+### Infrastructure changes (`terraform.yml`)
+
+Plans run automatically on pull requests touching `infra/terraform/**` or
+`services/github-oidc-shim/**`, and the result is posted back as a PR comment.
+
+Applies are manual: Actions → Terraform → Run workflow, choosing a stack
+(or `all`) and `apply`. The apply job runs in the `production` GitHub
+environment, and the apply role's trust policy names that environment, so a run
+outside it cannot assume the role even if the workflow is edited. Applies are
+serialised through a concurrency group, since parallel runs would contend for
+the state lock and `all` relies on stacks going in order.
+
+`extra_args` passes flags straight through, which is how the two-phase
+bootstrap is driven: `-var create_cognito_hosted_ui_domain=false`.
+
+`bootstrap/` is not in the workflow. It creates the state bucket and lock table
+that every other stack needs, uses local state, and is run once by hand.
+
+Applying from a laptop still works and is unchanged; the workflow is the
+reviewable path, not the only one.
 
 ## Day-2 operations
 
@@ -113,9 +157,9 @@ the Terraform **state**, which is why the state bucket is private + encrypted; L
 is KMS-encrypted at rest. Rotate by updating SSM and re-applying (`30-compute`, plus
 `20-data` for `DB_PASSWORD`).
 
-GitHub Secrets are **not** used for app secrets — the running Lambda can't read them (they
-exist only during a CI run). When CI/CD is added, GitHub Secrets hold the AWS deploy
-credentials while the pipeline still reads app secrets from SSM.
+GitHub Secrets are **not** used for app secrets: the running Lambda cannot read them, since
+they exist only during a CI run. GitHub Secrets hold only resource IDs and frontend build
+values, and CI authenticates through the OIDC deploy role rather than stored credentials.
 
 ## Lambda images
 
@@ -137,20 +181,40 @@ no DB driver.
 
 ## Cognito (`modules/cognito`)
 
-The full auth stack is **managed** by Terraform — the live pool was **imported** (via
-`modules/cognito/import.sh`), not recreated, so the pool ID, app-client ID, domain, and triggers
-are all preserved. Terraform owns the user pool (`ap-south-1_QD5vjF5ej`), the public SPA app client
-(`structra-web`), the Google + GitHub identity providers, the `structra-auth` hosted-UI domain,
-and all **5 trigger Lambdas** (pre-signup, post-confirmation, define/create/verify-auth). Email
-OTP is delivered by the `create_auth` trigger over **Zoho SMTP** (no SES).
+The full auth stack is **managed** by Terraform and built from scratch in this
+account: the user pool, the public SPA app client (`structra-web`), the Google
+and GitHub identity providers, the `auth.structra.cloud` hosted-UI domain, and
+all **5 trigger Lambdas** (pre-signup, post-confirmation, define/create/verify-auth).
+Email OTP is delivered by the `create_auth` trigger over **Zoho SMTP** (no SES).
 
-Three secrets must exist in SSM (SecureString) — `<ssm_prefix>/GOOGLE_OAUTH_CLIENT_SECRET`,
+The pool ID and app-client ID are minted on first apply; `terraform output` is
+the source of truth and the `VITE_COGNITO_*` build values must match.
+
+The hosted UI is a **custom domain** rather than a Cognito prefix domain. The
+old account still owns the `structra-auth` prefix and prefixes are globally
+unique per region, so it cannot be reclaimed. The custom domain is served by a
+Cognito-managed CloudFront distribution behind the `*.structra.cloud`
+certificate, and needs the parent domain's A record to exist first (see the
+two-phase order in First-time setup).
+
+Three secrets must exist in SSM (SecureString): `<ssm_prefix>/GOOGLE_OAUTH_CLIENT_SECRET`,
 `<ssm_prefix>/GITHUB_OAUTH_CLIENT_SECRET`, `<ssm_prefix>/COGNITO_SMTP_PASSWORD`.
 
-The GitHub IdP federates through the `modules/github-oidc-shim` OIDC shim (API Gateway + 5
-Lambdas), **imported** from the original `github-oidc-wrapper` CloudFormation stack via
-`modules/github-oidc-shim/import.sh` — preserving the issuer URL and the bundle's embedded signing
-key (its Lambda code and env are intentionally left unmanaged).
+### GitHub sign-in (`modules/github-oidc-shim`)
+
+GitHub speaks OAuth 2.0, not OIDC, so the GitHub IdP federates through a shim:
+an API Gateway and five Lambdas that expose the OIDC endpoints Cognito expects.
+Source is vendored at [`services/github-oidc-shim`](../../services/github-oidc-shim),
+built by `make shim-build`, which `plan-persistent` and `apply-persistent` depend on.
+
+The RSA key that signs the `id_token` is generated by Terraform and injected as
+Lambda env. Upstream bakes it into the webpack bundle instead, which is how the
+previous deployment ended up unbuildable and unrecoverable when the old account
+went away; see the service README for the full list of changes made on vendoring.
+
+The **GitHub OAuth app's callback URL** is the shim's `/token` endpoint and
+changes if the API Gateway is replaced. Read it from
+`terraform output github_oidc_issuer_url`.
 
 ## Free Tier constraints applied
 
@@ -165,11 +229,16 @@ function's region, `ap-south-1`).
 
 | Resource | Value |
 |---|---|
-| Frontend URL | `https://dqltowjnatfxe.cloudfront.net` (dist `E24NYT5QAF6DKT`) |
-| API URL | `https://nh35tf2f0e.execute-api.ap-south-1.amazonaws.com` |
-| VPC | `vpc-044fa20756dafbffb` (10.0.0.0/16, AZs a/b) |
+| Frontend URL | `https://structra.cloud` |
+| Auth (Cognito hosted UI) | `https://auth.structra.cloud` |
+| Route 53 zone | `Z06774172J4OPAI03JK8V` (`structra.cloud`) |
+| ACM cert (us-east-1) | `structra.cloud` + `*.structra.cloud` |
+| VPC | `vpc-01c4cb1fbd343a330` (10.0.0.0/16, AZs a/b) |
+| ECR | `structra-api`, `structra-worker` |
+| Frontend bucket | `structra-frontend-469465348250` |
+| Assets bucket | `structra-assets-469465348250` |
+| CI deploy role | `structra-github-OIDC-Role` |
 | RDS | `structra-prod-db` (private) |
-| NAT instance | `i-03c1c6ecd43850cb9` (t4g.micro) |
 | SQS | `structra-eval-queue` (+ `structra-eval-dlq`) |
 | Lambdas | `structra-prod-backend`, `structra-prod-worker` |
 
@@ -177,5 +246,4 @@ function's region, `ap-south-1`).
 
 ## Not included (deferred)
 
-Route53 / custom domain, new SES setup (Cognito login OTP uses the existing verified SES
-identity; app email uses Zoho SMTP), RDS Proxy, CI/CD pipeline.
+SES (Cognito login OTP and app email both go over Zoho SMTP) and RDS Proxy.
