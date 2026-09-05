@@ -51,6 +51,14 @@ output "cognito_user_pool_id" {
 output "cognito_user_pool_arn" {
   value = module.cognito.user_pool_arn
 }
+output "cognito_hosted_ui_domain" {
+  value = module.cognito.hosted_ui_domain
+}
+
+output "github_oidc_issuer_url" {
+  value = module.github_oidc_shim.issuer_url
+}
+
 output "cognito_app_client_id" {
   value = module.cognito.app_client_id
 }
@@ -94,4 +102,17 @@ output "route53_zone_name_servers" {
 }
 output "acm_certificate_arn" {
   value = aws_acm_certificate_validation.main.certificate_arn
+}
+
+# --- CI/CD -------------------------------------------------------------------
+output "github_deploy_role_arn" {
+  value = aws_iam_role.github_deploy.arn
+}
+
+output "github_terraform_plan_role_arn" {
+  value = aws_iam_role.terraform_plan.arn
+}
+
+output "github_terraform_apply_role_arn" {
+  value = aws_iam_role.terraform_apply.arn
 }

@@ -5,12 +5,12 @@ variable "region" {
 
 variable "profile" {
   type    = string
-  default = "structra"
+  default = "home"
 }
 
 variable "state_bucket_name" {
   type    = string
-  default = "structra-tfstate-042843883108-ap-south-1"
+  default = "structra-tfstate-469465348250-ap-south-1"
 }
 
 variable "lock_table_name" {

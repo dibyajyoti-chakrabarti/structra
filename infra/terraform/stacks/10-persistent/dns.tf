@@ -45,7 +45,26 @@ resource "aws_acm_certificate_validation" "main" {
 }
 
 ###############################################################################
-# Email authentication — SPF, DMARC
+# Zoho Mail MX. These were never in Terraform and so did not survive the move
+# of the zone to this account; without them inbound mail to @structra.cloud
+# bounces. Zoho India data centre (the account uses smtp.zoho.in and
+# include:zoho.in), whose MX hosts are mx/mx2/mx3.zoho.in.
+###############################################################################
+
+resource "aws_route53_record" "mx" {
+  zone_id = aws_route53_zone.main.zone_id
+  name    = "structra.cloud"
+  type    = "MX"
+  ttl     = 300
+  records = [
+    "10 mx.zoho.in",
+    "20 mx2.zoho.in",
+    "50 mx3.zoho.in",
+  ]
+}
+
+###############################################################################
+# Email authentication - SPF, DMARC
 # DKIM: generate the key in the Zoho Mail admin panel
 # (Mail Admin → Email Authentication → DKIM) and add the record manually
 # or add a aws_route53_record.dkim resource below once you have the key.
@@ -79,4 +98,24 @@ resource "aws_route53_record" "dmarc" {
   records = [
     "v=DMARC1; p=quarantine; rua=mailto:support@structra.cloud; adkim=r; aspf=r"
   ]
+}
+
+###############################################################################
+# Cognito hosted UI (auth.structra.cloud)
+# Cognito fronts a custom hosted-UI domain with its own CloudFront distribution,
+# so this is an ALIAS A record against CloudFront's fixed zone ID.
+###############################################################################
+
+resource "aws_route53_record" "cognito_auth" {
+  count = var.create_cognito_hosted_ui_domain ? 1 : 0
+
+  zone_id = aws_route53_zone.main.zone_id
+  name    = var.cognito_hosted_ui_domain
+  type    = "A"
+
+  alias {
+    name                   = module.cognito.hosted_ui_cloudfront_domain
+    zone_id                = "Z2FDTNDATAQYW2"
+    evaluate_target_health = false
+  }
 }

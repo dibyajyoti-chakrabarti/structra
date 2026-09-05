@@ -10,7 +10,7 @@ variable "region" {
 
 variable "profile" {
   type    = string
-  default = "structra"
+  default = "home"
 }
 
 variable "vpc_cidr" {
@@ -41,7 +41,7 @@ variable "db_private_subnet_cidrs" {
 variable "frontend_bucket_name" {
   description = "Globally-unique name for the NEW frontend bucket (separate from the existing structra-frontend-prod)"
   type        = string
-  default     = "structra-frontend-042843883108"
+  default     = "structra-frontend-469465348250"
 }
 
 # SSM prefix for SecureString secrets (Cognito IdP secrets + SMTP password),
@@ -49,4 +49,43 @@ variable "frontend_bucket_name" {
 variable "ssm_prefix" {
   type    = string
   default = "/structra/prod"
+}
+
+# GitHub Actions OIDC subjects allowed to assume the deploy role. Scoped to the
+# structra repo; add entries rather than widening the wildcard.
+variable "github_deploy_subjects" {
+  type    = list(string)
+  default = ["repo:dibyajyoti-chakrabarti/structra:*"]
+}
+
+# --- Cognito hosted UI -------------------------------------------------------
+variable "cognito_hosted_ui_domain" {
+  description = "Custom hosted-UI hostname. Covered by the *.structra.cloud certificate."
+  type        = string
+  default     = "auth.structra.cloud"
+}
+
+variable "create_cognito_hosted_ui_domain" {
+  description = <<-EOT
+    Set false for the first apply of a from-scratch build. A Cognito custom
+    domain requires an A record on the parent domain, and structra.cloud's apex
+    alias is created by 30-compute, so the order is: apply this stack with the
+    flag false, apply 20-data and 30-compute, then apply this stack again with
+    the flag true.
+  EOT
+  type        = bool
+  default     = true
+}
+
+# --- GitHub Actions ----------------------------------------------------------
+variable "github_repository" {
+  description = "owner/repo that CI runs from. Used to build the OIDC trust subjects."
+  type        = string
+  default     = "dibyajyoti-chakrabarti/structra"
+}
+
+variable "github_apply_environment" {
+  description = "GitHub environment name that terraform apply runs in. Its protection rules are what gate applies."
+  type        = string
+  default     = "production"
 }

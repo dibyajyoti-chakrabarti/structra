@@ -9,7 +9,7 @@ locals {
 
 resource "aws_route53_record" "apex" {
   zone_id = data.terraform_remote_state.persistent.outputs.route53_zone_id
-  name    = "structra.cloud"
+  name    = var.frontend_domain
   type    = "A"
 
   alias {
@@ -21,7 +21,7 @@ resource "aws_route53_record" "apex" {
 
 resource "aws_route53_record" "www" {
   zone_id = data.terraform_remote_state.persistent.outputs.route53_zone_id
-  name    = "www.structra.cloud"
+  name    = "www.${var.frontend_domain}"
   type    = "A"
 
   alias {

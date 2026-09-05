@@ -48,9 +48,9 @@ resource "aws_iam_role_policy" "backend_inline" {
         Resource = "*"
       },
       {
-        Sid    = "AssetsS3"
-        Effect = "Allow"
-        Action = ["s3:PutObject", "s3:GetObject", "s3:DeleteObject"]
+        Sid      = "AssetsS3"
+        Effect   = "Allow"
+        Action   = ["s3:PutObject", "s3:GetObject", "s3:DeleteObject"]
         Resource = "${aws_s3_bucket.assets.arn}/*"
       }
     ]

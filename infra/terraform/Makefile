@@ -11,9 +11,9 @@
 #
 # Override defaults inline, e.g.: make apply-data PROFILE=other REGION=us-east-1
 
-PROFILE ?= structra-admin
+PROFILE ?= home
 REGION  ?= ap-south-1
-ACCOUNT ?= 042843883108
+ACCOUNT ?= 469465348250
 TF      ?= terraform
 ROOT    := ../..
 TAG     ?= latest
@@ -54,16 +54,28 @@ init-all: init-persistent init-data init-compute ## terraform init every stack
 
 # ---------------------------------------------------------------- plan
 .PHONY: plan-persistent plan-data plan-compute
-plan-persistent: ## Plan the persistent stack
+plan-persistent: shim-build ## Plan the persistent stack
 	$(TF) -chdir=$(PERSIST) plan
 plan-data: ## Plan the data stack
 	$(TF) -chdir=$(DATA) plan
 plan-compute: ## Plan the compute stack
 	$(TF) -chdir=$(COMPUTE) plan
 
+# ---------------------------------------------------------------- github oidc shim
+# The persistent stack zips services/github-oidc-shim/dist-lambda, which is
+# gitignored, so the build is a prerequisite of anything that plans/applies it.
+SHIM := $(ROOT)/services/github-oidc-shim
+
+.PHONY: shim-build shim-test
+shim-build: ## Build the GitHub OIDC shim Lambda bundle
+	npm --prefix $(SHIM) ci
+	npm --prefix $(SHIM) run build
+shim-test: ## Run the GitHub OIDC shim unit tests
+	npm --prefix $(SHIM) test
+
 # ---------------------------------------------------------------- apply
 .PHONY: apply-persistent apply-data apply-compute
-apply-persistent: ## Apply the persistent stack
+apply-persistent: shim-build ## Apply the persistent stack
 	$(TF) -chdir=$(PERSIST) apply
 apply-data: ## Apply the data stack (RDS)
 	$(TF) -chdir=$(DATA) apply
@@ -96,17 +108,28 @@ prod-status: ## Show NAT + RDS power state
 
 # ---------------------------------------------------------------- deploy (build + push images / frontend)
 .PHONY: ecr-login deploy-backend deploy-worker deploy-frontend
+# Lambda accepts a single-platform image manifest only. Recent Docker versions
+# build through buildx, which attaches provenance/SBOM attestations and so
+# pushes an OCI image INDEX; Lambda rejects that with "image manifest, config or
+# layer media type ... is not supported". These flags keep the output a plain
+# single-platform image.
+DOCKER_BUILD := docker build --provenance=false --sbom=false --platform linux/amd64
+
 ecr-login:
 	aws ecr get-login-password --region $(REGION) --profile $(PROFILE) \
 	  | docker login --username AWS --password-stdin $(ACCOUNT).dkr.ecr.$(REGION).amazonaws.com
 deploy-backend: ecr-login ## Build+push backend image and update the Lambda
-	docker build -f $(ROOT)/backend/Dockerfile.lambda -t $(ECR_BACKEND):$(TAG) $(ROOT)/backend
+	$(DOCKER_BUILD) -f $(ROOT)/backend/Dockerfile.lambda -t $(ECR_BACKEND):$(TAG) $(ROOT)/backend
 	docker push $(ECR_BACKEND):$(TAG)
-	@if [ -n "$(BACKEND_FN)" ]; then aws lambda update-function-code --function-name $(BACKEND_FN) --image-uri $(ECR_BACKEND):$(TAG) --profile $(PROFILE) --region $(REGION); fi
+	@if aws lambda get-function --function-name $(BACKEND_FN) --profile $(PROFILE) --region $(REGION) >/dev/null 2>&1; then \
+	  aws lambda update-function-code --function-name $(BACKEND_FN) --image-uri $(ECR_BACKEND):$(TAG) --profile $(PROFILE) --region $(REGION) >/dev/null; \
+	else echo "note: $(BACKEND_FN) does not exist yet; apply-compute will create it from this image"; fi
 deploy-worker: ecr-login ## Build+push worker image and update the Lambda
-	docker build -f $(ROOT)/worker/Dockerfile.lambda -t $(ECR_WORKER):$(TAG) $(ROOT)
+	$(DOCKER_BUILD) -f $(ROOT)/worker/Dockerfile.lambda -t $(ECR_WORKER):$(TAG) $(ROOT)
 	docker push $(ECR_WORKER):$(TAG)
-	@if [ -n "$(WORKER_FN)" ]; then aws lambda update-function-code --function-name $(WORKER_FN) --image-uri $(ECR_WORKER):$(TAG) --profile $(PROFILE) --region $(REGION); fi
+	@if aws lambda get-function --function-name $(WORKER_FN) --profile $(PROFILE) --region $(REGION) >/dev/null 2>&1; then \
+	  aws lambda update-function-code --function-name $(WORKER_FN) --image-uri $(ECR_WORKER):$(TAG) --profile $(PROFILE) --region $(REGION) >/dev/null; \
+	else echo "note: $(WORKER_FN) does not exist yet; apply-compute will create it from this image"; fi
 deploy-frontend: ## Build frontend (needs VITE_* env) and sync to S3 + invalidate CloudFront
 	npm --prefix $(ROOT)/frontend run build
 	aws s3 sync $(ROOT)/frontend/dist s3://$(FE_BUCKET) --delete --profile $(PROFILE) --region $(REGION)

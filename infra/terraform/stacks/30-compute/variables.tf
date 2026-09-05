@@ -10,7 +10,7 @@ variable "region" {
 
 variable "profile" {
   type    = string
-  default = "structra"
+  default = "home"
 }
 
 # --- images (initial only; deploys happen via update-function-code) ---
@@ -115,4 +115,11 @@ variable "ssm_prefix" {
 variable "cloudfront_price_class" {
   type    = string
   default = "PriceClass_100"
+}
+
+# --- Frontend domain ---------------------------------------------------------
+variable "frontend_domain" {
+  description = "Apex domain the SPA is served from. Also the CloudFront alias and the CORS/CSRF origin."
+  type        = string
+  default     = "structra.cloud"
 }

@@ -5,7 +5,11 @@ locals {
   backend_image_uri = "${local.persistent.ecr_backend_repository_url}:${var.backend_image_tag}"
   worker_image_uri  = "${local.persistent.ecr_worker_repository_url}:${var.worker_image_tag}"
 
-  frontend_url = module.frontend_cdn.canonical_url
+  # Derived from the domain, not from the CloudFront resource. The value is the
+  # same either way (the distribution is aliased to this domain), but taking it
+  # from the module would make every backend env var depend on the distribution
+  # existing, which needlessly couples the API to the CDN.
+  frontend_url = "https://${var.frontend_domain}"
 
   # Shared DB / Bedrock / email / SQS config injected into both Lambdas.
   common_env = {

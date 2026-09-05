@@ -20,5 +20,5 @@ output "oac_id" {
 
 output "canonical_url" {
   description = "Preferred public URL: first custom alias if set, otherwise the CloudFront distribution URL"
-  value = length(var.aliases) > 0 ? "https://${var.aliases[0]}" : "https://${aws_cloudfront_distribution.this.domain_name}"
+  value       = length(var.aliases) > 0 ? "https://${var.aliases[0]}" : "https://${aws_cloudfront_distribution.this.domain_name}"
 }

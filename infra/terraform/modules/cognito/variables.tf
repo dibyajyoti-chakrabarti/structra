@@ -1,7 +1,7 @@
 ###############################################################################
 # Inputs for the full Cognito auth stack (pool + app client + Google/GitHub
 # IdPs + hosted-UI domain + 5 trigger Lambdas). This module CREATES and manages
-# everything — it is a faithful replica of the live structra-user-pool config.
+# everything from scratch.
 ###############################################################################
 
 variable "pool_name" {
@@ -17,9 +17,34 @@ variable "app_client_name" {
 }
 
 variable "hosted_ui_domain" {
-  description = "Cognito-prefix hosted-UI domain (imported as-is from the live pool)."
+  description = <<-EOT
+    Hosted-UI domain. A bare label (e.g. "structra-auth") is a Cognito-prefix
+    domain; a full hostname (e.g. "auth.structra.cloud") is a custom domain and
+    additionally requires hosted_ui_certificate_arn.
+  EOT
   type        = string
-  default     = "structra-auth"
+  default     = "auth.structra.cloud"
+}
+
+variable "hosted_ui_certificate_arn" {
+  description = <<-EOT
+    us-east-1 ACM certificate covering hosted_ui_domain. Required for a custom
+    domain, and must be null for a Cognito-prefix domain.
+
+    AWS refuses to create a custom domain unless the PARENT domain already has
+    an A record, and structra.cloud's apex alias is created by the 30-compute
+    stack. On a from-scratch build that means 10-persistent has to be applied
+    once with create_hosted_ui_domain = false, and again with it enabled after
+    30-compute exists.
+  EOT
+  type        = string
+  default     = null
+}
+
+variable "create_hosted_ui_domain" {
+  description = "Set false to stand the pool up before the apex A record exists. See hosted_ui_certificate_arn."
+  type        = bool
+  default     = true
 }
 
 variable "callback_urls" {
@@ -27,9 +52,8 @@ variable "callback_urls" {
   type        = list(string)
   default = [
     "http://localhost:5173/auth/callback",
-    "https://d14e7d3vt667h.cloudfront.net/auth/callback",
-    "https://dqltowjnatfxe.cloudfront.net/auth/callback",
     "https://structra.cloud/auth/callback",
+    "https://www.structra.cloud/auth/callback",
   ]
 }
 
@@ -38,9 +62,8 @@ variable "logout_urls" {
   type        = list(string)
   default = [
     "http://localhost:5173/",
-    "https://d14e7d3vt667h.cloudfront.net/",
-    "https://dqltowjnatfxe.cloudfront.net/",
     "https://structra.cloud/",
+    "https://www.structra.cloud/",
   ]
 }
 

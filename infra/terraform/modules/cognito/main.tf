@@ -8,8 +8,8 @@
 
 locals {
   # Trigger key -> { suffix, handler, role, invoke_sid }
-  # Names, the role each function assumes, and the invoke-permission statement
-  # ID all mirror the live pool exactly so `terraform import` is clean.
+  # define/create/verify_auth share one role: they are the three halves of the
+  # same custom-auth (email OTP) challenge flow.
   triggers = {
     pre_signup        = { suffix = "pre-signup", handler = "pre_signup.handler", role = "pre_signup", invoke_sid = "cognito-invoke", timeout = 10 }
     post_confirmation = { suffix = "post-confirmation", handler = "post_confirmation.handler", role = "post_confirmation", invoke_sid = "cognito-post-confirmation", timeout = 3 }
@@ -135,9 +135,9 @@ resource "aws_cognito_user_pool" "this" {
   mfa_configuration   = "OFF"
   user_pool_tier      = "ESSENTIALS"
 
-  # email is the required, mutable sign-in attribute (matches the live pool).
-  # Cognito schema attributes are immutable once created, so this must match
-  # exactly — Terraform cannot add/remove them after the fact.
+  # email is the required, mutable sign-in attribute. Cognito schema attributes
+  # are immutable once the pool exists, so changing this later means replacing
+  # the pool. Terraform cannot add or remove them after the fact.
   schema {
     name                     = "email"
     attribute_data_type      = "String"
@@ -196,14 +196,19 @@ resource "aws_cognito_user_pool" "this" {
 }
 
 # --- Hosted-UI domain ---------------------------------------------------------
+# A custom domain (certificate_arn set) is served by a Cognito-managed
+# CloudFront distribution; the caller points DNS at cloudfront_distribution.
 resource "aws_cognito_user_pool_domain" "this" {
-  domain       = var.hosted_ui_domain
-  user_pool_id = aws_cognito_user_pool.this.id
+  count = var.create_hosted_ui_domain ? 1 : 0
+
+  domain          = var.hosted_ui_domain
+  certificate_arn = var.hosted_ui_certificate_arn
+  user_pool_id    = aws_cognito_user_pool.this.id
 }
 
 # --- Identity providers -------------------------------------------------------
 # Google. Cognito stores the resolved endpoint URLs in provider_details, so we
-# declare the full set (matching live) to avoid perpetual drift on import.
+# declare the full set to avoid perpetual drift.
 resource "aws_cognito_identity_provider" "google" {
   user_pool_id  = aws_cognito_user_pool.this.id
   provider_name = "Google"
@@ -228,8 +233,9 @@ resource "aws_cognito_identity_provider" "google" {
   }
 
   lifecycle {
-    # Cognito never returns IdP secrets on read, so they'd show as a perpetual
-    # diff. The live secret is already correct (imported), so leave it untouched.
+    # Cognito never returns IdP secrets on read, so an unignored client_secret
+    # shows up as a perpetual diff. Rotating it means updating SSM and then
+    # applying with this ignore removed (or replacing the IdP).
     ignore_changes = [provider_details["client_secret"]]
   }
 }
@@ -256,8 +262,9 @@ resource "aws_cognito_identity_provider" "github" {
   }
 
   lifecycle {
-    # Cognito never returns IdP secrets on read, so they'd show as a perpetual
-    # diff. The live secret is already correct (imported), so leave it untouched.
+    # Cognito never returns IdP secrets on read, so an unignored client_secret
+    # shows up as a perpetual diff. Rotating it means updating SSM and then
+    # applying with this ignore removed (or replacing the IdP).
     ignore_changes = [provider_details["client_secret"]]
   }
 }
