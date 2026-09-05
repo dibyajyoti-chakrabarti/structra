@@ -2,7 +2,7 @@
 # Cognito auth stack - fully managed (pool + app client + Google/GitHub IdPs +
 # hosted-UI domain + 5 trigger Lambdas).
 #
-# Built fresh in account 469465348250. The original pool lived in the old
+# Built fresh in account 190084967282. The original pool lived in a previous
 # account, which we no longer have access to, so nothing is imported: this
 # apply mints a NEW pool ID and app-client ID and starts with zero users.
 # Update VITE_COGNITO_* and the Google/GitHub OAuth app redirect URIs to match

@@ -11,9 +11,9 @@
 #
 # Override defaults inline, e.g.: make apply-data PROFILE=other REGION=us-east-1
 
-PROFILE ?= home
+PROFILE ?= jan-saathi
 REGION  ?= ap-south-1
-ACCOUNT ?= 469465348250
+ACCOUNT ?= 190084967282
 TF      ?= terraform
 ROOT    := ../..
 TAG     ?= latest

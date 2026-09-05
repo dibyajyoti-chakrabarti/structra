@@ -10,7 +10,7 @@ variable "region" {
 
 variable "profile" {
   type    = string
-  default = "home"
+  default = "jan-saathi"
 }
 
 variable "vpc_cidr" {
@@ -41,7 +41,7 @@ variable "db_private_subnet_cidrs" {
 variable "frontend_bucket_name" {
   description = "Globally-unique name for the NEW frontend bucket (separate from the existing structra-frontend-prod)"
   type        = string
-  default     = "structra-frontend-469465348250"
+  default     = "structra-frontend-190084967282"
 }
 
 # SSM prefix for SecureString secrets (Cognito IdP secrets + SMTP password),
@@ -88,4 +88,10 @@ variable "github_apply_environment" {
   description = "GitHub environment name that terraform apply runs in. Its protection rules are what gate applies."
   type        = string
   default     = "production"
+}
+
+variable "create_github_oidc_provider" {
+  description = "Create the GitHub OIDC provider, or adopt the existing one. AWS allows only one per URL per account, so this must be false in an account where another project already registered it."
+  type        = bool
+  default     = false
 }

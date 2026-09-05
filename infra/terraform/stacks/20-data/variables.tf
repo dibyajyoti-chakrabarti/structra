@@ -10,7 +10,7 @@ variable "region" {
 
 variable "profile" {
   type    = string
-  default = "home"
+  default = "jan-saathi"
 }
 
 variable "engine_version" {
