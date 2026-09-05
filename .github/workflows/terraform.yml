@@ -1,0 +1,202 @@
+name: Terraform
+
+# All infrastructure changes go through here. Plans run automatically on pull
+# requests that touch infra; applies are manual and run inside the `production`
+# environment, whose protection rules are what actually gate them.
+#
+# Two AWS identities, assumed by OIDC (no stored keys):
+#   structra-github-terraform-plan   read-only, assumable from any run
+#   structra-github-terraform-apply  write, assumable only from `production`
+#
+# The bootstrap stack is intentionally absent: it creates the state bucket and
+# lock table that everything else depends on, uses local state, and is run once
+# by hand.
+
+on:
+  pull_request:
+    paths:
+      - 'infra/terraform/**'
+      - 'services/github-oidc-shim/**'
+      - '.github/workflows/terraform.yml'
+  workflow_dispatch:
+    inputs:
+      stack:
+        description: 'Stack to act on'
+        required: true
+        type: choice
+        options:
+          - 10-persistent
+          - 20-data
+          - 30-compute
+          - all
+        default: all
+      action:
+        description: 'plan is safe to run any time; apply needs production approval'
+        required: true
+        type: choice
+        options:
+          - plan
+          - apply
+        default: plan
+      extra_args:
+        description: 'Extra terraform args, e.g. -var create_cognito_hosted_ui_domain=false'
+        required: false
+        type: string
+        default: ''
+
+permissions:
+  id-token: write
+  contents: read
+  pull-requests: write
+
+env:
+  AWS_REGION: ap-south-1
+  TF_VERSION: 1.16.0
+  TF_IN_AUTOMATION: 'true'
+  TF_INPUT: '0'
+
+jobs:
+  # Turn the chosen stack into a matrix. "all" must stay ordered: upper stacks
+  # read lower ones through terraform_remote_state.
+  resolve:
+    name: Resolve stacks
+    runs-on: ubuntu-latest
+    outputs:
+      stacks: ${{ steps.pick.outputs.stacks }}
+    steps:
+      - id: pick
+        run: |
+          case "${{ github.event_name == 'pull_request' && 'all' || inputs.stack }}" in
+            all) echo 'stacks=["10-persistent","20-data","30-compute"]' >> "$GITHUB_OUTPUT" ;;
+            *)   echo "stacks=[\"${{ inputs.stack }}\"]" >> "$GITHUB_OUTPUT" ;;
+          esac
+
+  plan:
+    name: Plan ${{ matrix.stack }}
+    if: github.event_name == 'pull_request' || inputs.action == 'plan'
+    needs: resolve
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        stack: ${{ fromJSON(needs.resolve.outputs.stacks) }}
+    defaults:
+      run:
+        working-directory: infra/terraform/stacks/${{ matrix.stack }}
+    steps:
+      - uses: actions/checkout@v4
+
+      # 10-persistent zips services/github-oidc-shim/dist-lambda, which is not
+      # committed, so it has to be built before terraform reads it.
+      - name: Set up Node
+        if: matrix.stack == '10-persistent'
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: services/github-oidc-shim/package-lock.json
+      - name: Build GitHub OIDC shim
+        if: matrix.stack == '10-persistent'
+        working-directory: services/github-oidc-shim
+        run: npm ci && npm run build
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::469465348250:role/structra-github-terraform-plan
+          aws-region: ${{ env.AWS_REGION }}
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+
+      - name: Format check
+        run: terraform fmt -check -recursive ../..
+
+      - name: Init
+        run: terraform init -lockfile=readonly
+
+      - name: Validate
+        run: terraform validate
+
+      - name: Plan
+        id: plan
+        run: terraform plan -no-color -lock-timeout=5m ${{ inputs.extra_args }} 2>&1 | tee plan.txt
+
+      - name: Comment plan on PR
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        env:
+          STACK: ${{ matrix.stack }}
+        with:
+          script: |
+            const fs = require('fs');
+            const full = fs.readFileSync(
+              `infra/terraform/stacks/${process.env.STACK}/plan.txt`, 'utf8');
+            // A comment caps at 65536 characters; keep the tail, which holds the
+            // summary line, and say so rather than silently truncating.
+            const max = 60000;
+            const body = full.length > max
+              ? `_Plan truncated to the last ${max} characters._\n\n` + full.slice(-max)
+              : full;
+            await github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: `### Terraform plan \`${process.env.STACK}\`\n\n<details><summary>Show plan</summary>\n\n\`\`\`terraform\n${body}\n\`\`\`\n\n</details>`,
+            });
+
+  apply:
+    name: Apply ${{ matrix.stack }}
+    if: github.event_name == 'workflow_dispatch' && inputs.action == 'apply'
+    needs: resolve
+    runs-on: ubuntu-latest
+    environment: production
+    # Serialised: concurrent applies would fight over the state lock, and "all"
+    # depends on stacks being applied in order.
+    concurrency:
+      group: terraform-apply
+      cancel-in-progress: false
+    strategy:
+      fail-fast: true
+      max-parallel: 1
+      matrix:
+        stack: ${{ fromJSON(needs.resolve.outputs.stacks) }}
+    defaults:
+      run:
+        working-directory: infra/terraform/stacks/${{ matrix.stack }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node
+        if: matrix.stack == '10-persistent'
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: services/github-oidc-shim/package-lock.json
+      - name: Build GitHub OIDC shim
+        if: matrix.stack == '10-persistent'
+        working-directory: services/github-oidc-shim
+        run: npm ci && npm run build
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::469465348250:role/structra-github-terraform-apply
+          aws-region: ${{ env.AWS_REGION }}
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+
+      - name: Init
+        run: terraform init -lockfile=readonly
+
+      # Plan to a file and apply exactly that, so what was reviewed is what runs.
+      - name: Plan
+        run: terraform plan -no-color -lock-timeout=5m -out=tfplan ${{ inputs.extra_args }}
+
+      - name: Apply
+        run: terraform apply -no-color -lock-timeout=5m tfplan
+
+      - name: Outputs
+        run: terraform output -no-color
