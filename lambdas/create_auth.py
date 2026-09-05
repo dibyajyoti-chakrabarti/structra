@@ -29,7 +29,7 @@ HTML_TEMPLATE = """\
               <table cellpadding="0" cellspacing="0" border="0" style="margin:0 auto;">
                 <tr>
                   <td style="vertical-align:middle;padding-right:10px;">
-                    <img src="https://structra-assets-042843883108.s3.ap-south-1.amazonaws.com/logo/structra-logo.png"
+                    <img src="https://structra-assets-469465348250.s3.ap-south-1.amazonaws.com/logo/structra-logo.png"
                          alt="" width="36" height="36"
                          style="display:block;border:0;outline:none;text-decoration:none;" />
                   </td>
