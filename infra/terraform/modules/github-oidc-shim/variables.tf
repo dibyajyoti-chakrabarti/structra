@@ -1,13 +1,21 @@
 ###############################################################################
-# Inputs for the GitHub-OAuth-to-OIDC shim (the github-cognito-openid-wrapper).
+# Inputs for the GitHub-OAuth-to-OIDC shim.
 #
-# This module is IMPORT-oriented: resource names match the live CloudFormation
-# stack exactly so `terraform import` adopts the running API Gateway + 5 Lambdas
-# without recreating them (stable issuer URL, stable signing key). Lambda CODE
-# is intentionally left unmanaged (see lifecycle.ignore_changes in main.tf) — the
-# built bundle embeds the RSA signing key and has no source repo, so we never put
-# it in git and never redeploy it.
+# Source lives at services/github-oidc-shim and is built with `make shim-build`
+# before apply. Nothing here is imported: the module creates the API Gateway,
+# the five Lambdas and the RSA signing key from scratch.
 ###############################################################################
+
+variable "name_prefix" {
+  description = "Prefix for the API and the five function/role names."
+  type        = string
+  default     = "structra-github-oidc"
+}
+
+variable "dist_dir" {
+  description = "Built Lambda bundle directory (services/github-oidc-shim/dist-lambda)."
+  type        = string
+}
 
 variable "github_client_id" {
   description = "GitHub OAuth app client ID (not secret)"
@@ -32,9 +40,19 @@ variable "github_login_url" {
 }
 
 variable "cognito_redirect_uri" {
-  description = "Cognito hosted-UI idpresponse URL the shim returns the code to. Bound to the structra-auth domain."
+  description = "Cognito hosted-UI idpresponse URL the shim returns the code to."
   type        = string
-  default     = "https://structra-auth.auth.ap-south-1.amazoncognito.com/oauth2/idpresponse"
+  default     = "https://auth.structra.cloud/oauth2/idpresponse"
+}
+
+variable "runtime" {
+  type    = string
+  default = "nodejs20.x"
+}
+
+variable "log_retention_days" {
+  type    = number
+  default = 14
 }
 
 variable "stage_name" {

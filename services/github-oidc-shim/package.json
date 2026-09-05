@@ -1,0 +1,35 @@
+{
+  "name": "structra-github-oidc-shim",
+  "version": "2.0.0",
+  "description": "GitHub OAuth to OpenID Connect shim for AWS Cognito. Vendored from TimothyJones/github-cognito-openid-wrapper @ 9f56e3a, with the RSA signing key moved from a build-time bundle constant to runtime config.",
+  "main": "dist-lambda/authorize.js",
+  "scripts": {
+    "build": "rm -rf dist-lambda && webpack",
+    "test": "jest --runInBand",
+    "lint": "eslint src --ext .js"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "axios": "^1.7.7",
+    "colors": "^1.4.0",
+    "json-web-key": "^0.4.0",
+    "jsonwebtoken": "^9.0.2",
+    "winston": "^3.13.0",
+    "winston-splunk-httplogger": "^3.1.7"
+  },
+  "devDependencies": {
+    "@babel/core": "^7.3.4",
+    "@babel/preset-env": "^7.3.4",
+    "babel-jest": "^28.1.0",
+    "babel-loader": "^8.2.5",
+    "eslint": "^8.1.0",
+    "jest": "^28.1.0",
+    "webpack": "^5.96.1",
+    "webpack-cli": "^4.9.2"
+  },
+  "engines": {
+    "node": ">=12"
+  },
+  "private": true
+}
