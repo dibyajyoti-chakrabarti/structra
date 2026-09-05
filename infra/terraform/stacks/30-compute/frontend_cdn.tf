@@ -6,6 +6,6 @@ module "frontend_cdn" {
   bucket_arn                  = data.terraform_remote_state.persistent.outputs.frontend_bucket_arn
   bucket_regional_domain_name = data.terraform_remote_state.persistent.outputs.frontend_bucket_regional_domain_name
   price_class                 = var.cloudfront_price_class
-  aliases                     = [var.frontend_domain, "www.${var.frontend_domain}"]
+  aliases                     = var.attach_frontend_aliases ? [var.frontend_domain, "www.${var.frontend_domain}"] : []
   acm_certificate_arn         = data.terraform_remote_state.persistent.outputs.acm_certificate_arn
 }

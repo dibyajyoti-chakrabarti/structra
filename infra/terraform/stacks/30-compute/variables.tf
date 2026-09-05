@@ -25,6 +25,15 @@ variable "worker_image_tag" {
 }
 
 # --- NAT instance ---
+# Which public subnet the NAT lands in. ap-south-1a had no t4g.micro capacity
+# when this stack was first built, and RunInstances answers that with
+# InsufficientInstanceCapacity, which the AWS provider treats as retryable, so
+# a bad AZ shows up as a create that never finishes rather than an error.
+variable "nat_subnet_index" {
+  type    = number
+  default = 1
+}
+
 variable "nat_instance_type" {
   description = "NAT instance type. t4g.micro (arm64) is Free Tier eligible on this account; t4g.nano is not."
   type        = string
@@ -122,4 +131,15 @@ variable "frontend_domain" {
   description = "Apex domain the SPA is served from. Also the CloudFront alias and the CORS/CSRF origin."
   type        = string
   default     = "structra.cloud"
+}
+
+# The structra.cloud alternate domain names are still held by a CloudFront
+# distribution in the original AWS account, which we no longer have access to.
+# CloudFront refuses CreateDistribution with a CNAME another distribution owns,
+# in any account, so the distribution is built without the aliases first and
+# they are moved across with cloudfront associate-alias afterwards. Set this
+# false only for that first pass.
+variable "attach_frontend_aliases" {
+  type    = bool
+  default = true
 }

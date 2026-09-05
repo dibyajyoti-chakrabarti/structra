@@ -8,7 +8,7 @@ module "nat" {
   name_prefix      = var.name_prefix
   vpc_id           = data.terraform_remote_state.persistent.outputs.vpc_id
   vpc_cidr_block   = data.terraform_remote_state.persistent.outputs.vpc_cidr_block
-  public_subnet_id = data.terraform_remote_state.persistent.outputs.public_subnet_ids[0]
+  public_subnet_id = data.terraform_remote_state.persistent.outputs.public_subnet_ids[var.nat_subnet_index]
   instance_type    = var.nat_instance_type
 }
 

@@ -8,6 +8,7 @@ locals {
 }
 
 resource "aws_route53_record" "apex" {
+  count   = var.attach_frontend_aliases ? 1 : 0
   zone_id = data.terraform_remote_state.persistent.outputs.route53_zone_id
   name    = var.frontend_domain
   type    = "A"
@@ -20,6 +21,7 @@ resource "aws_route53_record" "apex" {
 }
 
 resource "aws_route53_record" "www" {
+  count   = var.attach_frontend_aliases ? 1 : 0
   zone_id = data.terraform_remote_state.persistent.outputs.route53_zone_id
   name    = "www.${var.frontend_domain}"
   type    = "A"
