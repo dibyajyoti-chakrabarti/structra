@@ -13,6 +13,13 @@
 
 PROFILE ?= jan-saathi
 REGION  ?= ap-south-1
+
+# Terraform picks the profile up from the environment rather than from a
+# hardcoded `profile` in backend.tf. GitHub Actions authenticates with OIDC and
+# has no shared config file, so a named profile baked into the backend makes
+# every CI run fail at `terraform init`.
+export AWS_PROFILE = $(PROFILE)
+
 ACCOUNT ?= 190084967282
 TF      ?= terraform
 ROOT    := ../..

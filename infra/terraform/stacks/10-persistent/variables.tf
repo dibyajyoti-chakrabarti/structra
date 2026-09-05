@@ -10,7 +10,7 @@ variable "region" {
 
 variable "profile" {
   type    = string
-  default = "jan-saathi"
+  default = ""
 }
 
 variable "vpc_cidr" {
