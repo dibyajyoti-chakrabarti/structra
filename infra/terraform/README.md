@@ -4,8 +4,8 @@ Production-grade IaC for the Structra serverless architecture on AWS.
 For the *why* behind every component (NAT instance, Lambdas, SSM, layering),
 read **[ARCHITECTURE.md](./ARCHITECTURE.md)**.
 
-- **Account / profile / region:** `469465348250` / `home` / `ap-south-1`
-- **State:** S3 (`structra-tfstate-469465348250-ap-south-1`) + DynamoDB lock (`structra-tflock`)
+- **Account / profile / region:** `190084967282` / `jan-saathi` / `ap-south-1`
+- **State:** S3 (`structra-tfstate-190084967282-ap-south-1`) + DynamoDB lock (`structra-tflock`)
 - **Domain:** `structra.cloud`, registered at GoDaddy, delegated to the Route 53 zone in this account
 
 ## Architecture (at a glance)
@@ -43,7 +43,7 @@ RDS cost money at idle — everything else is pay-per-use (~$0).
 ## Prerequisites
 
 - Terraform >= 1.7, AWS CLI v2, Docker (for Lambda images), Node 20 + npm (frontend).
-- `aws configure --profile home` for account `469465348250`.
+- `aws configure --profile jan-saathi` for account `190084967282`.
 
 ## First-time setup
 
@@ -53,7 +53,7 @@ RDS cost money at idle — everything else is pay-per-use (~$0).
             EMAIL_HOST_PASSWORD INTERNAL_API_TOKEN GOOGLE_OAUTH_CLIENT_SECRET \
             GITHUB_OAUTH_CLIENT_SECRET COGNITO_SMTP_PASSWORD; do
      read -rsp "$k: " v; echo
-     aws ssm put-parameter --profile home --region ap-south-1 \
+     aws ssm put-parameter --profile jan-saathi --region ap-south-1 \
        --name "/structra/prod/$k" --type SecureString --value "$v" --overwrite
    done
    ```
@@ -235,8 +235,8 @@ function's region, `ap-south-1`).
 | ACM cert (us-east-1) | `structra.cloud` + `*.structra.cloud` |
 | VPC | `vpc-01c4cb1fbd343a330` (10.0.0.0/16, AZs a/b) |
 | ECR | `structra-api`, `structra-worker` |
-| Frontend bucket | `structra-frontend-469465348250` |
-| Assets bucket | `structra-assets-469465348250` |
+| Frontend bucket | `structra-frontend-190084967282` |
+| Assets bucket | `structra-assets-190084967282` |
 | CI deploy role | `structra-github-OIDC-Role` |
 | RDS | `structra-prod-db` (private) |
 | SQS | `structra-eval-queue` (+ `structra-eval-dlq`) |

@@ -1,6 +1,6 @@
 # Chapter 7 — CI/CD
 
-All workflows live in `.github/workflows/`. GitHub Actions uses **OIDC** to assume an IAM role in AWS account `469465348250`, no long-lived access keys are stored as secrets.
+All workflows live in `.github/workflows/`. GitHub Actions uses **OIDC** to assume an IAM role in AWS account `190084967282`, no long-lived access keys are stored as secrets.
 
 Three roles, split by blast radius rather than one role for everything:
 

@@ -57,7 +57,7 @@ Full context: [Chapter 4](./ch_4_backend_service.md).
 
 | Resource | Value |
 |---|---|
-| AWS Account ID | `469465348250` |
+| AWS Account ID | `190084967282` |
 | Primary region | `ap-south-1` (Mumbai) |
 | Bedrock region | `us-east-1` |
 | VPC CIDR | `10.0.0.0/16` |

@@ -30,5 +30,11 @@ Terraform lives in `infra/terraform` as four stacks with independent state.
 Read `infra/terraform/README.md` before changing any of it; the first-time
 bootstrap has a required order that is not obvious from the code.
 
-AWS work on this project uses the `home` CLI profile (account `469465348250`,
+AWS work on this project uses the `jan-saathi` CLI profile (account `190084967282`,
 `ap-south-1`).
+
+That account is shared with an unrelated project, Jan Saathi. Nothing here may
+touch a resource that is not named `structra-*`, and no destroy plan is safe to
+run without reading the resource list first. The shared GitHub OIDC provider is
+the one exception: it is used by both projects, so it is adopted rather than
+created (see `create_github_oidc_provider`).

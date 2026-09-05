@@ -8,7 +8,7 @@ runbook). Read this to understand the system; read the README to operate it.
 
 ## 1. The big picture
 
-Structra runs as a **serverless application** on AWS account `469465348250`, region
+Structra runs as a **serverless application** on AWS account `190084967282`, region
 `ap-south-1`. There are no always-on application servers — code runs on Lambda, on
 demand. The only machines that run 24/7 are a tiny NAT instance and the database.
 
