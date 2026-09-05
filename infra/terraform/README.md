@@ -52,7 +52,7 @@ RDS cost money at idle — everything else is pay-per-use (~$0).
    for k in DB_PASSWORD DJANGO_SECRET_KEY RAZORPAY_KEY_SECRET RAZORPAY_WEBHOOK_SECRET \
             EMAIL_HOST_PASSWORD INTERNAL_API_TOKEN GOOGLE_OAUTH_CLIENT_SECRET \
             GITHUB_OAUTH_CLIENT_SECRET COGNITO_SMTP_PASSWORD; do
-     read -rsp "$k: " v; echo
+     read -rsp "$k: " v; echo          # run this in bash; zsh's read has no -p
      aws ssm put-parameter --profile jan-saathi --region ap-south-1 \
        --name "/structra/prod/$k" --type SecureString --value "$v" --overwrite
    done
@@ -75,6 +75,10 @@ RDS cost money at idle — everything else is pay-per-use (~$0).
    ```
    Subsequent applies are single-pass; the two-phase order only matters for a
    from-scratch build.
+
+   If `apply-compute` fails with `CNAMEAlreadyExists`, the domain names are
+   still attached to a CloudFront distribution somewhere else. See
+   [Moving the domain names between accounts](#moving-the-domain-names-between-accounts).
 4. **Update the external OAuth apps** with the values the apply reports:
    - Google console: authorised redirect URI `https://auth.structra.cloud/oauth2/idpresponse`.
    - GitHub OAuth app: callback URL `<terraform output github_oidc_issuer_url>/token`.
@@ -130,6 +134,82 @@ that every other stack needs, uses local state, and is run once by hand.
 
 Applying from a laptop still works and is unchanged; the workflow is the
 reviewable path, not the only one.
+
+Terraform resolves AWS credentials from the environment, not from a profile
+named in `backend.tf`. The Makefile exports `AWS_PROFILE` so local runs are
+unaffected, and runners use their OIDC credentials directly. Do not put
+`profile = "..."` back into a backend block or a `terraform_remote_state` data
+source: runners have no shared config file, and `terraform init` fails there
+with `failed to get shared config profile`.
+
+## Troubleshooting
+
+Three failures cost real time during the rebuild in this account. All three
+present as something other than what they are.
+
+### Moving the domain names between accounts
+
+A CloudFront alternate domain name is unique across the whole of AWS, not just
+your account. If another distribution anywhere holds `structra.cloud`,
+`CreateDistribution` fails with `CNAMEAlreadyExists` and no amount of
+reapplying helps.
+
+`cloudfront associate-alias` moves the name to a distribution you own, proving
+you control the domain with a DNS TXT record, so it works even when the account
+holding the name is gone. The order matters:
+
+1. Apply `30-compute` with `-var attach_frontend_aliases=false`. The
+   distribution has to exist, with a certificate covering the domain, before it
+   can be the target of a move.
+2. Add the proof record. **The format differs for an apex**, and the error
+   message does not tell you this:
+
+   | Name being moved | TXT record to create |
+   |---|---|
+   | `www.structra.cloud` | `_www.structra.cloud` |
+   | `structra.cloud` (apex) | `_.structra.cloud` |
+
+   The value is the target distribution's own domain name, for example
+   `dqyxm2ey99jlw.cloudfront.net`. Without the period after the underscore the
+   apex record is `_structra.cloud`, which sits outside the hosted zone, and
+   Route 53 rejects it. That rejection looks like the move is impossible; it is
+   not, it is a typo.
+3. `aws cloudfront associate-alias --alias <name> --target-distribution-id <id>`,
+   once per name.
+4. Re-apply `30-compute` normally so Terraform owns the aliases again, importing
+   the two Route 53 A records if you created them by hand.
+
+AWS documents contacting Support for a cross-account apex move. That is only
+needed when you genuinely cannot create the TXT record. If the zone is yours,
+step 2 is the whole answer.
+
+### A NAT instance that never finishes creating
+
+`RunInstances` answers a capacity shortage with `InsufficientInstanceCapacity`,
+and the AWS provider treats it as retryable, so a starved availability zone
+looks like a create that hangs for twenty minutes rather than an error. If
+`module.nat.aws_instance.nat` sits at "Still creating", check the AZ before
+suspecting the network:
+
+```bash
+aws ec2 run-instances --dry-run --instance-type t4g.micro \
+  --image-id <al2023-arm64> --subnet-id <the NAT subnet>
+```
+
+`nat_subnet_index` picks the public subnet. It defaults to `1`
+(`ap-south-1b`) because `ap-south-1a` had no `t4g.micro` capacity.
+
+Instance type is separately constrained: this account is on the restricted Free
+Tier plan, which rejects any type that is not free-tier eligible with
+`InvalidParameterCombination`. Check with
+`aws ec2 describe-instance-types --filters Name=free-tier-eligible,Values=true`.
+
+### Cognito cannot reach the GitHub shim
+
+Creating the GitHub identity provider straight after the shim's API Gateway
+fails with `InvalidParameterException: Unable to contact well-known endpoint`.
+The stage is not reachable yet. Confirm the endpoint serves 200 and re-apply;
+nothing is wrong with the configuration.
 
 ## Day-2 operations
 
@@ -231,13 +311,16 @@ function's region, `ap-south-1`).
 |---|---|
 | Frontend URL | `https://structra.cloud` |
 | Auth (Cognito hosted UI) | `https://auth.structra.cloud` |
-| Route 53 zone | `Z06774172J4OPAI03JK8V` (`structra.cloud`) |
+| Route 53 zone | `Z048163752SZ07B44U3X` (`structra.cloud`) |
 | ACM cert (us-east-1) | `structra.cloud` + `*.structra.cloud` |
-| VPC | `vpc-01c4cb1fbd343a330` (10.0.0.0/16, AZs a/b) |
+| VPC | `vpc-010688c3bb2114fa2` (10.0.0.0/16, AZs a/b) |
 | ECR | `structra-api`, `structra-worker` |
 | Frontend bucket | `structra-frontend-190084967282` |
 | Assets bucket | `structra-assets-190084967282` |
 | CI deploy role | `structra-github-OIDC-Role` |
+| CloudFront | `E3TT6LH3AUCL9F` |
+| API Gateway | `ox6gigpd59` |
+| NAT instance | `i-0c72afac0304d95df` (ap-south-1b) |
 | RDS | `structra-prod-db` (private) |
 | SQS | `structra-eval-queue` (+ `structra-eval-dlq`) |
 | Lambdas | `structra-prod-backend`, `structra-prod-worker` |

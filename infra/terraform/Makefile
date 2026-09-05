@@ -138,6 +138,7 @@ deploy-worker: ecr-login ## Build+push worker image and update the Lambda
 	  aws lambda update-function-code --function-name $(WORKER_FN) --image-uri $(ECR_WORKER):$(TAG) --profile $(PROFILE) --region $(REGION) >/dev/null; \
 	else echo "note: $(WORKER_FN) does not exist yet; apply-compute will create it from this image"; fi
 deploy-frontend: ## Build frontend (needs VITE_* env) and sync to S3 + invalidate CloudFront
+	npm --prefix $(ROOT)/frontend ci
 	npm --prefix $(ROOT)/frontend run build
 	aws s3 sync $(ROOT)/frontend/dist s3://$(FE_BUCKET) --delete --profile $(PROFILE) --region $(REGION)
 	@if [ -n "$(CF_DIST)" ]; then aws cloudfront create-invalidation --distribution-id $(CF_DIST) --paths "/*" --profile $(PROFILE) --region $(REGION); fi
