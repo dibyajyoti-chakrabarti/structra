@@ -31,3 +31,7 @@ Thumbs.db
 
 # Optional: Coverage (if you add testing later)
 coverage/
+# Playwright: live Cognito tokens, report output, failure traces
+e2e/.auth/
+e2e-report/
+test-results/
