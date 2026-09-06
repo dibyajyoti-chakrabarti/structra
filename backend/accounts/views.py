@@ -125,7 +125,7 @@ class PublicUserProfileView(APIView):
                 'id': str(profile_user.user_id),
                 'username': profile_user.username,
                 'full_name': profile_user.full_name,
-                'avatar': user.avatar_url,
+                'avatar': profile_user.avatar_url,
                 'org_name': profile_user.org_name,
                 'org_loc': profile_user.org_loc,
                 'joined_at': profile_user.created_at,
