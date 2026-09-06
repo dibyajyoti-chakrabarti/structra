@@ -13,6 +13,9 @@ working together.
 | `api` | no | HTTP contract of the API directly, without a browser |
 | `app-firefox` | yes | Everything behind `/app` |
 
+The app project writes to the live account. Every workspace it creates is
+uniquely named and deleted in `afterEach`, including when the test body fails.
+
 ## Running
 
 ```bash
@@ -35,6 +38,26 @@ account, so treat it like a credential and re-run `e2e:login` when it expires.
 
 ```bash
 E2E_BASE_URL=https://staging.example.com E2E_API_URL=https://.../api/ npm run e2e
+```
+
+## The evaluation spec is opt-in
+
+`e2e/app/evaluation.spec.js` drives the whole pipeline: backend to SQS, worker
+Lambda, Bedrock, the result callback, RDS and back to the report. It is skipped
+by default because each run spends one of the workspace's three daily insight
+tokens and bills real inference.
+
+```bash
+E2E_RUN_EVALUATION=1 npm run e2e:app
+```
+
+## When creation starts failing
+
+The CORE plan allows exactly one workspace, so a single workspace left behind
+by an interrupted run blocks every later run at `createWorkspace`. Clear it:
+
+```bash
+node e2e/cleanup.mjs
 ```
 
 ## Infrastructure this depends on
