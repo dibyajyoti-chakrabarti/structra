@@ -228,7 +228,9 @@ Evaluations call **Bedrock** for suggestions. We use the open-source **Llama 3.3
 (`us.meta.llama3-3-70b-instruct-v1:0`) in **us-east-1**, via the non-streaming `converse` API.
 Anthropic Claude models in ap-south-1 needed cross-region inference profiles that hit a
 marketplace/payment wall on this account; the open-source model works on-demand without that,
-and is cheaper. The worker reaches Bedrock through the NAT instance.
+and is cheaper. The worker reaches Bedrock directly over the internet, not through the
+NAT instance: it owns no database, so it is not VPC-attached and has normal outbound
+access (`VpcConfig` is null on `structra-prod-worker`). Only the backend uses the NAT.
 
 ---
 
