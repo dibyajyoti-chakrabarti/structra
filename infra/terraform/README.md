@@ -204,6 +204,27 @@ Tier plan, which rejects any type that is not free-tier eligible with
 `InvalidParameterCombination`. Check with
 `aws ec2 describe-instance-types --filters Name=free-tier-eligible,Values=true`.
 
+The same shortage also blocks **starting an instance that already exists**, which
+is what `make prod-up` and the Infra Start workflow do. There `StartInstances`
+fails outright with `InsufficientInstanceCapacity` rather than hanging, and the
+workflow stops after RDS is already running. A stopped instance can only start
+back into its own AZ, so switching AZ means replacing it and rewriting the
+private default routes that point at its ENI.
+
+Resizing is the cheaper fix: `modify-instance-attribute --instance-type` on the
+stopped instance keeps the ENI, so the routes stay valid and no apply is needed
+to recover. `nat_instance_type` therefore defaults to `t4g.small`, which had
+capacity when `t4g.micro` did not. Before changing either the type or the AZ,
+check what can actually launch:
+
+```bash
+aws ec2 run-instances --dry-run --instance-type <type> \
+  --image-id <al2023-arm64> --subnet-id <candidate subnet>
+```
+
+`DryRunOperation` means there is capacity; `InsufficientInstanceCapacity` means
+there is not.
+
 ### Cognito cannot reach the GitHub shim
 
 Creating the GitHub identity provider straight after the shim's API Gateway

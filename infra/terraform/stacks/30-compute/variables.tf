@@ -35,9 +35,9 @@ variable "nat_subnet_index" {
 }
 
 variable "nat_instance_type" {
-  description = "NAT instance type. t4g.micro (arm64) is Free Tier eligible on this account; t4g.nano is not."
+  description = "NAT instance type. t4g.small and t4g.micro (arm64) are both Free Tier eligible on this account; t4g.nano is not."
   type        = string
-  default     = "t4g.micro"
+  default     = "t4g.small"
 }
 
 # --- Lambda sizing ---
