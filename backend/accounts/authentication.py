@@ -64,6 +64,10 @@ class CognitoJWTAuthentication(BaseAuthentication):
         user = enforce_plan_expiry(user)
         return (user, None)
 
+    def authenticate_header(self, request):
+        # Without this DRF omits WWW-Authenticate and downgrades 401 to 403.
+        return 'Bearer'
+
     def _provision_user(self, cognito_sub, payload):
         email = payload.get('email') or ''
         if not email or '@' not in email:
