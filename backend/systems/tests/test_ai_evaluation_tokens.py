@@ -70,7 +70,7 @@ class AIEvaluationTokenFlowTests(APITestCase):
         self.assertEqual(response.data.get('error'), 'rate_limit')
         self.assertIn('retryAfterSeconds', response.data)
 
-    @patch('canvases.evaluation_views._dispatch_evaluation_job', return_value=True)
+    @patch('systems.evaluation_views._dispatch_evaluation_job', return_value=True)
     def test_evaluation_confirm_consumes_one_token_immediately(self, _dispatch_mock):
         ensure_workspace_insight_token_state(self.workspace, now=timezone.now(), force_reset=True)
         self.workspace.insight_tokens_remaining = 2
@@ -98,7 +98,7 @@ class AIEvaluationTokenFlowTests(APITestCase):
         self.assertEqual(response.data.get('error'), 'NO_TOKENS')
         self.assertEqual(EvaluationRun.objects.count(), 0)
 
-    @patch('canvases.evaluation_views._dispatch_evaluation_job', return_value=False)
+    @patch('systems.evaluation_views._dispatch_evaluation_job', return_value=False)
     def test_queue_failure_refunds_token(self, _dispatch_mock):
         ensure_workspace_insight_token_state(self.workspace, now=timezone.now(), force_reset=True)
         self.workspace.insight_tokens_remaining = 2

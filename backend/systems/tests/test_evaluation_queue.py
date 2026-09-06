@@ -54,5 +54,5 @@ class LocalQueueApiTests(APITestCase):
         self.assertEqual(response.status_code, 202)
         run = EvaluationRun.objects.latest('created_at')
         job = EvaluationQueueJob.objects.get(run=run)
-        self.assertEqual(run.status, EvaluationRun.Status.PENDING)
+        self.assertEqual(run.status, EvaluationRun.Status.RUNNING)
         self.assertEqual(job.status, EvaluationQueueJob.Status.QUEUED)
