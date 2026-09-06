@@ -122,6 +122,18 @@ resource "aws_iam_role_policy" "github_deploy" {
         Resource = "${aws_s3_bucket.frontend.arn}/*"
       },
       {
+        Sid      = "DocsSync"
+        Effect   = "Allow"
+        Action   = ["s3:ListBucket", "s3:GetBucketLocation"]
+        Resource = aws_s3_bucket.docs.arn
+      },
+      {
+        Sid      = "DocsObjects"
+        Effect   = "Allow"
+        Action   = ["s3:PutObject", "s3:GetObject", "s3:DeleteObject"]
+        Resource = "${aws_s3_bucket.docs.arn}/*"
+      },
+      {
         Sid      = "CloudFrontInvalidate"
         Effect   = "Allow"
         Action   = ["cloudfront:CreateInvalidation", "cloudfront:GetInvalidation", "cloudfront:ListDistributions"]

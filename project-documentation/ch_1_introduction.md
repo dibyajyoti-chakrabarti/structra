@@ -5,7 +5,7 @@
 Structra is a collaborative software architecture design platform with AI-assisted evaluation. Teams draw system architectures on a canvas, run automated rule-based evaluations against architectural principles, and receive AI-generated improvement suggestions — all in a shared workspace.
 
 **Live at:** [structra.cloud](https://structra.cloud)
-**Docs at:** [docs.structra.cloud](https://docs.structra.cloud)
+**Docs at:** [structra.cloud/documentation](https://structra.cloud/documentation/)
 
 ---
 

@@ -74,6 +74,17 @@ output "frontend_bucket_regional_domain_name" {
   value = aws_s3_bucket.frontend.bucket_regional_domain_name
 }
 
+# --- docs bucket ---
+output "docs_bucket_id" {
+  value = aws_s3_bucket.docs.id
+}
+output "docs_bucket_arn" {
+  value = aws_s3_bucket.docs.arn
+}
+output "docs_bucket_regional_domain_name" {
+  value = aws_s3_bucket.docs.bucket_regional_domain_name
+}
+
 # --- assets bucket ---
 output "assets_bucket_name" {
   value = aws_s3_bucket.assets.id

@@ -2,7 +2,7 @@
 
 This is the internal technical documentation for the Structra monorepo, written as a study book rather than a flat reference. Read it front to back to build a full mental model of the system — product, architecture, every service, infrastructure, and how it all deploys. Each chapter ends with a **See also** line pointing to related chapters, so you can also jump around once you've done one full pass.
 
-**Live at:** [structra.cloud](https://structra.cloud) · **Public docs:** [docs.structra.cloud](https://docs.structra.cloud)
+**Live at:** [structra.cloud](https://structra.cloud) · **Public docs:** [structra.cloud/documentation](https://structra.cloud/documentation/)
 
 ---
 

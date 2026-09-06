@@ -44,6 +44,12 @@ variable "frontend_bucket_name" {
   default     = "structra-frontend-190084967282"
 }
 
+variable "docs_bucket_name" {
+  description = "Globally-unique name for the docs site bucket (Docusaurus build)"
+  type        = string
+  default     = "structra-docs-190084967282"
+}
+
 # SSM prefix for SecureString secrets (Cognito IdP secrets + SMTP password),
 # created out-of-band. Matches the convention used by the 30-compute stack.
 variable "ssm_prefix" {

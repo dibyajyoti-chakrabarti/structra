@@ -11,8 +11,8 @@ const config = {
     v4: true,
   },
 
-  url: 'https://docs.structra.cloud',
-  baseUrl: '/',
+  url: 'https://structra.cloud',
+  baseUrl: '/documentation/',
 
   organizationName: 'structra',
   projectName: 'structra-docs',

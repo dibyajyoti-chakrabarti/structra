@@ -18,6 +18,10 @@ output "frontend_url" {
   value = module.frontend_cdn.url
 }
 
+output "docs_url" {
+  value = "${module.frontend_cdn.canonical_url}/documentation/"
+}
+
 output "sqs_queue_url" {
   value = aws_sqs_queue.eval.url
 }

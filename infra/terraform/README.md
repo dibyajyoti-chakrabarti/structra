@@ -183,6 +183,19 @@ AWS documents contacting Support for a cross-account apex move. That is only
 needed when you genuinely cannot create the TXT record. If the zone is yours,
 step 2 is the whole answer.
 
+**Exception: a name held by Amplify.** `docs.structra.cloud` was served by an
+AWS Amplify app in the old account before the rebuild, and Amplify provisions
+its own CloudFront distribution behind the scenes. `associate-alias` refuses
+to move a name off an Amplify-owned distribution even with a valid TXT proof
+record, failing instead with `IllegalUpdate: Alias move is not allowed since
+the source account is associated with another AWS service or internal
+account`. There is no CLI workaround; the only path is an AWS Support case
+(Account & Billing, any support plan) asking them to release the CNAME. Until
+that is resolved, the docs site is served at `structra.cloud/documentation/`
+instead: an extra S3 origin and path-based behavior on the main frontend
+distribution (`extra_s3_origins` in `modules/frontend-cdn`), not a domain of
+its own. `make deploy-docs` builds `docs/` and syncs it under that prefix.
+
 ### A NAT instance that never finishes creating
 
 `RunInstances` answers a capacity shortage with `InsufficientInstanceCapacity`,
@@ -331,12 +344,14 @@ function's region, `ap-south-1`).
 | Resource | Value |
 |---|---|
 | Frontend URL | `https://structra.cloud` |
+| Docs URL | `https://structra.cloud/documentation/` |
 | Auth (Cognito hosted UI) | `https://auth.structra.cloud` |
 | Route 53 zone | `Z048163752SZ07B44U3X` (`structra.cloud`) |
 | ACM cert (us-east-1) | `structra.cloud` + `*.structra.cloud` |
 | VPC | `vpc-010688c3bb2114fa2` (10.0.0.0/16, AZs a/b) |
 | ECR | `structra-api`, `structra-worker` |
 | Frontend bucket | `structra-frontend-190084967282` |
+| Docs bucket | `structra-docs-190084967282` |
 | Assets bucket | `structra-assets-190084967282` |
 | CI deploy role | `structra-github-OIDC-Role` |
 | CloudFront | `E3TT6LH3AUCL9F` |

@@ -47,3 +47,21 @@ variable "acm_certificate_arn" {
   type        = string
   default     = null
 }
+
+variable "extra_s3_origins" {
+  description = <<-EOT
+    Additional private S3 origins served off a path prefix on the same
+    distribution (e.g. a docs site under /documentation/*), each behind its
+    own OAC-gated bucket policy. path_pattern is a CloudFront behavior
+    pattern, e.g. "documentation/*"; the matching content must be uploaded to
+    the bucket under that same prefix, e.g. s3://bucket/documentation/...
+  EOT
+  type = list(object({
+    origin_id                   = string
+    path_pattern                = string
+    bucket_id                   = string
+    bucket_arn                  = string
+    bucket_regional_domain_name = string
+  }))
+  default = []
+}

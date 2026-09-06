@@ -14,6 +14,14 @@ resource "aws_cloudfront_function" "www_redirect" {
   code    = file("${path.module}/www_redirect.js")
 }
 
+resource "aws_cloudfront_function" "static_path_index" {
+  count   = length(var.extra_s3_origins) > 0 ? 1 : 0
+  name    = "${var.name_prefix}-static-path-index"
+  runtime = "cloudfront-js-2.0"
+  publish = true
+  code    = file("${path.module}/static_path_index.js")
+}
+
 resource "aws_cloudfront_origin_access_control" "this" {
   name                              = "${var.name_prefix}-oac"
   origin_access_control_origin_type = "s3"
@@ -33,6 +41,55 @@ resource "aws_cloudfront_distribution" "this" {
     origin_id                = "s3-frontend"
     domain_name              = var.bucket_regional_domain_name
     origin_access_control_id = aws_cloudfront_origin_access_control.this.id
+  }
+
+  dynamic "origin" {
+    for_each = var.extra_s3_origins
+    content {
+      origin_id                = origin.value.origin_id
+      domain_name              = origin.value.bucket_regional_domain_name
+      origin_access_control_id = aws_cloudfront_origin_access_control.this.id
+    }
+  }
+
+  dynamic "ordered_cache_behavior" {
+    for_each = var.extra_s3_origins
+    content {
+      path_pattern           = ordered_cache_behavior.value.path_pattern
+      target_origin_id       = ordered_cache_behavior.value.origin_id
+      viewer_protocol_policy = "redirect-to-https"
+      allowed_methods        = ["GET", "HEAD", "OPTIONS"]
+      cached_methods         = ["GET", "HEAD"]
+      cache_policy_id        = data.aws_cloudfront_cache_policy.optimized.id
+      compress               = true
+
+      function_association {
+        event_type   = "viewer-request"
+        function_arn = aws_cloudfront_function.static_path_index[0].arn
+      }
+    }
+  }
+
+  # "documentation/*" doesn't match the bare "/documentation" request (no
+  # trailing slash), which would otherwise fall through to the default (SPA)
+  # behavior. This exact-match behavior catches it; the function above then
+  # rewrites it to the prefix's index.html.
+  dynamic "ordered_cache_behavior" {
+    for_each = var.extra_s3_origins
+    content {
+      path_pattern           = trimsuffix(ordered_cache_behavior.value.path_pattern, "/*")
+      target_origin_id       = ordered_cache_behavior.value.origin_id
+      viewer_protocol_policy = "redirect-to-https"
+      allowed_methods        = ["GET", "HEAD", "OPTIONS"]
+      cached_methods         = ["GET", "HEAD"]
+      cache_policy_id        = data.aws_cloudfront_cache_policy.optimized.id
+      compress               = true
+
+      function_association {
+        event_type   = "viewer-request"
+        function_arn = aws_cloudfront_function.static_path_index[0].arn
+      }
+    }
   }
 
   default_cache_behavior {
@@ -100,4 +157,31 @@ data "aws_iam_policy_document" "bucket" {
 resource "aws_s3_bucket_policy" "frontend" {
   bucket = var.bucket_id
   policy = data.aws_iam_policy_document.bucket.json
+}
+
+data "aws_iam_policy_document" "extra" {
+  for_each = { for o in var.extra_s3_origins : o.origin_id => o }
+
+  statement {
+    sid       = "AllowCloudFrontOAC"
+    actions   = ["s3:GetObject"]
+    resources = ["${each.value.bucket_arn}/*"]
+
+    principals {
+      type        = "Service"
+      identifiers = ["cloudfront.amazonaws.com"]
+    }
+
+    condition {
+      test     = "StringEquals"
+      variable = "AWS:SourceArn"
+      values   = [aws_cloudfront_distribution.this.arn]
+    }
+  }
+}
+
+resource "aws_s3_bucket_policy" "extra" {
+  for_each = { for o in var.extra_s3_origins : o.origin_id => o }
+  bucket   = each.value.bucket_id
+  policy   = data.aws_iam_policy_document.extra[each.key].json
 }

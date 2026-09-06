@@ -38,6 +38,7 @@ FE_BUCKET   = $(shell $(TF) -chdir=$(PERSIST) output -raw frontend_bucket_id 2>/
 BACKEND_FN  = $(shell $(TF) -chdir=$(COMPUTE) output -raw backend_function_name 2>/dev/null)
 WORKER_FN   = $(shell $(TF) -chdir=$(COMPUTE) output -raw worker_function_name 2>/dev/null)
 CF_DIST     = $(shell $(TF) -chdir=$(COMPUTE) output -raw cloudfront_distribution_id 2>/dev/null)
+DOCS_BUCKET = $(shell $(TF) -chdir=$(PERSIST) output -raw docs_bucket_id 2>/dev/null)
 
 .DEFAULT_GOAL := help
 
@@ -142,6 +143,12 @@ deploy-frontend: ## Build frontend (needs VITE_* env) and sync to S3 + invalidat
 	npm --prefix $(ROOT)/frontend run build
 	aws s3 sync $(ROOT)/frontend/dist s3://$(FE_BUCKET) --delete --profile $(PROFILE) --region $(REGION)
 	@if [ -n "$(CF_DIST)" ]; then aws cloudfront create-invalidation --distribution-id $(CF_DIST) --paths "/*" --profile $(PROFILE) --region $(REGION); fi
+
+deploy-docs: ## Build the Docusaurus site and sync to S3 (served at structra.cloud/documentation) + invalidate CloudFront
+	npm --prefix $(ROOT)/docs ci
+	npm --prefix $(ROOT)/docs run build
+	aws s3 sync $(ROOT)/docs/build s3://$(DOCS_BUCKET)/documentation --delete --profile $(PROFILE) --region $(REGION)
+	@if [ -n "$(CF_DIST)" ]; then aws cloudfront create-invalidation --distribution-id $(CF_DIST) --paths "/documentation/*" --profile $(PROFILE) --region $(REGION); fi
 
 # ---------------------------------------------------------------- migrations / diagnostics
 # Migrations MUST run via the backend image — the worker's INSTALLED_APPS is a
