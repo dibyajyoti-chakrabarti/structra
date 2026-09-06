@@ -1,93 +1,73 @@
-%%{init: {"theme": "base", "themeVariables": {"primaryColor": "#1d4ed8", "primaryTextColor": "#ffffff", "primaryBorderColor": "#1e40af", "lineColor": "#64748b", "secondaryColor": "#f1f5f9", "tertiaryColor": "#e2e8f0"}} }%%
-flowchart TD
-    %% ── External actors ──────────────────────────────────────────────
-    Browser(["🌐 Browser\n(React SPA)"])
-    Internet(["🌍 Internet"])
+%%{init: {"theme": "base", "themeVariables": {"fontFamily": "Segoe UI, Helvetica, Arial, sans-serif", "lineColor": "#4a4a4a", "primaryColor": "#ffffff", "primaryTextColor": "#1a1a1a", "primaryBorderColor": "#4a4a4a", "clusterBkg": "#ffffff", "clusterBorder": "#4a4a4a"}} }%%
+flowchart TB
+    Browser["Browser"]
+    APIGW["API Gateway"]
 
-    %% ── AWS managed services (outside VPC) ───────────────────────────
-    subgraph AWS_Global["AWS (Global / ap-south-1)"]
-        Cognito["🔐 AWS Cognito\nUser Pool\n5 trigger Lambdas"]
-        CF["☁️ CloudFront\nCDN + OAC\nglobal edge"]
-        S3["🪣 S3\nprivate bucket\n(frontend SPA)"]
-        APIGW["🔀 API Gateway\nHTTP API v2\nAWS_PROXY"]
-        SQS["📬 SQS\nstructra-eval-queue\n+ DLQ"]
-        SSM["🔑 SSM Parameter Store\nSecureStrings\n(secrets)"]
-        ECR["📦 ECR\nDocker images\n(backend + worker)"]
-
-        %% ── Worker Lambda (no VPC) ───────────────────────────────────
-        subgraph WorkerLambda["Worker Lambda (no VPC)"]
-            WLambda["⚙️ Worker Lambda\nPython 3.12 + Node.js\nStateless — owns no DB"]
-            RuleEngine["📐 Node.js\nRule Engine\n(subprocess)"]
-            WLambda -->|"run rules"| RuleEngine
-        end
-
-        Bedrock["🤖 AWS Bedrock\nLlama 3.3 70B\nus-east-1"]
+    subgraph Edge["Edge and Identity (AWS Managed)"]
+        direction LR
+        CF["CloudFront and OAC"]
+        S3[("S3 Private SPA Bundle")]
+        Cognito["Cognito User"]
+        GitHubOIDC["GitHub OIDC"]
+        CF --> S3
+        Cognito --> GitHubOIDC
     end
 
-    %% ── VPC ──────────────────────────────────────────────────────────
-    subgraph VPC["VPC 10.0.0.0/16 — ap-south-1 (2 AZs)"]
+    subgraph Async["Asynchronous Evaluation"]
+        direction LR
+        SQS["SQS Eval queue"]
+        Worker["Worker Lambda"]
+        DLQ["DLQ"]
+        SQS --> Worker
+        SQS -.-> DLQ
+    end
 
-        subgraph PublicSubnets["Public Subnets (has Internet Gateway route)"]
-            NAT["🖥️ NAT Instance\nt4g.micro EC2\niptables masquerade"]
+    Bedrock["<b>Bedrock</b><br/>Llama 3.3 70B · us-east-1"]
+
+    subgraph VPC["VPC 10.0.0.0/16 · ap-south-1a + 1b"]
+        subgraph AppSubnet["Private App Subnet"]
+            Backend["<b>Backend Lambda</b><br/>Django + Mangum"]
         end
-
-        subgraph PrivateAppSubnets["Private App Subnets (no direct internet)"]
-            BLambda["🐍 Backend Lambda\nDjango 6 + Mangum\nContainer image"]
+        subgraph DBSubnet["Private DB Subnet"]
+            RDS[("RDS PostgreSQL:5432")]
         end
-
-        subgraph PrivateDBSubnets["Private DB Subnets (fully isolated)"]
-            RDS[("🐘 RDS PostgreSQL 16\nprivately_accessible=false")]
+        subgraph PublicSubnet["Public Subnet"]
+            NAT["<b>NAT instance</b><br/>t4g.micro · 1b"]
         end
     end
 
-    %% ── External services ────────────────────────────────────────────
-    Zoho["📧 Zoho SMTP\nsmtp.zoho.in:587"]
-    Razorpay["💳 Razorpay\nPayments & Webhooks"]
-    GitHub_OAuth["🐙 GitHub OIDC Shim\n(API GW + Lambdas)\ngithub-cognito-openid-wrapper"]
+    SSM["<b>SSM Parameter Store</b>"]
+    External["Zoho SMTP, Razorpay, Cognito JWKS"]
 
-    %% ── Flow: frontend load ──────────────────────────────────────────
-    Browser -->|"HTTPS request"| CF
-    CF -->|"OAC (private read)"| S3
+    %% ── Browser entry points ─────────────────────────────────────────
+    Browser --> APIGW
+    Browser --> Edge
 
-    %% ── Flow: auth ───────────────────────────────────────────────────
-    Browser <-->|"sign in / get JWT"| Cognito
-    Cognito -->|"OTP email"| Zoho
-    Cognito <-->|"GitHub OIDC"| GitHub_OAuth
+    %% ── Request path into the VPC ────────────────────────────────────
+    APIGW --> Backend
+    Backend --> RDS
+    Backend --> NAT
+    NAT --> External
 
-    %% ── Flow: API calls ──────────────────────────────────────────────
-    Browser -->|"Bearer JWT"| APIGW
-    APIGW -->|"Lambda invoke\n(AWS_PROXY)"| BLambda
+    %% ── Evaluation path ──────────────────────────────────────────────
+    Worker --> Bedrock
+    Worker --> APIGW
 
-    %% ── Backend internal connections ─────────────────────────────────
-    BLambda -->|"read/write"| RDS
-    BLambda -->|"validate JWKS\nRazorpay\nZoho SMTP"| NAT
-    NAT -->|"public egress"| Internet
-    BLambda -->|"publish job\n{runId, canvasState, tier}"| SQS
+    %% ── Configuration ────────────────────────────────────────────────
+    SSM -.-> Backend
 
-    %% ── Worker trigger ───────────────────────────────────────────────
-    SQS -->|"event source mapping\nbatch_size=1"| WLambda
-    WLambda -->|"AI suggestions\n(converse API)"| Bedrock
-    WLambda -->|"POST result\nX-Internal-Token"| APIGW
+    %% ── Legend colouring ─────────────────────────────────────────────
+    %% green  = inside the VPC, no direct internet
+    %% orange = internet-facing or egress path
+    %% white  = AWS-managed, outside the VPC
+    classDef inVpc fill:#ADF0C7,stroke:#4a4a4a,color:#0B2F2B
+    classDef egress fill:#F8D3AF,stroke:#4a4a4a,color:#5C2E00
+    classDef managed fill:#ffffff,stroke:#4a4a4a,color:#1a1a1a
 
-    %% ── Deploy path ──────────────────────────────────────────────────
-    ECR -.->|"image pull"| BLambda
-    ECR -.->|"image pull"| WLambda
-    SSM -.->|"secrets injected\nat deploy time"| BLambda
-    SSM -.->|"secrets injected\nat deploy time"| WLambda
+    class Backend,RDS inVpc
+    class APIGW,CF,NAT egress
+    class Browser,S3,Cognito,GitHubOIDC,SQS,Worker,DLQ,Bedrock,SSM,External managed
 
-    %% ── Payments ─────────────────────────────────────────────────────
-    Browser <-->|"checkout"| Razorpay
-    Razorpay -->|"webhook"| APIGW
-
-    %% ── Styles ───────────────────────────────────────────────────────
-    classDef aws fill:#FF9900,color:#000,stroke:#e88a00
-    classDef lambda fill:#1d4ed8,color:#fff,stroke:#1e40af
-    classDef storage fill:#3b82f6,color:#fff,stroke:#2563eb
-    classDef external fill:#64748b,color:#fff,stroke:#475569
-    classDef vpc fill:#f0fdf4,stroke:#16a34a
-    classDef subnet fill:#fefce8,stroke:#ca8a04
-
-    class Cognito,CF,APIGW,SQS,SSM,ECR,Bedrock aws
-    class BLambda,WLambda,RuleEngine lambda
-    class S3,RDS storage
-    class Zoho,Razorpay,GitHub_OAuth,Internet external
+    style AppSubnet fill:#E7E7E7,stroke:#4a4a4a
+    style DBSubnet fill:#E7E7E7,stroke:#4a4a4a
+    style PublicSubnet fill:#E7E7E7,stroke:#4a4a4a
