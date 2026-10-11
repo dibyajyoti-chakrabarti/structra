@@ -1,5 +1,11 @@
 # Structra — The Book
 
+> **Legacy notice.** This documentation describes the AWS era of Structra
+> (Cognito, Lambda, SQS, Bedrock, RDS, Terraform). The AWS infrastructure was
+> torn down on 2026-09-11 and the project is being revived on free-tier
+> services. The AWS design is kept here as a record of how the project ran on
+> AWS. The last AWS commit is tagged `aws-legacy`.
+
 This is the internal technical documentation for the Structra monorepo, written as a study book rather than a flat reference. Read it front to back to build a full mental model of the system — product, architecture, every service, infrastructure, and how it all deploys. Each chapter ends with a **See also** line pointing to related chapters, so you can also jump around once you've done one full pass.
 
 **Live at:** [structra.cloud](https://structra.cloud) · **Public docs:** [structra.cloud/documentation](https://structra.cloud/documentation/)

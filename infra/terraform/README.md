@@ -1,5 +1,10 @@
 # Structra Infrastructure (Terraform)
 
+> **Legacy notice.** This Terraform describes the AWS deployment of Structra,
+> which was destroyed on 2026-09-11. It is kept unchanged as a record of the
+> design and is not used by the current stack. New infrastructure code lives in
+> `infra/free/`. The last AWS commit is tagged `aws-legacy`.
+
 Production-grade IaC for the Structra serverless architecture on AWS.
 For the *why* behind every component (NAT instance, Lambdas, SSM, layering),
 read **[ARCHITECTURE.md](./ARCHITECTURE.md)**.
