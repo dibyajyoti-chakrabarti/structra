@@ -1,0 +1,7 @@
+# State holds every secret passed in as a variable, so it never goes into git.
+.terraform/
+*.tfstate
+*.tfstate.*
+crash.log
+*.tfvars
+!terraform.tfvars.example

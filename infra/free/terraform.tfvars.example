@@ -1,0 +1,4 @@
+# Copy to terraform.tfvars (ignored by git) and fill in. Secrets can also come from TF_VAR_*.
+cloudflare_account_id = "your-cloudflare-account-id"
+django_secret_key     = "64 or more random characters"
+db_password           = "password of the structra_owner role"
