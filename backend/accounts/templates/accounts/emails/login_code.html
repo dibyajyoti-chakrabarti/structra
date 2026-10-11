@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Your Structra login code</title>
+</head>
+<body style="margin:0;padding:0;background:#f1f5f9;font-family:'Segoe UI',Arial,sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:#f1f5f9;padding:40px 0;">
+    <tr>
+      <td align="center">
+        <table width="520" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(30,64,175,0.08);">
+
+          <!-- Header -->
+          <tr>
+            <td style="background:linear-gradient(135deg,#1d4ed8 0%,#2563eb 100%);padding:28px 40px;text-align:center;">
+              <table cellpadding="0" cellspacing="0" border="0" style="margin:0 auto;">
+                <tr>
+                  {% if logo_url %}
+                  <td style="vertical-align:middle;padding-right:10px;">
+                    <img src="{{ logo_url }}"
+                         alt="" width="36" height="36"
+                         style="display:block;border:0;outline:none;text-decoration:none;" />
+                  </td>
+                  {% endif %}
+                  <td style="vertical-align:middle;">
+                    <span style="font-size:22px;font-weight:800;color:#ffffff;letter-spacing:-0.5px;font-family:'Segoe UI',Arial,sans-serif;">Structra</span>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          <!-- Body -->
+          <tr>
+            <td style="padding:36px 40px 28px;">
+              <h1 style="margin:0 0 8px;font-size:22px;font-weight:700;color:#0f172a;letter-spacing:-0.3px;">Your login code</h1>
+              <p style="margin:0 0 28px;font-size:15px;color:#64748b;line-height:1.6;">
+                Use the code below to sign in to your Structra account. It expires in <strong style="color:#0f172a;">{{ expires_minutes }}&nbsp;minutes</strong>.
+              </p>
+
+              <!-- OTP box -->
+              <div style="background:#f0f7ff;border:2px solid #bfdbfe;border-radius:12px;padding:28px 0;text-align:center;margin-bottom:28px;">
+                <span style="font-size:40px;font-weight:800;letter-spacing:12px;color:#1d4ed8;font-family:'Courier New',monospace;">{{ code }}</span>
+              </div>
+
+              <p style="margin:0;font-size:13px;color:#94a3b8;line-height:1.6;">
+                If you didn't request this code, you can safely ignore this email.
+              </p>
+            </td>
+          </tr>
+
+          <!-- Footer -->
+          <tr>
+            <td style="background:#f8fafc;border-top:1px solid #e2e8f0;padding:18px 40px;text-align:center;">
+              <p style="margin:0;font-size:12px;color:#94a3b8;">
+                &copy; {% now "Y" %} Structra. <a href="{{ site_url }}" style="color:#3b82f6;text-decoration:none;">{{ site_url }}</a>
+              </p>
+            </td>
+          </tr>
+
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>

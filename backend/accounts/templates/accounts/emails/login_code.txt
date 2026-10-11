@@ -1,0 +1,6 @@
+Your Structra login code: {{ code }}
+
+This code expires in {{ expires_minutes }} minutes.
+If you did not request this, ignore this email.
+
+{{ site_url }}
