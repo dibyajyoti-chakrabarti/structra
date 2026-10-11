@@ -3,6 +3,7 @@ import { ArrowLeft, Home } from "lucide-react";
 import Navbar from "../../components/Navbar";
 import Footer from "../../components/Footer";
 import NotFoundArt from "../../assets/not-found.svg";
+import { SUPPORT_EMAIL } from "../../config";
 
 export default function NotFound() {
   const navigate = useNavigate();
@@ -61,7 +62,7 @@ export default function NotFound() {
 
               <p className="mt-6 text-xs text-slate-400">
                 If you believe this is an error, contact{" "}
-                <span className="text-slate-500">support@structra.cloud</span>
+                <span className="text-slate-500">{SUPPORT_EMAIL}</span>
               </p>
             </div>
 

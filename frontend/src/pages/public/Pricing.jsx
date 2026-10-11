@@ -8,6 +8,7 @@ import CheckoutSummaryModal from "../../components/payments/CheckoutSummaryModal
 import PaymentSuccessOverlay from "../../components/payments/PaymentSuccessOverlay";
 import { useAuth } from "../../contexts/AuthContext";
 import { formatDateLabel } from "../../utils/dateUtils";
+import { SUPPORT_EMAIL } from "../../config";
 
 const plans = [
   {
@@ -154,7 +155,7 @@ export default function Pricing() {
     const normalizedPlan = (planName || "CORE").toUpperCase();
 
     if (normalizedPlan === "ENTERPRISE") {
-      window.location.href = "mailto:support@structra.cloud";
+      window.location.href = `mailto:${SUPPORT_EMAIL}`;
       return;
     }
 
@@ -373,11 +374,9 @@ export default function Pricing() {
               <p className="mt-2 text-sm leading-relaxed text-slate-600">
                 Reach us anytime at{" "}
                 <a
-                  href="mailto:support@structra.cloud"
+                  href={`mailto:${SUPPORT_EMAIL}`}
                   className="font-semibold text-blue-700 hover:text-blue-800"
-                >
-                  support@structra.cloud
-                </a>
+                >{SUPPORT_EMAIL}</a>
                 .
               </p>
             </div>
@@ -397,7 +396,7 @@ export default function Pricing() {
             </p>
             <div className="mt-6 flex flex-col gap-3 sm:flex-row">
               <button
-                onClick={() => (window.location.href = "mailto:support@structra.cloud")}
+                onClick={() => (window.location.href = `mailto:${SUPPORT_EMAIL}`)}
                 className="rounded-xl bg-white px-6 py-3 text-sm font-black text-blue-700 hover:bg-blue-50"
               >
                 Talk to Sales

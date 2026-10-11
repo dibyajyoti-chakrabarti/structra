@@ -1,6 +1,7 @@
 import { Link } from "react-router-dom";
 import logo from "../assets/logo.png";
 import { Twitter, Github, Linkedin, Mail } from "lucide-react";
+import { SUPPORT_EMAIL } from "../config";
 
 export default function Footer() {
   const currentYear = new Date().getFullYear();
@@ -15,7 +16,7 @@ export default function Footer() {
           <div className="space-y-4 col-span-1 md:col-span-1">
             <Link to="/" className="flex items-center gap-2">
               <img src={logo} alt="Structra" className="h-6 w-auto" />
-              <span className="text-lg font-bold text-slate-900 tracking-tight">structra.cloud</span>
+              <span className="text-lg font-bold text-slate-900 tracking-tight">Structra</span>
             </Link>
             <p className="text-sm leading-relaxed max-w-xs">
               Enterprise-grade AI platform for system modeling, evaluation, and decision intelligence.
@@ -43,7 +44,7 @@ export default function Footer() {
               <li><Link to="/privacy" className="hover:text-blue-600 transition-colors">Privacy</Link></li>
               <li><Link to="/terms" className="hover:text-blue-600 transition-colors">Terms</Link></li>
               <li>
-                <a href="mailto:support@structra.cloud" className="hover:text-blue-600 transition-colors">
+                <a href={`mailto:${SUPPORT_EMAIL}`} className="hover:text-blue-600 transition-colors">
                   Contact Support
                 </a>
               </li>
@@ -69,12 +70,10 @@ export default function Footer() {
           <p>© {currentYear} Structra Inc. All rights reserved.</p>
           <div className="flex items-center gap-6">
             <a
-              href="mailto:support@structra.cloud"
+              href={`mailto:${SUPPORT_EMAIL}`}
               className="inline-flex items-center gap-2 text-slate-500 hover:text-blue-600"
             >
-              <Mail size={14} />
-              support@structra.cloud
-            </a>
+              <Mail size={14} />{SUPPORT_EMAIL}</a>
           </div>
         </div>
 

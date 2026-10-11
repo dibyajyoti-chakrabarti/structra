@@ -6,6 +6,7 @@ import api, { clearApiCache } from '../api';
 import logo from '../assets/logo.png';
 import { useTheme } from '../contexts/ThemeContext.jsx';
 import { useAuth } from '../contexts/AuthContext.jsx';
+import { DOCS_URL } from '../config';
 
 export default function AuthenticatedNavbar() {
   const SEARCH_DROPDOWN_LIMIT = 8;
@@ -574,7 +575,7 @@ export default function AuthenticatedNavbar() {
 
           {/* Desktop Right */}
           <div className="nav-right">
-            <button className="nav-link-btn" onClick={() => window.open('https://structra.cloud/documentation/', '_blank', 'noopener,noreferrer')}>Docs</button>
+            <button className="nav-link-btn" onClick={() => window.open(DOCS_URL, '_blank', 'noopener,noreferrer')}>Docs</button>
             <button className="nav-upgrade-btn" onClick={() => navigate('/pricing')}>
               <Zap size={13} style={{ fill: 'currentColor' }} />
               Upgrade
@@ -653,7 +654,7 @@ export default function AuthenticatedNavbar() {
                 {theme === 'dark' ? <Sun size={16} /> : <Moon size={16} />} Theme
               </button>
               <div className="nav-mobile-sep" />
-              <button className="nav-mobile-item" onClick={() => window.open('https://structra.cloud/documentation/', '_blank', 'noopener,noreferrer')}>
+              <button className="nav-mobile-item" onClick={() => window.open(DOCS_URL, '_blank', 'noopener,noreferrer')}>
                 <span>📄</span> Docs
               </button>
               <button className="nav-mobile-item" onClick={() => navigate('/pricing')}>

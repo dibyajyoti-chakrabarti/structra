@@ -25,6 +25,7 @@ import FeatureAI       from "../../assets/feature-ai.svg";
 import FeatureCollab   from "../../assets/feature-collaboration.svg";
 import FeatureAudit    from "../../assets/feature-audit.svg";
 import CtaIllust       from "../../assets/cta-illustration.svg";
+import { APP_HOST } from "../../config";
 // ─────────────────────────────────────────────────────────────────────────────
 
 
@@ -295,7 +296,7 @@ export default function Lander() {
                     padding:"3px 14px",fontSize:11,color:"#94a3b8",
                     fontFamily:"DM Mono,monospace",flex:1,
                   }}>
-                    structra.cloud<span style={{color:"#2563eb"}}>/app/ws</span>
+                    {APP_HOST}<span style={{color:"#2563eb"}}>/app/ws</span>
                   </div>
                   <span className="hero-eval" style={{
                     background:"#eff6ff",border:"1px solid #bfdbfe",

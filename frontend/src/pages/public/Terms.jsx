@@ -1,5 +1,6 @@
 import Navbar from "../../components/Navbar";
 import Footer from "../../components/Footer";
+import { SUPPORT_EMAIL } from "../../config";
 
 const sections = [
   {
@@ -121,11 +122,9 @@ export default function Terms() {
               <p className="mt-2 text-sm leading-relaxed text-slate-600 sm:text-base">
                 Contact our team at{" "}
                 <a
-                  href="mailto:support@structra.cloud"
+                  href={`mailto:${SUPPORT_EMAIL}`}
                   className="font-semibold text-blue-700 hover:text-blue-800"
-                >
-                  support@structra.cloud
-                </a>{" "}
+                >{SUPPORT_EMAIL}</a>{" "}
                 for legal, compliance, or contract clarifications.
               </p>
             </article>
