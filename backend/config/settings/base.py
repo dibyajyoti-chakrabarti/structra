@@ -8,12 +8,15 @@ BASE_DIR = Path(__file__).resolve().parent.parent.parent
 PROJECT_DIR = BASE_DIR.parent
 
 # Load environment files.
+# DJANGO_SKIP_ENV_FILES keeps the settings tests hermetic: without it a developer's own
+# .env.production would leak into cases that assert what happens when a value is absent.
 django_env = os.getenv('DJANGO_ENV', 'local')
-if django_env == 'production':
-    load_dotenv(BASE_DIR / '.env.production', override=False)
-else:
-    load_dotenv(BASE_DIR / '.env.local', override=False)
-load_dotenv(PROJECT_DIR / '.env', override=False)  # fallback, keep as is for backward compatibility
+if not os.getenv('DJANGO_SKIP_ENV_FILES'):
+    if django_env == 'production':
+        load_dotenv(BASE_DIR / '.env.production', override=False)
+    else:
+        load_dotenv(BASE_DIR / '.env.local', override=False)
+    load_dotenv(PROJECT_DIR / '.env', override=False)  # fallback, keep as is for backward compatibility
 
 # SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = os.getenv('DJANGO_SECRET_KEY', 'django-insecure-change-me')
@@ -165,16 +168,29 @@ USE_TZ = True
 STATIC_URL = 'static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'
 
-# Transactional email (login codes and workspace invitations), Gmail SMTP by default.
-# Gmail needs 2 step verification on the account and an app password in EMAIL_HOST_PASSWORD.
-EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+# Transactional email (login codes and workspace invitations).
+# Render's free tier blocks outbound SMTP, so production sends through the Gmail API over
+# HTTPS (core.mail) when its three credentials are set. Otherwise it falls back to SMTP,
+# which works locally and on any host that allows it. EMAIL_BACKEND overrides both.
+GMAIL_CLIENT_ID = os.getenv('GMAIL_CLIENT_ID', '')
+GMAIL_CLIENT_SECRET = os.getenv('GMAIL_CLIENT_SECRET', '')
+GMAIL_REFRESH_TOKEN = os.getenv('GMAIL_REFRESH_TOKEN', '')
+# The address the Gmail API sends as. It must be the account that gave the consent.
+GMAIL_SENDER = os.getenv('GMAIL_SENDER', '')
+if os.getenv('EMAIL_BACKEND'):
+    EMAIL_BACKEND = os.environ['EMAIL_BACKEND']
+elif GMAIL_CLIENT_ID and GMAIL_CLIENT_SECRET and GMAIL_REFRESH_TOKEN:
+    EMAIL_BACKEND = 'core.mail.GmailAPIEmailBackend'
+else:
+    EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+# SMTP settings. Gmail needs 2 step verification and an app password in EMAIL_HOST_PASSWORD.
 EMAIL_HOST = os.getenv('EMAIL_HOST', 'smtp.gmail.com')
 EMAIL_PORT = int(os.getenv('EMAIL_PORT', 587))
 EMAIL_USE_TLS = os.getenv('EMAIL_USE_TLS', 'True').lower() == 'true'
 EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER', '')
 EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD', '')
-DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL', '') or EMAIL_HOST_USER
-# A hung SMTP server must not hold a request or the worker for minutes.
+DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL', '') or GMAIL_SENDER or EMAIL_HOST_USER
+# A hung mail server must not hold a request or the worker for minutes.
 EMAIL_TIMEOUT = int(os.getenv('EMAIL_TIMEOUT', '10'))
 
 # Invitation links point at the frontend's invite page.

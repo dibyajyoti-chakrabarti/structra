@@ -10,6 +10,7 @@ BACKEND = Path(__file__).resolve().parents[2]
 
 VALID_ENV = {
     'DJANGO_ENV': 'production',
+    'DJANGO_SKIP_ENV_FILES': '1',
     'DJANGO_SECRET_KEY': 'x' * 60,
     'DJANGO_ALLOWED_HOSTS': 'api.example.test',
     'CORS_ALLOWED_ORIGINS': 'https://app.example.test',
@@ -24,7 +25,7 @@ print(json.dumps({
     'hosts': s.ALLOWED_HOSTS, 'cors': s.CORS_ALLOWED_ORIGINS, 'csrf': s.CSRF_TRUSTED_ORIGINS,
     'db': s.DATABASES['default']['OPTIONS'], 'mw': s.MIDDLEWARE, 'storages': s.STORAGES,
     'email_host': s.EMAIL_HOST, 'email_port': s.EMAIL_PORT, 'email_tls': s.EMAIL_USE_TLS,
-    'email_user': s.EMAIL_HOST_USER, 'from': s.DEFAULT_FROM_EMAIL, 'invite': s.FRONTEND_INVITE_BASE_URL,
+    'email_user': s.EMAIL_HOST_USER, 'email_backend': s.EMAIL_BACKEND, 'from': s.DEFAULT_FROM_EMAIL, 'invite': s.FRONTEND_INVITE_BASE_URL,
     'proxies': s.AUTH_TRUSTED_PROXY_COUNT, 'ssl_redirect': s.SECURE_SSL_REDIRECT,
     'secure_cookies': [s.SESSION_COOKIE_SECURE, s.CSRF_COOKIE_SECURE], 'debug': s.DEBUG,
 }))
@@ -112,6 +113,25 @@ class ProductionOverrideTests(unittest.TestCase):
     def test_from_address_follows_the_smtp_user(self):
         cfg = load({'EMAIL_HOST_USER': 'structra.support@gmail.com'})
         self.assertEqual(cfg['from'], 'structra.support@gmail.com')
+
+    def test_email_defaults_to_smtp_without_gmail_api_credentials(self):
+        self.assertEqual(load()['email_backend'], 'django.core.mail.backends.smtp.EmailBackend')
+
+    def test_gmail_api_backend_is_used_when_all_three_credentials_are_set(self):
+        creds = {'GMAIL_CLIENT_ID': 'a', 'GMAIL_CLIENT_SECRET': 'b', 'GMAIL_REFRESH_TOKEN': 'c'}
+        self.assertEqual(load(creds)['email_backend'], 'core.mail.GmailAPIEmailBackend')
+
+    def test_a_partial_set_of_gmail_credentials_does_not_switch_backend(self):
+        cfg = load({'GMAIL_CLIENT_ID': 'a', 'GMAIL_CLIENT_SECRET': 'b'})
+        self.assertEqual(cfg['email_backend'], 'django.core.mail.backends.smtp.EmailBackend')
+
+    def test_email_backend_can_be_forced(self):
+        creds = {'GMAIL_CLIENT_ID': 'a', 'GMAIL_CLIENT_SECRET': 'b', 'GMAIL_REFRESH_TOKEN': 'c'}
+        cfg = load({**creds, 'EMAIL_BACKEND': 'django.core.mail.backends.console.EmailBackend'})
+        self.assertEqual(cfg['email_backend'], 'django.core.mail.backends.console.EmailBackend')
+
+    def test_from_address_uses_the_gmail_sender(self):
+        self.assertEqual(load({'GMAIL_SENDER': 'structra.support@gmail.com'})['from'], 'structra.support@gmail.com')
 
     def test_csrf_origins_are_read_when_given(self):
         cfg = load({'CSRF_TRUSTED_ORIGINS': 'https://a.test, https://b.test'})
