@@ -1,6 +1,6 @@
 import { defineConfig, devices } from '@playwright/test';
 
-const BASE_URL = process.env.E2E_BASE_URL || 'https://structra.cloud';
+const BASE_URL = process.env.E2E_BASE_URL || 'http://localhost:5173';
 const API_URL =
   process.env.E2E_API_URL ||
   'https://ox6gigpd59.execute-api.ap-south-1.amazonaws.com/api/';

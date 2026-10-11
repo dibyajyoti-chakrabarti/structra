@@ -61,10 +61,9 @@ test('login and signup cross-link to each other', async ({ page }) => {
 test('login offers every configured sign-in method', async ({ page }) => {
   await page.goto('/login');
 
-  for (const name of [/Google/i, /GitHub/i, /Password/i, /Email OTP/i]) {
+  for (const name of [/Google/i, /GitHub/i, /Send login code/i]) {
     await expect(page.getByRole('button', { name }).first()).toBeVisible();
   }
-  await expect(page.getByRole('button', { name: /^Sign In$/i })).toBeVisible();
 });
 
 test('pricing lists the plans and their calls to action', async ({ page }) => {

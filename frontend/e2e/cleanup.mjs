@@ -9,7 +9,7 @@
  */
 import { firefox } from '@playwright/test';
 
-const BASE_URL = process.env.E2E_BASE_URL || 'https://structra.cloud';
+const BASE_URL = process.env.E2E_BASE_URL || 'http://localhost:5173';
 const PREFIX = /^e2e-(smoke|dbg)-/;
 
 const browser = await firefox.launch();

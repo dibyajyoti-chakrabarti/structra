@@ -1,9 +1,8 @@
 # End-to-end tests
 
-Playwright specs that drive the **deployed** app at `structra.cloud`, not a
-local dev server. They are a smoke suite for a live environment: they check that
-the SPA, API Gateway, the backend Lambda, RDS and the NAT egress path are all
-working together.
+Playwright specs that drive a **deployed** app. Set `E2E_BASE_URL`; it defaults to
+`http://localhost:5173`. They are a smoke suite for a live environment: they check
+that the SPA, the API and the database all work together.
 
 ## Projects
 
@@ -27,8 +26,7 @@ npm run e2e:report      # open the last HTML report
 ```
 
 `e2e:login` opens a real browser and waits for you to reach `/app`, then writes
-the Cognito tokens to `e2e/.auth/user.json`. Sign in with **email/password or
-email OTP**: Google refuses OAuth in a browser it can detect as
+the session tokens to `e2e/.auth/user.json`. Sign in with the **email code**: Google refuses OAuth in a browser it can detect as
 automation-controlled, so that button cannot complete the flow here.
 
 `e2e/.auth/` is gitignored. It holds live access and refresh tokens for a real
@@ -62,7 +60,7 @@ node e2e/cleanup.mjs
 
 ## Infrastructure this depends on
 
-Authenticated specs fail wholesale when the NAT instance is down, because the
-backend verifies every JWT against Cognito's JWKS endpoint and reaches it
-through NAT. A run where the public and API projects pass but every `app`
-spec fails on a 401 is the signature of NAT being stopped, not of an app bug.
+Authenticated specs need the backend awake. On the free tier it sleeps when idle,
+so the first request can take about a minute. A run where the public project
+passes but every `app` spec fails on a timeout is the signature of a sleeping
+backend, not of an app bug. Open the site once and wait for it before running.

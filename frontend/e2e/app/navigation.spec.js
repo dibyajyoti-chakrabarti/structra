@@ -2,7 +2,7 @@ import { test, expect } from '@playwright/test';
 
 // Each signed-in route, with the heading it owns. Several of these fan out to
 // separate API calls on mount, so a clean load also proves the backend reached
-// Cognito JWKS and RDS.
+// the database.
 const APP_PAGES = [
   { path: '/app', heading: 'My Workspaces' },
   { path: '/app/discover', heading: 'Discover Public Workspaces' },
@@ -50,7 +50,7 @@ test('the profile page shows the signed-in account and its billing state', async
 });
 
 test('the session survives a full page reload', async ({ page }) => {
-  // Amplify rehydrates from localStorage; if it did not, PrivateRoute would
+  // The session rehydrates from localStorage; if it did not, PrivateRoute would
   // bounce to /login on the second load.
   await page.goto('/app');
   await expect(page.getByRole('heading', { name: 'My Workspaces' })).toBeVisible();

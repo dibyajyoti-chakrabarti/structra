@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test';
 
 // Nothing under /app may render for a signed-out visitor. PrivateRoute waits
-// for the Amplify session check before deciding, so the assertion is on where
+// for the session check before deciding, so the assertion is on where
 // the browser ends up, not on what paints first.
 const PROTECTED_ROUTES = [
   '/app',

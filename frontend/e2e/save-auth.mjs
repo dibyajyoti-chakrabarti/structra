@@ -1,9 +1,9 @@
 /**
  * One-time interactive login. Opens a real browser window, waits for you to
- * sign in (email/password, Google, or GitHub), then writes the Cognito tokens
+ * sign in (email code, Google, or GitHub), then writes the session tokens
  * to e2e/.auth/user.json so the app specs can reuse the session.
  *
- * Use email/password or email OTP. Google refuses OAuth in a browser it can
+ * Use the email code. Google refuses OAuth in a browser it can
  * tell is automation-controlled, so that button will not complete here.
  *
  * Run: node e2e/save-auth.mjs
@@ -12,7 +12,7 @@ import { firefox } from '@playwright/test';
 import { mkdirSync } from 'node:fs';
 import { dirname } from 'node:path';
 
-const BASE_URL = process.env.E2E_BASE_URL || 'https://structra.cloud';
+const BASE_URL = process.env.E2E_BASE_URL || 'http://localhost:5173';
 const OUT = 'e2e/.auth/user.json';
 const DEADLINE_MS = 25 * 60 * 1000;
 
@@ -33,15 +33,15 @@ try {
   process.exit(1);
 }
 
-// Amplify writes its tokens to localStorage after the redirect settles.
+// The app writes its tokens to localStorage once sign in settles.
 await page.waitForTimeout(3000);
 
 mkdirSync(dirname(OUT), { recursive: true });
 await context.storageState({ path: OUT });
 
 const who = await page.evaluate(() =>
-  Object.keys(localStorage).filter((k) => k.includes('CognitoIdentityServiceProvider')).length
+  Object.keys(localStorage).filter((k) => k === 'structra-auth').length
 );
-console.log(`  Saved ${OUT} (${who} Cognito localStorage keys).`);
+console.log(`  Saved ${OUT} (${who ? 'session token found' : 'WARNING: no session token found'}).`);
 
 await browser.close();

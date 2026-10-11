@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test';
 
 // Endpoints the SPA calls on behalf of a signed-in user. None of them may serve
-// data without a Cognito bearer token.
+// data without a bearer token.
 const PROTECTED_ENDPOINTS = [
   'auth/profile/',
   'workspaces/',
@@ -82,12 +82,12 @@ test('the api allows the SPA origin through CORS', async ({ request }) => {
   const response = await request.fetch('health/', {
     method: 'OPTIONS',
     headers: {
-      Origin: 'https://structra.cloud',
+      Origin: process.env.E2E_BASE_URL || 'http://localhost:5173',
       'Access-Control-Request-Method': 'GET',
     },
     failOnStatusCode: false,
   });
 
   const allowed = response.headers()['access-control-allow-origin'];
-  expect(allowed === 'https://structra.cloud' || allowed === '*').toBeTruthy();
+  expect(allowed === (process.env.E2E_BASE_URL || 'http://localhost:5173') || allowed === '*').toBeTruthy();
 });
