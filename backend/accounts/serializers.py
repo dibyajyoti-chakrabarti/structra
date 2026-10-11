@@ -1,6 +1,7 @@
 from rest_framework import serializers
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError as DjangoValidationError
+from .services import storage
 from .services.plan import get_active_razorpay_subscription_id
 from .services.username import normalize_username_input, username_validator
 
@@ -12,6 +13,18 @@ class UserSerializer(serializers.ModelSerializer):
 
     def get_razorpay_subscription_id(self, obj):
         return get_active_razorpay_subscription_id(obj)
+
+    def validate_avatar_url(self, value):
+        # Only URLs of objects in this user's own storage folder may be set, so a profile
+        # cannot point at an arbitrary remote image. An unchanged value always passes, which
+        # keeps provider avatars set at sign up and full profile saves working.
+        if not value or (self.instance and value == self.instance.avatar_url):
+            return value
+        if not (self.instance and storage.is_configured()):
+            raise serializers.ValidationError('Avatar storage is not configured.')
+        if not value.startswith(storage.avatar_url_prefix(self.instance.user_id)):
+            raise serializers.ValidationError('Avatar must be uploaded through Structra.')
+        return value
 
     def validate_username(self, value):
         normalized = normalize_username_input(value)
