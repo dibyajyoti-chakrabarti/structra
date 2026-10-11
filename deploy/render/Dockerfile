@@ -18,6 +18,8 @@ RUN pip install --no-cache-dir -r /tmp/requirements.txt
 COPY backend /app/backend
 COPY worker /app/worker
 COPY deploy/render/start.sh /app/start.sh
+# Set here rather than trusting the git file mode, which is lost on Windows checkouts.
+RUN chmod 755 /app/start.sh
 
 # The worker imports backend apps, so both source trees are on the path. The worker loop
 # uses the backend settings, which already carry everything it needs (database, LLM, queue).
