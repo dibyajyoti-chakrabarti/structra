@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import User
+from .models import User, UserIdentity
 
 
 @admin.register(User)
@@ -24,3 +24,12 @@ class UserAdmin(admin.ModelAdmin):
     readonly_fields = ('user_id', 'created_at', 'last_login')
 
 
+
+
+@admin.register(UserIdentity)
+class UserIdentityAdmin(admin.ModelAdmin):
+    list_display = ('user', 'provider', 'subject', 'email', 'created_at')
+    list_filter = ('provider',)
+    search_fields = ('user__email', 'subject', 'email')
+    raw_id_fields = ('user',)
+    readonly_fields = ('created_at',)
