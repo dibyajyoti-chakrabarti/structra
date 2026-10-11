@@ -66,7 +66,6 @@ class User(AbstractBaseUser, PermissionsMixin):
     )
     plan_expires_at = models.DateTimeField(null=True, blank=True)
     purchased_team_seats = models.IntegerField(default=1)
-    cognito_sub = models.CharField(max_length=128, unique=True, null=True, blank=True, db_index=True)
     avatar_url = models.URLField(max_length=500, blank=True, null=True)
 
     objects = UserManager()
@@ -90,3 +89,76 @@ class User(AbstractBaseUser, PermissionsMixin):
                 opclasses=['gin_trgm_ops'],
             ),
         ]
+
+
+class UserIdentity(models.Model):
+    """A social login (Google or GitHub account) linked to a Structra user."""
+
+    class Provider(models.TextChoices):
+        GOOGLE = 'google', 'Google'
+        GITHUB = 'github', 'GitHub'
+
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='identities')
+    provider = models.CharField(max_length=20, choices=Provider.choices)
+    # The provider's stable account id (Google "sub", GitHub numeric id), never the email.
+    subject = models.CharField(max_length=255)
+    # Verified email the provider reported when the identity was linked (audit only).
+    email = models.EmailField()
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=['provider', 'subject'], name='acct_identity_provider_subject_uniq'),
+        ]
+
+    def __str__(self):
+        return f'{self.provider}:{self.subject}'
+
+
+class EmailLoginCode(models.Model):
+    """A one time email login code. Only a keyed hash of the code is stored."""
+
+    email = models.EmailField(db_index=True)
+    code_hash = models.CharField(max_length=64)
+    created_at = models.DateTimeField(auto_now_add=True)
+    expires_at = models.DateTimeField()
+    attempts = models.PositiveSmallIntegerField(default=0)
+    consumed_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        indexes = [models.Index(fields=['email', '-created_at'], name='acct_code_email_created_idx')]
+
+
+class AuthTicket(models.Model):
+    """A short lived, single use code handed to the frontend after a social login.
+
+    It is exchanged for tokens by the frontend, so tokens never travel in a URL.
+    """
+
+    code_hash = models.CharField(max_length=64, unique=True)
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='auth_tickets')
+    created_at = models.DateTimeField(auto_now_add=True)
+    expires_at = models.DateTimeField()
+    consumed_at = models.DateTimeField(null=True, blank=True)
+
+
+class RefreshToken(models.Model):
+    """Server side record of an issued refresh token, so it can rotate and be revoked."""
+
+    jti = models.CharField(max_length=64, primary_key=True)
+    family = models.CharField(max_length=64, db_index=True)
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='refresh_tokens')
+    created_at = models.DateTimeField(auto_now_add=True)
+    expires_at = models.DateTimeField()
+    revoked_at = models.DateTimeField(null=True, blank=True)
+
+
+class AuthAttempt(models.Model):
+    """One event counted by the auth throttles (code requests, failed verifications)."""
+
+    kind = models.CharField(max_length=32)
+    key = models.CharField(max_length=128)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        indexes = [models.Index(fields=['kind', 'key', 'created_at'], name='acct_attempt_lookup_idx')]

@@ -10,6 +10,10 @@ from .base import *
 
 DEBUG = False
 
+# Access and refresh tokens are signed with this key, so it must be a real secret.
+if SECRET_KEY.startswith('django-insecure') and not os.getenv('JWT_SIGNING_KEY'):
+    raise ImproperlyConfigured('Set DJANGO_SECRET_KEY (or JWT_SIGNING_KEY) to a long random value in production')
+
 # Fail fast when the database is unreachable (e.g. RDS stopped via prod-down) so
 # the /health/ check returns 503 promptly — within the frontend's 7s timeout —
 # instead of the Lambda hanging on a TCP connect to a stopped RDS endpoint.

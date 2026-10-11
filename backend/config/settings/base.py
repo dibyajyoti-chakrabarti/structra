@@ -106,7 +106,7 @@ AUTH_PASSWORD_VALIDATORS = [
 # DRF Configuration
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
-        'accounts.authentication.CognitoJWTAuthentication',
+        'accounts.authentication.JWTAuthentication',
         'rest_framework.authentication.SessionAuthentication',
     ),
     'DEFAULT_THROTTLE_RATES': {
@@ -114,9 +114,40 @@ REST_FRAMEWORK = {
     },
 }
 
-# Cognito
-COGNITO_USER_POOL_ID = os.getenv('COGNITO_USER_POOL_ID', '')
-COGNITO_CLIENT_ID = os.getenv('COGNITO_CLIENT_ID', '')
+# Authentication (owned by Django: email OTP, Google and GitHub, our own JWTs)
+# Public URLs. The API base is used to build the OAuth redirect URI that is
+# registered with each provider, the frontend base is where the browser lands
+# after a social login.
+API_PUBLIC_URL = os.getenv('API_PUBLIC_URL', 'http://localhost:8000').rstrip('/')
+FRONTEND_BASE_URL = os.getenv('FRONTEND_BASE_URL', 'http://localhost:5173').rstrip('/')
+
+# HS256 signing key for access and refresh tokens. Defaults to SECRET_KEY.
+JWT_SIGNING_KEY = os.getenv('JWT_SIGNING_KEY', '') or SECRET_KEY
+JWT_ISSUER = os.getenv('JWT_ISSUER', 'structra')
+JWT_ACCESS_TTL_SECONDS = int(os.getenv('JWT_ACCESS_TTL_SECONDS', str(15 * 60)))
+JWT_REFRESH_TTL_SECONDS = int(os.getenv('JWT_REFRESH_TTL_SECONDS', str(30 * 24 * 3600)))
+
+# Email OTP
+AUTH_OTP_TTL_SECONDS = int(os.getenv('AUTH_OTP_TTL_SECONDS', '600'))
+AUTH_OTP_MAX_ATTEMPTS = int(os.getenv('AUTH_OTP_MAX_ATTEMPTS', '5'))
+AUTH_OTP_REQUESTS_PER_EMAIL_PER_HOUR = int(os.getenv('AUTH_OTP_REQUESTS_PER_EMAIL_PER_HOUR', '5'))
+AUTH_OTP_REQUESTS_PER_IP_PER_HOUR = int(os.getenv('AUTH_OTP_REQUESTS_PER_IP_PER_HOUR', '20'))
+AUTH_OTP_FAILURES_PER_EMAIL_PER_HOUR = int(os.getenv('AUTH_OTP_FAILURES_PER_EMAIL_PER_HOUR', '10'))
+AUTH_OTP_FAILURES_PER_IP_PER_HOUR = int(os.getenv('AUTH_OTP_FAILURES_PER_IP_PER_HOUR', '30'))
+# Number of reverse proxies in front of Django that append to X-Forwarded-For
+# (0 means trust only the socket address, 1 for a single platform proxy).
+AUTH_TRUSTED_PROXY_COUNT = int(os.getenv('AUTH_TRUSTED_PROXY_COUNT', '0'))
+# Absolute URL of the logo shown in the login email. Omitted from the email when empty.
+EMAIL_LOGO_URL = os.getenv('EMAIL_LOGO_URL', '')
+
+# Social login (backend driven authorization code flow)
+OAUTH_GOOGLE_CLIENT_ID = os.getenv('OAUTH_GOOGLE_CLIENT_ID', '')
+OAUTH_GOOGLE_CLIENT_SECRET = os.getenv('OAUTH_GOOGLE_CLIENT_SECRET', '')
+OAUTH_GITHUB_CLIENT_ID = os.getenv('OAUTH_GITHUB_CLIENT_ID', '')
+OAUTH_GITHUB_CLIENT_SECRET = os.getenv('OAUTH_GITHUB_CLIENT_SECRET', '')
+OAUTH_STATE_TTL_SECONDS = int(os.getenv('OAUTH_STATE_TTL_SECONDS', '600'))
+OAUTH_TICKET_TTL_SECONDS = int(os.getenv('OAUTH_TICKET_TTL_SECONDS', '60'))
+OAUTH_HTTP_TIMEOUT_SECONDS = int(os.getenv('OAUTH_HTTP_TIMEOUT_SECONDS', '10'))
 
 # Custom User Model
 AUTH_USER_MODEL = 'accounts.User'
@@ -134,7 +165,7 @@ USE_TZ = True
 STATIC_URL = 'static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'
 
-# Transactional email via Zoho SMTP (auth emails handled by Cognito)
+# Transactional email (login codes and workspace invitations)
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
 EMAIL_HOST = os.getenv('EMAIL_HOST', 'smtp.zoho.in')
 EMAIL_PORT = int(os.getenv('EMAIL_PORT', 587))

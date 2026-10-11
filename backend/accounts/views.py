@@ -195,30 +195,5 @@ class DeleteAccountView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def delete(self, request):
-        user = request.user
-        cognito_sub = user.cognito_sub
-
-        if cognito_sub:
-            try:
-                client = boto3.client('cognito-idp', region_name=getattr(settings, 'AWS_REGION', 'ap-south-1'))
-                client.admin_delete_user(
-                    UserPoolId=settings.COGNITO_USER_POOL_ID,
-                    Username=cognito_sub,
-                )
-            except ClientError as exc:
-                code = exc.response['Error']['Code']
-                if code != 'UserNotFoundException':
-                    logger.error("Cognito admin_delete_user failed for %s: %s", cognito_sub, exc)
-                    return Response(
-                        {'detail': 'Failed to delete account from authentication service. Please try again.'},
-                        status=status.HTTP_502_BAD_GATEWAY,
-                    )
-            except Exception as exc:
-                logger.error("Unexpected error deleting Cognito user %s: %s", cognito_sub, exc)
-                return Response(
-                    {'detail': 'Failed to delete account. Please try again.'},
-                    status=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                )
-
-        user.delete()
+        request.user.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
