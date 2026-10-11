@@ -3,7 +3,7 @@ import {themes as prismThemes} from 'prism-react-renderer';
 
 // Where the docs are served and where the app lives. Both come from the build environment so
 // the same source builds for any host. The defaults are the Cloudflare Pages deployment.
-const SITE_URL = process.env.DOCS_SITE_URL || 'https://structra-docs.pages.dev';
+const SITE_URL = process.env.DOCS_SITE_URL || 'https://docs.structra.pages.dev';
 const BASE_URL = process.env.DOCS_BASE_URL || '/';
 const APP_URL = (process.env.DOCS_APP_URL || 'https://structra.pages.dev').replace(/\/$/, '');
 const SUPPORT_EMAIL = process.env.DOCS_SUPPORT_EMAIL || 'structra.support@gmail.com';

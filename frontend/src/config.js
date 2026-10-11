@@ -6,7 +6,7 @@ export const API_BASE_URL = (env.VITE_API_BASE_URL || '/api/').replace(/\/?$/, '
 export const FRONTEND_URL = (
   env.VITE_FRONTEND_URL || (typeof window !== 'undefined' ? window.location.origin : '')
 ).replace(/\/$/, '');
-export const DOCS_URL = env.VITE_DOCS_URL || '/documentation/';
+export const DOCS_URL = env.VITE_DOCS_URL || 'https://docs.structra.pages.dev/';
 export const SUPPORT_EMAIL = env.VITE_SUPPORT_EMAIL || 'structra.support@gmail.com';
 export const APP_NAME = 'Structra';
 
