@@ -17,11 +17,13 @@
               <table cellpadding="0" cellspacing="0" border="0" style="margin:0 auto;">
                 <tr>
                   {% if logo_url %}
-                  <td style="vertical-align:middle;padding-right:10px;">
+                  <!-- The logo is blue, so it sits on a white badge to stay visible on the blue header. -->
+                  <td style="vertical-align:middle;background:#ffffff;border-radius:10px;padding:5px;">
                     <img src="{{ logo_url }}"
-                         alt="" width="36" height="36"
+                         alt="Structra" width="30" height="30"
                          style="display:block;border:0;outline:none;text-decoration:none;" />
                   </td>
+                  <td style="width:10px;font-size:0;line-height:0;">&nbsp;</td>
                   {% endif %}
                   <td style="vertical-align:middle;">
                     <span style="font-size:22px;font-weight:800;color:#ffffff;letter-spacing:-0.5px;font-family:'Segoe UI',Arial,sans-serif;">Structra</span>
