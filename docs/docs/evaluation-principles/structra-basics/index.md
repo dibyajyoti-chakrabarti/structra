@@ -9,7 +9,7 @@ toc_max_heading_level: 2
 
 # Structra Basics
 
-System Design Evaluation Rules v1.0 for `structra.cloud`.
+System Design Evaluation Rules v1.0 for Structra.
 
 ## Access and Tier Evaluation Policy
 

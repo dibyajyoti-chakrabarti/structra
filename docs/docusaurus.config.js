@@ -1,6 +1,14 @@
 // @ts-check
 import {themes as prismThemes} from 'prism-react-renderer';
 
+// Where the docs are served and where the app lives. Both come from the build environment so
+// the same source builds for any host. The defaults are the Cloudflare Pages deployment.
+const SITE_URL = process.env.DOCS_SITE_URL || 'https://structra-docs.pages.dev';
+const BASE_URL = process.env.DOCS_BASE_URL || '/';
+const APP_URL = (process.env.DOCS_APP_URL || 'https://structra.pages.dev').replace(/\/$/, '');
+const SUPPORT_EMAIL = process.env.DOCS_SUPPORT_EMAIL || 'structra.support@gmail.com';
+const REPO_URL = 'https://github.com/dibyajyoti-chakrabarti/structra';
+
 /** @type {import('@docusaurus/types').Config} */
 const config = {
   title: 'Structra Documentation',
@@ -11,8 +19,8 @@ const config = {
     v4: true,
   },
 
-  url: 'https://structra.cloud',
-  baseUrl: '/documentation/',
+  url: SITE_URL,
+  baseUrl: BASE_URL,
 
   organizationName: 'structra',
   projectName: 'structra-docs',
@@ -24,9 +32,18 @@ const config = {
     locales: ['en'],
   },
 
+  // The static search script reads the app URL from this global, set before it runs.
+  headTags: [
+    {
+      tagName: 'script',
+      attributes: {},
+      innerHTML: `window.STRUCTRA_APP_URL = ${JSON.stringify(APP_URL)};`,
+    },
+  ],
+
   scripts: [
     {
-      src: '/js/sidebar-search.js',
+      src: `${BASE_URL}js/sidebar-search.js`,
       defer: true,
     },
   ],
@@ -78,19 +95,19 @@ const config = {
         },
         items: [
           {
-            href: 'https://structra.cloud/app/workspaces',
+            href: `${APP_URL}/app/workspaces`,
             label: 'Workspaces',
             position: 'right',
             className: 'header-link nav-workspaces',
           },
           {
-            href: 'https://structra.cloud/pricing',
+            href: `${APP_URL}/pricing`,
             label: 'Pricing',
             position: 'right',
             className: 'header-link nav-pricing nav-ghost',
           },
           {
-            href: 'https://structra.cloud/app',
+            href: `${APP_URL}/app`,
             label: 'Open App',
             position: 'right',
             className: 'header-link nav-open-app nav-cta',
@@ -104,9 +121,9 @@ const config = {
           {
             title: 'Platform',
             items: [
-              {label: 'Workspaces', href: 'https://structra.cloud/app/workspaces'},
-              {label: 'Open App', href: 'https://structra.cloud/app'},
-              {label: 'Pricing', href: 'https://structra.cloud/pricing'},
+              {label: 'Workspaces', href: `${APP_URL}/app/workspaces`},
+              {label: 'Open App', href: `${APP_URL}/app`},
+              {label: 'Pricing', href: `${APP_URL}/pricing`},
             ],
           },
           {
@@ -120,9 +137,8 @@ const config = {
           {
             title: 'Resources',
             items: [
-              {label: 'GitHub', href: 'https://github.com'},
-              {label: 'Status', href: 'https://status.structra.cloud'},
-              {label: 'Support', href: 'mailto:support@structra.cloud'},
+              {label: 'GitHub', href: REPO_URL},
+              {label: 'Support', href: `mailto:${SUPPORT_EMAIL}`},
             ],
           },
         ],

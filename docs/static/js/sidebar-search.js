@@ -6,7 +6,12 @@
   const MOBILE_TOP_APP_BUTTON_ID = "mobile-top-app-button";
   const COLLAPSED_CLASS = "menu__list-item--collapsed";
   const SUGGESTION_LIMIT = 6;
-  const SEARCH_INDEX_URL = "/docs-search-index.json";
+  // Set by the site config. The base path is derived from where this script was loaded.
+  const APP_URL = (window.STRUCTRA_APP_URL || "https://structra.pages.dev").replace(/\/$/, "");
+  const SITE_BASE = (document.currentScript && document.currentScript.src
+    ? new URL(document.currentScript.src).pathname.replace(/js\/sidebar-search\.js$/, "")
+    : "/");
+  const SEARCH_INDEX_URL = SITE_BASE + "docs-search-index.json";
 
   let preSearchCollapseState = null;
   let searchActive = false;
@@ -58,19 +63,19 @@
 
       const links = [
         {
-          href: "https://structra.cloud/app/workspaces",
+          href: APP_URL + "/app/workspaces",
           title: "Workspaces",
           className:
             "mobile-navbar-action-icon mobile-navbar-action-icon--workspaces",
         },
         {
-          href: "https://structra.cloud/pricing",
+          href: APP_URL + "/pricing",
           title: "Pricing",
           className:
             "mobile-navbar-action-icon mobile-navbar-action-icon--pricing",
         },
         {
-          href: "https://structra.cloud/app",
+          href: APP_URL + "/app",
           title: "Open App",
           className: "mobile-navbar-action-icon mobile-navbar-action-icon--app",
         },
@@ -120,7 +125,7 @@
       appButton = document.createElement("a");
       appButton.id = MOBILE_TOP_APP_BUTTON_ID;
       appButton.className = "mobile-top-app-button";
-      appButton.href = "https://structra.cloud/app";
+      appButton.href = APP_URL + "/app";
       appButton.textContent = "App";
       appButton.title = "Open App";
       appButton.setAttribute("aria-label", "Open App");
