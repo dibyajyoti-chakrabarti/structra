@@ -1,6 +1,6 @@
 """Local-dev evaluation path (Django + DB).
 
-The pure compute (rule engine + Bedrock) now lives in `evaluation_compute` and is
+The pure compute (rule engine + LLM) now lives in `evaluation_compute` and is
 shared with the standalone cloud worker. This module keeps the DB persistence and
 side-effects used by the local docker-compose worker (`evaluation_worker.py`).
 The cloud worker does NOT import this module — it talks to the backend over HTTP.
@@ -16,9 +16,9 @@ from workspaces.models import EvaluationLog, EvaluationRun
 from workspaces.services.insight_token_service import refund_insight_token
 
 from evaluation_compute import (
-    _call_bedrock_cloud_analysis,
+    call_llm_cloud_analysis,
     _semantic_enrich_canvas_state,
-    call_bedrock_for_prompt,
+    call_llm_for_prompt,
     evaluate_canvas_state,
 )
 
@@ -122,14 +122,14 @@ def run_evaluation_job(run, canvas_state):
         if failed_count == 0:
             suggestions = 'Your architecture passes all applicable rules. No improvements to suggest.'
         else:
-            logger.info('processing evaluation run_id=%s phase=bedrock_suggestions', run.id)
-            suggestions, ai_error = call_bedrock_for_prompt(prompt)
-            logger.info('bedrock suggestions completed run_id=%s ai_error=%s', run.id, ai_error)
+            logger.info('processing evaluation run_id=%s phase=llm_suggestions', run.id)
+            suggestions, ai_error = call_llm_for_prompt(prompt)
+            logger.info('llm suggestions completed run_id=%s ai_error=%s', run.id, ai_error)
 
             if workspace_tier == 'enterprise':
                 failed_rules = [r for r in results if r.get('passed') is False]
                 system_metadata = (enriched_canvas.get('systemMetadata') or {})
-                cloud_analysis_text, cloud_error = _call_bedrock_cloud_analysis(
+                cloud_analysis_text, cloud_error = call_llm_cloud_analysis(
                     failed_rules, enriched_canvas, system_metadata,
                 )
                 if cloud_error:

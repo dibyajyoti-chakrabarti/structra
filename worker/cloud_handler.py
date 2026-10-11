@@ -1,13 +1,13 @@
 """Stateless cloud worker entrypoint (SQS-triggered).
 
 Owns no database. Receives a self-contained job over SQS, runs the evaluation
-compute (rule engine + Bedrock), and POSTs the result to the backend's internal
+compute (rule engine + LLM), and POSTs the result to the backend's internal
 callback endpoint, which persists it. No Django, no DB access.
 
 Required env:
   BACKEND_CALLBACK_BASE_URL   base URL of the backend API (e.g. the API Gateway URL)
   INTERNAL_API_TOKEN          shared secret for the callback's X-Internal-Token header
-  BEDROCK_* / AWS_PROFILE     consumed by evaluation_compute via config.py
+  LLM_*                       consumed by llm_client via llm_config.py
 """
 import json
 import logging
@@ -16,9 +16,9 @@ import os
 import requests
 
 from evaluation_compute import (
-    _call_bedrock_cloud_analysis,
+    call_llm_cloud_analysis,
     _semantic_enrich_canvas_state,
-    call_bedrock_for_prompt,
+    call_llm_for_prompt,
     evaluate_canvas_state,
 )
 
@@ -78,12 +78,12 @@ def _evaluate(canvas_state, workspace_tier):
     if failed_count == 0:
         suggestions = "Your architecture passes all applicable rules. No improvements to suggest."
     else:
-        suggestions, ai_error = call_bedrock_for_prompt(prompt)
+        suggestions, ai_error = call_llm_for_prompt(prompt)
         suggestions = suggestions or ""
         if workspace_tier == "enterprise":
             failed_rules = [r for r in results if r.get("passed") is False]
             system_metadata = enriched.get("systemMetadata") or {}
-            text, cloud_error = _call_bedrock_cloud_analysis(failed_rules, enriched, system_metadata)
+            text, cloud_error = call_llm_cloud_analysis(failed_rules, enriched, system_metadata)
             if not cloud_error:
                 cloud_analysis = text or ""
 

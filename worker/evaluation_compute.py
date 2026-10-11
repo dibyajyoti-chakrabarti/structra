@@ -4,7 +4,7 @@ This module is shared by:
   - the standalone cloud worker (cloud_handler.py), and
   - the local-dev worker (evaluation_service.run_evaluation_job).
 
-It runs the Node.js rule engine and the Bedrock calls. It returns plain data;
+It runs the Node.js rule engine and the LLM calls (see llm_client). It returns plain data;
 persistence is the caller's responsibility.
 """
 import json
@@ -12,10 +12,8 @@ import logging
 import subprocess
 from pathlib import Path
 
-import boto3
-from botocore.exceptions import BotoCoreError, ClientError
-
-import config
+import llm_config as config
+from llm_client import call_llm, parse_json_object
 
 logger = logging.getLogger(__name__)
 
@@ -65,40 +63,10 @@ def evaluate_canvas_state(canvas_state, workspace_tier):
     }
 
 
-def _get_bedrock_client(region=None):
-    region = region or config.BEDROCK_REGION
-    if config.AWS_PROFILE:
-        session = boto3.Session(profile_name=config.AWS_PROFILE)
-        return session.client("bedrock-runtime", region_name=region)
-    return boto3.client("bedrock-runtime", region_name=region)
-
-
-def _call_bedrock(prompt, model_id, timeout_seconds=60):
-    try:
-        client = _get_bedrock_client()
-        response = client.converse(
-            modelId=model_id,
-            messages=[{"role": "user", "content": [{"text": prompt}]}],
-            inferenceConfig={"maxTokens": 4096, "temperature": 0.2},
-        )
-        text = response["output"]["message"]["content"][0]["text"]
-        if isinstance(text, str) and text.strip():
-            return text.strip(), False
-        logger.warning("bedrock response missing text model=%s", model_id)
-        return None, True
-    except (ClientError, BotoCoreError) as exc:
-        logger.error("bedrock call failed model=%s error=%s", model_id, exc)
-        return None, True
-    except Exception as exc:  # noqa: BLE001
-        logger.error("bedrock unexpected error model=%s error=%s", model_id, exc)
-        return None, True
-
-
-def call_bedrock_for_prompt(prompt):
-    model_id = config.BEDROCK_MODEL_ID
-    timeout = config.BEDROCK_TIMEOUT_SECONDS
-    logger.info("bedrock suggestions call model=%s", model_id)
-    return _call_bedrock(prompt, model_id, timeout)
+def call_llm_for_prompt(prompt):
+    """Improvement suggestions for the failed rules. Returns (text, error_flag)."""
+    logger.info("llm suggestions call")
+    return call_llm(prompt)
 
 
 # ─── Semantic enrichment ─────────────────────────────────────────────────────
@@ -139,8 +107,17 @@ Return format (JSON only, no explanation):
 {{"nodeId1": ["attr-key", ...], "nodeId2": [], ...}}"""
 
 
+def _known_attributes(value):
+    """Keep only attribute keys from the controlled vocabulary, whatever shape the model replied with."""
+    if isinstance(value, str):
+        value = [value]
+    if not isinstance(value, list):
+        return []
+    return [attr for attr in value if isinstance(attr, str) and attr in _SEMANTIC_ATTRIBUTES]
+
+
 def _semantic_enrich_canvas_state(canvas_state, workspace_tier):
-    """Inject canonical keywords into node metadata using Bedrock semantic analysis.
+    """Inject canonical keywords into node metadata using LLM semantic analysis.
 
     Runs only for paid tiers. Falls back to unenriched canvas on any error — non-blocking.
     """
@@ -165,27 +142,20 @@ def _semantic_enrich_canvas_state(canvas_state, workspace_tier):
         nodes_json=json.dumps(nodes_with_meta, indent=2),
     )
 
-    try:
-        model_id = config.BEDROCK_SEMANTIC_MODEL_ID
-        response_text, error = _call_bedrock(prompt, model_id, timeout_seconds=20)
-        if error or not response_text:
-            logger.warning("semantic enrichment bedrock call failed; proceeding without enrichment")
-            return canvas_state
-
-        raw = response_text.strip()
-        if raw.startswith("```"):
-            raw = raw.split("```")[1]
-            if raw.startswith("json"):
-                raw = raw[4:]
-        enrichment_map = json.loads(raw.strip())
-    except (json.JSONDecodeError, Exception) as exc:  # noqa: BLE001
-        logger.warning("semantic enrichment parse error=%s; proceeding without enrichment", exc)
+    response_text, error = call_llm(prompt, semantic=True, timeout_seconds=20)
+    if error or not response_text:
+        logger.warning("semantic enrichment llm call failed; proceeding without enrichment")
         return canvas_state
+
+    parsed = parse_json_object(response_text)
+    if parsed is None:
+        logger.warning("semantic enrichment reply was not valid JSON; proceeding without enrichment")
+        return canvas_state
+    enrichment_map = {str(key): value for key, value in parsed.items()}
 
     enriched_nodes = []
     for node in nodes:
-        node_id = node.get("id")
-        matched_attrs = enrichment_map.get(node_id, [])
+        matched_attrs = _known_attributes(enrichment_map.get(str(node.get("id"))))
         if matched_attrs:
             keywords = " ".join(
                 kw for attr in matched_attrs for kw in _SEMANTIC_ATTRIBUTES.get(attr, [])
@@ -242,7 +212,7 @@ OUTPUT FORMAT (Markdown only):
 Keep language precise and actionable. Each finding must reference a specific component or pattern from the architecture."""
 
 
-def _call_bedrock_cloud_analysis(failed_rules, canvas_state, system_metadata):
+def call_llm_cloud_analysis(failed_rules, canvas_state, system_metadata):
     """AWS Well-Architected analysis for Enterprise tier. Returns (text, error_flag)."""
     failed_list = "\n".join(
         f'- [{r.get("id")}] {r.get("reason", "")}' for r in failed_rules
@@ -261,6 +231,5 @@ def _call_bedrock_cloud_analysis(failed_rules, canvas_state, system_metadata):
         architecture_summary=node_summary or "No nodes provided",
     )
 
-    model_id = config.BEDROCK_MODEL_ID
-    logger.info("bedrock cloud analysis call model=%s", model_id)
-    return _call_bedrock(prompt, model_id, timeout_seconds=config.BEDROCK_TIMEOUT_SECONDS)
+    logger.info("llm cloud analysis call")
+    return call_llm(prompt, timeout_seconds=config.LLM_TIMEOUT_SECONDS)

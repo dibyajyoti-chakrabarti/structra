@@ -47,10 +47,10 @@ class ServiceLevelTokenRefundTests(TestCase):
         )
 
     @patch('evaluation_service.close_old_connections', return_value=None)
-    @patch('evaluation_service.call_bedrock_for_prompt', return_value=(None, True))
+    @patch('evaluation_service.call_llm_for_prompt', return_value=(None, True))
     @patch('evaluation_service._semantic_enrich_canvas_state', side_effect=lambda cs, _tier: cs)
     @patch('evaluation_service.evaluate_canvas_state')
-    def test_ai_no_response_refunds_token(self, evaluate_mock, _enrich_mock, _bedrock_mock, _close_connections_mock):
+    def test_ai_no_response_refunds_token(self, evaluate_mock, _enrich_mock, _llm_mock, _close_connections_mock):
         ensure_workspace_insight_token_state(self.workspace, now=timezone.now(), force_reset=True)
         self.workspace.insight_tokens_remaining = 2
         self.workspace.save(update_fields=['insight_tokens_remaining'])
