@@ -567,7 +567,7 @@ export const WorkspaceOverview = () => {
               {`${tokenStatus.insightTokensRemaining}/${tokenStatus.dailyInsightTokens || 0}`}
             </span>
           )
-          : "—",
+          : "-",
       hint:
         tokenStatus?.tokenScope === "owner"
           ? "Shared across your workspaces"

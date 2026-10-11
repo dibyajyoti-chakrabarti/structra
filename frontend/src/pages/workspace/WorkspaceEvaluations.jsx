@@ -21,9 +21,9 @@ const statusLabel = (status) => {
 };
 
 const formatTime = (value) => {
-  if (!value) return '—';
+  if (!value) return '-';
   const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return '—';
+  if (Number.isNaN(date.getTime())) return '-';
   return date.toLocaleString();
 };
 
@@ -199,8 +199,8 @@ export default function WorkspaceEvaluations() {
             <div className="grid grid-cols-2 gap-2 text-xs md:grid-cols-4">
               <div className={`rounded-lg border px-3 py-2 ${isDarkTheme ? 'border-slate-700 bg-slate-800 text-slate-300' : 'border-slate-200 bg-slate-50 text-slate-700'}`}>Status: <strong className={isDarkTheme ? 'text-slate-100' : 'text-slate-900'}>{statusLabel(selectedRun.status)}</strong></div>
               <div className={`rounded-lg border px-3 py-2 ${isDarkTheme ? 'border-slate-700 bg-slate-800 text-slate-300' : 'border-slate-200 bg-slate-50 text-slate-700'}`}>System: <strong className={isDarkTheme ? 'text-slate-100' : 'text-slate-900'}>{selectedRun.systemId}</strong></div>
-              <div className={`rounded-lg border px-3 py-2 ${isDarkTheme ? 'border-slate-700 bg-slate-800 text-slate-300' : 'border-slate-200 bg-slate-50 text-slate-700'}`}>Score: <strong className={isDarkTheme ? 'text-slate-100' : 'text-slate-900'}>{selectedRun.score ?? '—'}</strong></div>
-              <div className={`rounded-lg border px-3 py-2 ${isDarkTheme ? 'border-slate-700 bg-slate-800 text-slate-300' : 'border-slate-200 bg-slate-50 text-slate-700'}`}>Tier: <strong className={isDarkTheme ? 'text-slate-100' : 'text-slate-900'}>{selectedRun.workspaceTier || '—'}</strong></div>
+              <div className={`rounded-lg border px-3 py-2 ${isDarkTheme ? 'border-slate-700 bg-slate-800 text-slate-300' : 'border-slate-200 bg-slate-50 text-slate-700'}`}>Score: <strong className={isDarkTheme ? 'text-slate-100' : 'text-slate-900'}>{selectedRun.score ?? '-'}</strong></div>
+              <div className={`rounded-lg border px-3 py-2 ${isDarkTheme ? 'border-slate-700 bg-slate-800 text-slate-300' : 'border-slate-200 bg-slate-50 text-slate-700'}`}>Tier: <strong className={isDarkTheme ? 'text-slate-100' : 'text-slate-900'}>{selectedRun.workspaceTier || '-'}</strong></div>
             </div>
 
             {selectedRun.error && (
@@ -328,11 +328,11 @@ export default function WorkspaceEvaluations() {
               </div>
               <div className="mt-2 grid grid-cols-2 gap-2 text-xs text-gray-700 md:grid-cols-4">
                 <span>System: <strong>{run.systemId}</strong></span>
-                <span>Score: <strong>{run.score ?? '—'}</strong></span>
-                <span>Tier: <strong>{run.workspaceTier || '—'}</strong></span>
+                <span>Score: <strong>{run.score ?? '-'}</strong></span>
+                <span>Tier: <strong>{run.workspaceTier || '-'}</strong></span>
                 <span className="inline-flex items-center gap-1">
                   <Coins size={12} className="text-amber-500" />
-                  Tokens: <strong>{run.insightTokensRemaining ?? run.creditsRemaining ?? '—'}</strong>
+                  Tokens: <strong>{run.insightTokensRemaining ?? run.creditsRemaining ?? '-'}</strong>
                 </span>
               </div>
               {corrupted && (

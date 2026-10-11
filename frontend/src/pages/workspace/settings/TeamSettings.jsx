@@ -293,7 +293,7 @@ const TeamSettings = () => {
       <p className="ts-page-sub">Manage access permissions and roles for your workspace.</p>
       {isAdmin && (
         <p className="ts-page-sub" style={{ marginTop: "-18px", marginBottom: "18px" }}>
-          {`Seats active: ${showSeatRatio ? `${seatCount}/${purchasedSeatCount}` : seatCount}${billingEstimate ? ` — ₹${billingEstimate}/month` : ""}${
+          {`Seats active: ${showSeatRatio ? `${seatCount}/${purchasedSeatCount}` : seatCount}${billingEstimate ? `, ₹${billingEstimate}/month` : ""}${
             memberLimit != null ? ` • Member limit: ${memberLimit}` : ""
           }`}
         </p>

@@ -106,7 +106,7 @@ export default function EvaluationPanel({
               </div>
               <div className="mt-2 text-xs text-gray-700">
                 <p>
-                  Score: <span className="font-semibold">{run.score ?? '—'}</span>
+                  Score: <span className="font-semibold">{run.score ?? '-'}</span>
                 </p>
               </div>
               <div className="mt-2 inline-flex items-center gap-1 text-[11px] font-semibold text-blue-700">

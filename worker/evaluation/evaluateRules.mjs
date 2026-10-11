@@ -640,7 +640,7 @@ export function evaluateRules(canvasState) {
     );
     if (distributed.length === 0) {
       results.push(rule('F-19', 'basic', null, 'low',
-        'Single-service system. UUID strategy is advisory — auto-increment is fine for non-distributed setups.'));
+        'Single-service system. UUID strategy is advisory, so auto-increment is fine for non-distributed setups.'));
       return;
     }
     const allMeta = nodes.map((n) => meta(n)).join(' ');

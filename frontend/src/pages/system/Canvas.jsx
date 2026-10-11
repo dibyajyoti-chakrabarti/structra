@@ -3095,7 +3095,7 @@ const Canvas = () => {
         {isCapped && depth === COMMENT_DEPTH_LIMIT && (
           <p className="text-[10px] text-amber-600 bg-amber-50 border border-amber-200 rounded px-2 py-1 flex items-center gap-1 truncate">
             <ChevronLeft size={11} className="shrink-0" />
-            Deep thread — expand the panel for a better view.
+            Deep thread: expand the panel for a better view.
           </p>
         )}
 

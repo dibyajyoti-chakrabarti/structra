@@ -784,7 +784,7 @@ const CreateWorkspace = () => {
 
               {/* Description */}
               <div className="cw-field">
-                <label className="cw-label">Description <span style={{ color: '#cbd5e1', fontWeight: 400, textTransform: 'none', letterSpacing: 0 }}>— optional</span></label>
+                <label className="cw-label">Description <span style={{ color: '#cbd5e1', fontWeight: 400, textTransform: 'none', letterSpacing: 0 }}>(optional)</span></label>
                 <textarea
                   className="cw-textarea"
                   rows={3}
@@ -828,7 +828,7 @@ const CreateWorkspace = () => {
                 <UserPlus size={16} />
                 Invite members
               </h3>
-              <p className="cw-right-subtitle">Add teammates — they'll get an email invite.</p>
+              <p className="cw-right-subtitle">Add teammates. They'll get an email invite.</p>
             </div>
 
             <div className="cw-invite-wrap">
@@ -868,7 +868,7 @@ const CreateWorkspace = () => {
 
             <div className="cw-members-wrap">
               <div className="cw-members-label">
-                Members — {members.length + 1}
+                Members ({members.length + 1})
               </div>
 
               {/* Owner row */}

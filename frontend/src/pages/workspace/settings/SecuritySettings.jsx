@@ -414,8 +414,8 @@ const SecuritySettings = () => {
               onChange={(e) => setVisibility(e.target.value)}
               disabled={!isAdmin}
             >
-              <option value="private">Private — Invite only</option>
-              <option value="public">Public — Visible to anyone</option>
+              <option value="private">Private (invite only)</option>
+              <option value="public">Public (visible to anyone)</option>
             </select>
             <ChevronDown size={14} className="sec-select-icon" />
           </div>
@@ -433,7 +433,7 @@ const SecuritySettings = () => {
       {/* IAM */}
       {isAdmin ? (
         <div>
-          <div className="sec-iam-head"><Shield size={15} /> IAM — Identity & Access Management</div>
+          <div className="sec-iam-head"><Shield size={15} /> IAM: Identity & Access Management</div>
 
           {loadingIam ? (
             <LoadingState message="Loading IAM policies" minHeight={240} imageWidth={138} />
@@ -543,7 +543,7 @@ const SecuritySettings = () => {
 
                       {/* Grant access */}
                       <div className="sec-sub" style={{ marginTop: 10 }}>
-                        <div className="sec-sub-label">Grant Access — {system.system_name}</div>
+                        <div className="sec-sub-label">Grant Access: {system.system_name}</div>
                         <div className="sec-grant-row">
                           <div className="sec-grant-input-wrap" data-member-picker="true" style={{ position: 'relative' }}>
                             <Search size={13} className="sec-grant-input-icon" />
