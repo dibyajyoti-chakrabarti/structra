@@ -18,7 +18,7 @@ export default function Navbar() {
           <Link to="/" className="flex items-center gap-3 group">
             <img src={logo} alt="structra logo" className="h-8 w-auto object-contain transition-transform group-hover:scale-105" />
             <span className="text-xl font-extrabold tracking-tighter text-slate-900">
-              structra<span className="text-blue-600">.cloud</span>
+              Structra
             </span>
           </Link>
 

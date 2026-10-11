@@ -6,7 +6,7 @@ const sections = [
   {
     title: "Acceptance of Terms",
     content:
-      "By accessing or using Structra.cloud, you agree to these Terms of Service. If you do not agree, you must discontinue use of the platform.",
+      "By accessing or using Structra, you agree to these Terms of Service. If you do not agree, you must discontinue use of the platform.",
   },
   {
     title: "Account Responsibilities",
@@ -16,12 +16,12 @@ const sections = [
   {
     title: "Permitted Use",
     content:
-      "You may use Structra.cloud only for lawful business and technical collaboration purposes. You may not use the platform to violate laws, infringe rights, or disrupt service operations.",
+      "You may use Structra only for lawful business and technical collaboration purposes. You may not use the platform to violate laws, infringe rights, or disrupt service operations.",
   },
   {
     title: "Data and Content",
     content:
-      "You retain ownership of architecture models and content you submit. You grant Structra.cloud the limited rights required to host, process, and deliver the service securely.",
+      "You retain ownership of architecture models and content you submit. You grant Structra the limited rights required to host, process, and deliver the service securely.",
   },
   {
     title: "Service Availability",
@@ -41,7 +41,7 @@ const sections = [
   {
     title: "Limitation of Liability",
     content:
-      "To the maximum extent permitted by law, Structra.cloud is not liable for indirect, incidental, or consequential damages arising from platform use.",
+      "To the maximum extent permitted by law, Structra is not liable for indirect, incidental, or consequential damages arising from platform use.",
   },
   {
     title: "Changes to Terms",
@@ -70,7 +70,7 @@ export default function Terms() {
             Effective Date: February 16, 2026
           </div>
           <p className="mt-6 text-base leading-relaxed text-slate-600 sm:text-lg">
-            These terms govern access and use of Structra.cloud services,
+            These terms govern access and use of Structra services,
             including workspace collaboration, system modeling, and AI-assisted
             evaluation capabilities.
           </p>

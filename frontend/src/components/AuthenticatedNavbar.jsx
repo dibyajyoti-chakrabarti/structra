@@ -517,7 +517,7 @@ export default function AuthenticatedNavbar() {
           <div className="nav-brand" onClick={() => navigate('/app')}>
             <img src={logo} alt="structra logo" />
             <span className="nav-brand-text">
-              structra<span className="nav-brand-accent">.cloud</span>
+              Structra
               <span className="nav-brand-badge">Beta</span>
             </span>
           </div>

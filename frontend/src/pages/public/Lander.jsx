@@ -10,16 +10,14 @@ import Footer from "../../components/Footer";
 
 // ─── SVG ASSETS ──────────────────────────────────────────────────────────────
 import MyCanvas        from "../../assets/my-canvas.png";
-import LogoBedrock     from "../../assets/bedrock.png";
-import LogoCloudFront  from "../../assets/cloudfront.png";
-import LogoLambda      from "../../assets/lambda.png";
-import LogoS3          from "../../assets/s3.png";
-import LogoRDS         from "../../assets/rds.png";
-import LogoSQS         from "../../assets/sqs.png";
 import LogoTerraform   from "../../assets/terraform.png";
 import LogoDocker      from "../../assets/docker.png";
 import LogoDjango      from "../../assets/django.png";
 import LogoReact       from "../../assets/react.png";
+import LogoRender      from "../../assets/logo-render.svg";
+import LogoNeon        from "../../assets/logo-neon.svg";
+import LogoCloudflare  from "../../assets/logo-cloudflare.svg";
+import LogoRazorpay    from "../../assets/logo-razorpay.svg";
 import FeatureModeling from "../../assets/feature-modeling.svg";
 import FeatureAI       from "../../assets/feature-ai.svg";
 import FeatureCollab   from "../../assets/feature-collaboration.svg";
@@ -82,10 +80,10 @@ function TypedText({phrases}) {
 
 // ── DATA ──────────────────────────────────────────────────────────────────────
 const FEATURES=[
-  {icon:Layers,    title:"Visual Architecture Canvas",tag:"Modeling",     color:"blue",   img:FeatureModeling,body:"Model systems, service boundaries, and dependencies in a structured workspace your whole team can read — not just you."},
+  {icon:Layers,    title:"Visual Architecture Canvas",tag:"Modeling",     color:"blue",   img:FeatureModeling,body:"Model systems, service boundaries, and dependencies in a structured workspace your whole team can read, not just you."},
   {icon:Brain,     title:"AI Trade-off Evaluator",    tag:"AI Engine",    color:"violet", img:FeatureAI,     body:"Surface risk hotspots, compare architecture alternatives, and get recommendation context generated directly from your model."},
   {icon:Users,     title:"Cross-functional Reviews",  tag:"Collaboration",color:"sky",    img:FeatureCollab, body:"Align architects, engineering leads, and operations through shared async review workflows. No more decision debt from missed meetings."},
-  {icon:Lock,      title:"Decision Audit Trail",      tag:"Governance",   color:"emerald",img:FeatureAudit,  body:"Every architectural choice carries traceable rationale. Compliant by default — never reconstruct decisions from Slack threads again."},
+  {icon:Lock,      title:"Decision Audit Trail",      tag:"Governance",   color:"emerald",img:FeatureAudit,  body:"Every architectural choice carries traceable rationale. Compliant by default: never reconstruct decisions from Slack threads again."},
 ];
 
 const STEPS=[
@@ -95,23 +93,21 @@ const STEPS=[
 ];
 
 const PERSONAS=[
-  {role:"System Architects",      pain:"Decisions live in whiteboards and Slack — invisible to everyone else.",            gain:"One canonical model, always current. Share a link instead of scheduling another meeting.",icon:Layers   },
+  {role:"System Architects",      pain:"Decisions live in whiteboards and Slack, invisible to everyone else.",            gain:"One canonical model, always current. Share a link instead of scheduling another meeting.",icon:Layers   },
   {role:"Engineering Leadership", pain:"Hard to prioritize architecture investments without measuring risk vs. impact.",    gain:"AI-scored trade-off analysis surfaces what actually needs your attention.",              icon:TrendingUp},
   {role:"Operations Teams",       pain:"Reliability gaps discovered in incidents, not in planning.",                        gain:"Model operational bottlenecks before they become outages.",                             icon:Clock    },
   {role:"Security & Compliance",  pain:"Audit prep means reconstructing decisions nobody documented properly.",            gain:"Every decision carries its rationale. Audits take hours, not weeks.",                    icon:Shield   },
 ];
 
 const TECHS = [
-  { name:"AWS Bedrock",    img: LogoBedrock    },
-  { name:"AWS CloudFront", img: LogoCloudFront },
-  { name:"AWS Lambda",     img: LogoLambda     },
-  { name:"AWS S3",         img: LogoS3         },
-  { name:"AWS RDS",        img: LogoRDS        },
-  { name:"AWS SQS",        img: LogoSQS        },
-  { name:"Terraform",      img: LogoTerraform  },
-  { name:"Docker",         img: LogoDocker     },
-  { name:"Django",         img: LogoDjango     },
-  { name:"React",          img: LogoReact      },
+  { name:"Django",       img: LogoDjango     },
+  { name:"React",        img: LogoReact      },
+  { name:"Docker",       img: LogoDocker     },
+  { name:"Terraform",    img: LogoTerraform  },
+  { name:"Render",       img: LogoRender     },
+  { name:"Neon",         img: LogoNeon       },
+  { name:"Cloudflare",   img: LogoCloudflare },
+  { name:"Razorpay",     img: LogoRazorpay   },
 ];
 
 // ── MAIN ──────────────────────────────────────────────────────────────────────
@@ -340,7 +336,7 @@ export default function Lander() {
               Built for serious architecture work
             </h2>
             <p style={{color:"#64748b",maxWidth:480,margin:"0 auto",lineHeight:1.75,fontSize:"1rem"}}>
-              Purpose-built for complex distributed systems — not retrofitted from a generic diagramming tool.
+              Purpose-built for complex distributed systems, not retrofitted from a generic diagramming tool.
             </p>
           </div>
         </FadeIn>
@@ -395,7 +391,7 @@ export default function Lander() {
             <div style={{textAlign:"center",marginBottom:"3.5rem"}}>
               <div className="pill" style={{marginBottom:16}}>Process</div>
               <h2 style={{fontSize:"clamp(1.9rem,3vw,2.6rem)",fontWeight:800,color:"#0f172a",letterSpacing:"-0.02em"}}>
-                From whiteboard to decision —<br/>in one workflow
+                From whiteboard to decision,<br/>in one workflow
               </h2>
             </div>
           </FadeIn>
@@ -537,7 +533,7 @@ export default function Lander() {
 
             <p style={{fontSize:"1.05rem",color:"rgba(255,255,255,0.75)",lineHeight:1.8,marginBottom:36}}>
               Launch a workspace in minutes. Bring architects, engineering leads,
-              and ops into one shared model — with AI that actually helps you decide.
+              and ops into one shared model, with AI that actually helps you decide.
             </p>
 
             <div className="cta-actions" style={{display:"flex",gap:12,justifyContent:"center",flexWrap:"wrap"}}>

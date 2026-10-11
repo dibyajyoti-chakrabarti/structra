@@ -70,7 +70,7 @@ export default function Privacy() {
             Effective Date: February 16, 2026
           </div>
           <p className="mt-6 text-base leading-relaxed text-slate-600 sm:text-lg">
-            This policy describes how Structra.cloud collects, uses, secures,
+            This policy describes how Structra collects, uses, secures,
             and manages personal and workspace information when you use our
             services.
           </p>
