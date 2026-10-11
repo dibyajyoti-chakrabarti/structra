@@ -9,9 +9,9 @@
 </p>
 
 <p align="center">
-  <a href="https://structra.cloud"><strong>structra.cloud</strong></a> &nbsp;·&nbsp;
-  <a href="https://structra.cloud/documentation/">Docs</a> &nbsp;·&nbsp;
-  <a href="https://structra.cloud/pricing">Pricing</a>
+  <a href="https://structra.pages.dev"><strong>structra.pages.dev</strong></a> &nbsp;·&nbsp;
+  <a href="https://docs.structra.pages.dev/">Docs</a> &nbsp;·&nbsp;
+  <a href="https://structra.pages.dev/pricing">Pricing</a>
 </p>
 
 <p align="center">
@@ -185,7 +185,7 @@ The frontend performs a backend health check on load and blocks rendering until 
 
 ### `docs/` — Documentation Site
 
-Static documentation served from [structra.cloud/documentation](https://structra.cloud/documentation/). Covers platform concepts, getting started, account management, and Structra's evaluation rule library.
+Static documentation served from [docs.structra.pages.dev](https://docs.structra.pages.dev/). Covers platform concepts, getting started, account management, and Structra's evaluation rule library.
 
 **Stack:** Docusaurus 3 · React · Markdown/MDX
 

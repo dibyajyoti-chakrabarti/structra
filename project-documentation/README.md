@@ -25,6 +25,7 @@ This is the internal technical documentation for the Structra monorepo, written 
 | [Ch. 7 — CI/CD](./ch_7_cicd.md) | GitHub Actions workflows, OIDC, deployment order, rollback |
 | [Ch. 8 — Local Development](./ch_8_local_development.md) | Docker Compose setup, environment files, running services natively, testing |
 | [Ch. 9 — Reference](./ch_9_reference.md) | Cram sheet: every endpoint, env var, secret, and resource name in one place |
+| [Ch. 10: Free Tier Deployment](./ch_10_free_tier_deployment.md) | What runs today on Render, Neon and Cloudflare, with an architecture diagram. Chapters 2 to 7 describe the retired AWS stack |
 
 ---
 
