@@ -1,8 +1,6 @@
 import logging
 
-import boto3
-from botocore.exceptions import ClientError
-from django.conf import settings
+from botocore.exceptions import BotoCoreError, ClientError
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.db.models import Count, Value
@@ -16,6 +14,7 @@ from core.constants import WorkspaceVisibility
 from workspaces.models import Workspace
 
 from .serializers import UserSerializer
+from .services import storage
 from .services.username import normalize_username_input, username_validator
 
 logger = logging.getLogger(__name__)
@@ -149,42 +148,15 @@ class UserProfileView(generics.RetrieveUpdateAPIView):
 class AvatarUploadUrlView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
-    _MIME_TYPES = {
-        'jpg': 'image/jpeg',
-        'jpeg': 'image/jpeg',
-        'png': 'image/png',
-        'webp': 'image/webp',
-        'gif': 'image/gif',
-    }
-
     def get(self, request):
-        ext = request.query_params.get('ext', 'png').lower().lstrip('.')
-        content_type = self._MIME_TYPES.get(ext)
-        if not content_type:
-            ext = 'png'
-            content_type = 'image/png'
-
-        bucket = getattr(settings, 'ASSETS_BUCKET_NAME', '')
-        if not bucket:
+        if not storage.is_configured():
             return Response({'detail': 'Asset storage not configured.'}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
 
-        user_id = str(request.user.user_id)
-        key = f"users/{user_id}/avatar.{ext}"
-        object_url = f"https://{bucket}.s3.ap-south-1.amazonaws.com/{key}"
-
         try:
-            region = getattr(settings, 'AWS_REGION', 'ap-south-1')
-            s3 = boto3.client(
-                's3',
-                region_name=region,
-                endpoint_url=f'https://s3.{region}.amazonaws.com',
+            upload_url, object_url, content_type = storage.presign_avatar_upload(
+                request.user.user_id, request.query_params.get('ext', 'png')
             )
-            upload_url = s3.generate_presigned_url(
-                'put_object',
-                Params={'Bucket': bucket, 'Key': key, 'ContentType': content_type},
-                ExpiresIn=300,
-            )
-        except ClientError as exc:
+        except (BotoCoreError, ClientError) as exc:
             logger.error("Failed to generate presigned URL: %s", exc)
             return Response({'detail': 'Could not generate upload URL.'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
@@ -195,5 +167,7 @@ class DeleteAccountView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def delete(self, request):
+        user_id = request.user.user_id
         request.user.delete()
+        storage.delete_user_objects(user_id)
         return Response(status=status.HTTP_204_NO_CONTENT)

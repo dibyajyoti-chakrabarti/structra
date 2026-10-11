@@ -194,7 +194,15 @@ AWS_PROFILE = os.getenv('AWS_PROFILE', '')
 USE_SQS = os.getenv("USE_SQS", "false").lower() == "true"
 SQS_QUEUE_URL = os.getenv("SQS_QUEUE_URL", "")
 AWS_REGION = os.getenv("AWS_REGION", "ap-south-1")
-ASSETS_BUCKET_NAME = os.getenv("ASSETS_BUCKET_NAME", "")
+
+# Avatar storage on Cloudflare R2 (S3 compatible). R2_PUBLIC_URL is where the bucket is
+# served publicly (an r2.dev address or a custom domain), without a trailing slash.
+R2_ACCOUNT_ID = os.getenv("R2_ACCOUNT_ID", "")
+R2_ENDPOINT_URL = os.getenv("R2_ENDPOINT_URL", "")  # optional override, e.g. a local S3 server
+R2_ACCESS_KEY_ID = os.getenv("R2_ACCESS_KEY_ID", "")
+R2_SECRET_ACCESS_KEY = os.getenv("R2_SECRET_ACCESS_KEY", "")
+R2_BUCKET_NAME = os.getenv("R2_BUCKET_NAME", "")
+R2_PUBLIC_URL = os.getenv("R2_PUBLIC_URL", "").rstrip("/")
 # Shared secret for the stateless worker's result callback (service-to-service auth).
 INTERNAL_API_TOKEN = os.getenv("INTERNAL_API_TOKEN", "")
 EVALUATION_LOCAL_QUEUE_POLL_INTERVAL_SECONDS = int(os.getenv("EVALUATION_LOCAL_QUEUE_POLL_INTERVAL_SECONDS", "5"))
