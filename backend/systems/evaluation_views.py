@@ -367,7 +367,7 @@ class EvaluationResultSerializer(serializers.Serializer):
 class EvaluationResultCallbackAPIView(APIView):
     """Internal, service-to-service endpoint. The stateless worker POSTs the
     computed evaluation result here; the backend (which owns the DB) persists it.
-    Authenticated with a shared secret header, not a Cognito JWT.
+    Authenticated with a shared secret header, not a user JWT.
     """
     authentication_classes = []
     permission_classes = [permissions.AllowAny]

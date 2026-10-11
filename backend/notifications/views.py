@@ -85,6 +85,7 @@ def _send_invitation_email(invitation):
             "workspace_name": invitation.workspace.name,
             "invite_link": invite_link,
             "invited_email": invitation.email,
+            "logo_url": settings.EMAIL_LOGO_URL,
         },
     )
 
