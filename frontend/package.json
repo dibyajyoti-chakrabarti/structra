@@ -12,11 +12,11 @@
     "e2e:public": "playwright test --project=public-firefox --project=api",
     "e2e:app": "playwright test --project=app-firefox",
     "e2e:login": "node e2e/save-auth.mjs",
-    "e2e:report": "playwright show-report e2e-report"
+    "e2e:report": "playwright show-report e2e-report",
+    "test": "node --test \"src/**/*.test.js\""
   },
   "dependencies": {
     "@tailwindcss/vite": "^4.1.18",
-    "aws-amplify": "^6.14.4",
     "axios": "^1.13.4",
     "date-fns": "^4.1.0",
     "lucide-react": "^0.563.0",

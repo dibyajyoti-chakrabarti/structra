@@ -2,7 +2,6 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import AuthenticatedNavbar from '../../components/AuthenticatedNavbar';
 import { User, Mail, MapPin, Calendar, Building, Globe, Lock, ArrowRight, Settings, Check, X, Camera, Edit2, Copy, Star, Search, AtSign, Inbox, Trash2, AlertTriangle } from 'lucide-react';
-import { signOut as amplifySignOut } from 'aws-amplify/auth';
 import api from '../../api';
 import { formatDistanceToNow } from 'date-fns';
 import LoadingState from '../../components/LoadingState';
@@ -13,7 +12,7 @@ const USERNAME_REGEX = /^[A-Za-z0-9_-]+$/;
 
 export default function Profile() {
   const navigate = useNavigate();
-  const { updateUserPlan, refreshUserProfile } = useAuth();
+  const { updateUserPlan, refreshUserProfile, signOut } = useAuth();
   
   const [user, setUser] = useState(null);
   const [workspaces, setWorkspaces] = useState([]);
@@ -283,7 +282,7 @@ export default function Profile() {
     setDeleteError('');
     try {
       await api.delete('auth/account/delete/');
-      await amplifySignOut({ global: true });
+      await signOut();
       navigate('/login', { replace: true });
     } catch (err) {
       console.error('Account deletion failed', err);

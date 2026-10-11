@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
 import PrivateRoute from "./components/PrivateRoute";
 import { useTheme } from "./contexts/ThemeContext.jsx";
@@ -8,7 +8,7 @@ import { useAuth } from "./contexts/AuthContext.jsx";
 import Lander from "./pages/public/Lander";
 import Login from "./pages/auth/Login";
 import Signup from "./pages/auth/Signup";
-import CognitoCallback from "./pages/auth/CognitoCallback";
+import AuthCallback from "./pages/auth/AuthCallback";
 import WorkspaceHome from "./pages/workspace/WorkspaceHome";
 import DiscoverWorkspaces from "./pages/workspace/DiscoverWorkspaces";
 import WorkspaceInstance, {
@@ -33,7 +33,7 @@ import InvitationAcceptReject from "./pages/invitations/InvitationAcceptReject";
 import InvitationInbox from "./pages/invitations/InvitationInbox";
 import Unauthorized from "./pages/infrastructure/Unauthorized";
 import NotFound from "./pages/infrastructure/NotFound";
-import ServerDown from "./pages/infrastructure/ServerDown";
+import BackendGate from "./components/BackendGate";
 import Pricing from "./pages/public/Pricing";
 import Privacy from "./pages/public/Privacy";
 import Terms from "./pages/public/Terms";
@@ -62,78 +62,14 @@ const ThemeRouteSync = () => {
 };
 
 function App() {
-  const [backendHealthy, setBackendHealthy] = useState(false);
-  const [healthReady, setHealthReady] = useState(false);
-
-  useEffect(() => {
-    let isMounted = true;
-
-    const checkBackendHealth = async () => {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 7000);
-
-      try {
-        const baseUrl = import.meta.env.VITE_API_BASE_URL || "/api/";
-        const healthUrl = `${baseUrl.replace(/\/?$/, "/")}health/`;
-        const response = await fetch(healthUrl, {
-          method: "GET",
-          cache: "no-store",
-          signal: controller.signal,
-        });
-
-        if (!isMounted) return;
-        setBackendHealthy(response.ok);
-      } catch {
-        if (!isMounted) return;
-        setBackendHealthy(false);
-      } finally {
-        clearTimeout(timeoutId);
-        if (isMounted) {
-          setHealthReady(true);
-        }
-      }
-    };
-
-    checkBackendHealth();
-    const intervalId = setInterval(checkBackendHealth, 15000);
-
-    return () => {
-      isMounted = false;
-      clearInterval(intervalId);
-    };
-  }, []);
-
-  if (!healthReady) {
-    return (
-      <div
-        className="min-h-screen flex items-center justify-center bg-slate-50"
-        data-theme="light"
-      >
-        <div className="inline-flex items-center gap-3 text-slate-700 text-sm font-semibold">
-          <span
-            className="h-4 w-4 rounded-full border-2 border-blue-200 border-t-blue-600 animate-spin"
-            aria-hidden="true"
-          />
-          <span>Checking Server Status</span>
-        </div>
-      </div>
-    );
-  }
-
-  if (healthReady && !backendHealthy) {
-    return <ServerDown />;
-  }
-
   return (
     <BrowserRouter>
       <ThemeRouteSync />
+      <BackendGate>
       <PlanExpirationBanner />
       <Routes>
-        {/* Cognito OAuth callback — must be outside PublicRoute */}
-        <Route path="/auth/callback" element={<CognitoCallback />} />
-
-        <Route path="/forgot-password" element={<Login />} />
-        <Route path="/reset-password" element={<Login />} />
+        {/* Google and GitHub sign in lands here, outside PublicRoute so it can finish signing in */}
+        <Route path="/auth/callback" element={<AuthCallback />} />
 
         {/* PUBLIC ROUTES */}
         <Route
@@ -215,6 +151,7 @@ function App() {
         <Route path="/unauthorized" element={<Unauthorized />} />
         <Route path="*" element={<NotFound />} />
       </Routes>
+      </BackendGate>
     </BrowserRouter>
   );
 }

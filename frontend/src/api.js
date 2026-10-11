@@ -1,8 +1,11 @@
 import axios from 'axios';
-import { fetchAuthSession, signOut } from 'aws-amplify/auth';
+import { API_BASE_URL } from './config.js';
+import { BACKEND_UNAVAILABLE, emit } from './auth/events.js';
+import { AuthError, refreshTokens } from './auth/authClient.js';
+import { clearTokens, getTokens, isExpiring } from './auth/tokenStore.js';
 
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL,
+  baseURL: API_BASE_URL,
   headers: {
     'Content-Type': 'application/json',
   },
@@ -191,46 +194,77 @@ withMutationInvalidation('put');
 withMutationInvalidation('patch');
 withMutationInvalidation('delete');
 
-// Request interceptor: attach Cognito ID token
-api.interceptors.request.use(
-  async (config) => {
+// Request interceptor: attach the access token, refreshing it first when it is about to expire.
+api.interceptors.request.use(async (config) => {
+  let tokens = getTokens();
+  if (tokens && isExpiring(tokens)) {
     try {
-      const session = await fetchAuthSession();
-      const idToken = session?.tokens?.idToken?.toString();
-      console.debug('[api] session.tokens:', session?.tokens, '| idToken present:', !!idToken);
-      if (idToken) {
-        config.headers.Authorization = `Bearer ${idToken}`;
-      }
-    } catch (e) {
-      console.debug('[api] fetchAuthSession threw:', e);
+      tokens = await refreshTokens();
+    } catch {
+      // Unreachable server: send what we have, the response handler deals with a 401.
+      tokens = getTokens();
     }
-    return config;
-  },
-  (error) => Promise.reject(error)
-);
+  }
+  if (tokens?.access) {
+    config.headers.Authorization = `Bearer ${tokens.access}`;
+  }
+  return config;
+});
 
-// Response interceptor: on 401 sign out (Amplify handles token refresh transparently)
+const PUBLIC_PATHS = ['/login', '/signup', '/auth/callback'];
+
+const endSession = () => {
+  clearApiCache();
+  clearTokens();
+  if (typeof window !== 'undefined' && !PUBLIC_PATHS.includes(window.location.pathname)) {
+    window.location.assign('/login');
+  }
+};
+
+// The server being asleep shows up as no response at all (Render's wake page has no CORS
+// headers, so the browser reports a network error) or as a 502, 503 or 504.
+const looksUnavailable = (error) =>
+  !axios.isCancel(error) &&
+  (!error.response || [502, 503, 504].includes(error.response.status));
+
+let lastUnavailableAt = 0;
+
+// Response interceptor: on 401 refresh once and retry, and end the session if that fails.
 api.interceptors.response.use(
   (response) => response,
   async (error) => {
-    if (error.response?.status === 401 && !error.config?._retry) {
-      error.config._retry = true;
-      try {
-        // Force a token refresh then retry once
-        const session = await fetchAuthSession({ forceRefresh: true });
-        const idToken = session?.tokens?.idToken?.toString();
-        if (idToken) {
-          error.config.headers.Authorization = `Bearer ${idToken}`;
-          clearApiCache();
-          return api(error.config);
-        }
-      } catch {
-        // Refresh failed — sign out
-      }
-      clearApiCache();
-      await signOut();
-      window.location.href = '/login';
+    if (looksUnavailable(error) && Date.now() - lastUnavailableAt > 5000) {
+      lastUnavailableAt = Date.now();
+      emit(BACKEND_UNAVAILABLE);
     }
+
+    if (error.response?.status !== 401 || !error.config || error.config._retry) {
+      return Promise.reject(error);
+    }
+    error.config._retry = true;
+
+    if (getTokens()) {
+      try {
+        // Another request may have rotated the tokens while this one was in flight. Replaying
+        // the old refresh token would revoke the whole session, so just retry with the new one.
+        const sent = String(error.config.headers?.Authorization ?? '');
+        const current = getTokens();
+        const tokens = current?.access && sent !== `Bearer ${current.access}`
+          ? current
+          : await refreshTokens();
+        error.config.headers.Authorization = `Bearer ${tokens.access}`;
+        clearApiCache();
+        return api(error.config);
+      } catch (refreshError) {
+        // Only a definite 401 from the refresh endpoint ends the session. A sleeping server
+        // or a 5xx must not log the user out.
+        if (!(refreshError instanceof AuthError) || refreshError.status !== 401) {
+          return Promise.reject(error);
+        }
+      }
+    }
+
+    endSession();
     return Promise.reject(error);
   }
 );
