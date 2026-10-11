@@ -1,0 +1,12 @@
+# Deploy with: npx wrangler deploy (from this folder). Terraform manages the same worker in
+# ../cloudflare.tf, so use one or the other, not both.
+name = "structra-keepalive"
+main = "worker.js"
+compatibility_date = "2026-10-01"
+
+# Every 10 minutes from 04:00 to 16:50 UTC, which is 09:30 to 22:20 IST.
+[triggers]
+crons = ["*/10 4-16 * * *"]
+
+[vars]
+API_URL = "https://structra-api-woe3.onrender.com"
