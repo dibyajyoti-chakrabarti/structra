@@ -20,7 +20,7 @@ class ActiveSubscriptionLookupTests(TestCase):
         PaymentTransaction.objects.create(
             user=self.user,
             plan_name='INDIVIDUAL',
-            amount='599.00',
+            amount='299.00',
             status=PaymentTransaction.Status.ACTIVE,
             razorpay_subscription_id='sub_active_123',
         )
@@ -33,7 +33,7 @@ class ActiveSubscriptionLookupTests(TestCase):
         PaymentTransaction.objects.create(
             user=self.user,
             plan_name='INDIVIDUAL',
-            amount='599.00',
+            amount='299.00',
             status=PaymentTransaction.Status.ACTIVE,
             razorpay_subscription_id='order_legacy_123',
         )

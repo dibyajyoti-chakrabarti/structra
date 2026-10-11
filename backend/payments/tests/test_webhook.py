@@ -85,7 +85,7 @@ class RazorpayWebhookAPITests(APITestCase):
         tx = PaymentTransaction.objects.create(
             user=self.user,
             plan_name="INDIVIDUAL",
-            amount="599.00",
+            amount="299.00",
             status=PaymentTransaction.Status.ACTIVE,
             razorpay_subscription_id="sub_no_event_id",
         )
@@ -108,7 +108,7 @@ class RazorpayWebhookAPITests(APITestCase):
         tx = PaymentTransaction.objects.create(
             user=self.user,
             plan_name="INDIVIDUAL",
-            amount="599.00",
+            amount="299.00",
             status=PaymentTransaction.Status.ACTIVE,
             razorpay_subscription_id="sub_webhook_cancelled",
         )
@@ -137,7 +137,7 @@ class RazorpayWebhookAPITests(APITestCase):
         tx = PaymentTransaction.objects.create(
             user=self.user,
             plan_name="INDIVIDUAL",
-            amount="599.00",
+            amount="299.00",
             status=PaymentTransaction.Status.ACTIVE,
             razorpay_subscription_id="sub_webhook_halted",
         )
@@ -174,7 +174,7 @@ class RazorpayWebhookAPITests(APITestCase):
         tx = PaymentTransaction.objects.create(
             user=self.user,
             plan_name="INDIVIDUAL",
-            amount="599.00",
+            amount="299.00",
             status=PaymentTransaction.Status.PENDING,
             razorpay_subscription_id="sub_webhook_success",
         )
@@ -223,7 +223,7 @@ class RazorpayWebhookAPITests(APITestCase):
         tx = PaymentTransaction.objects.create(
             user=self.user,
             plan_name="INDIVIDUAL",
-            amount="599.00",
+            amount="299.00",
             status=PaymentTransaction.Status.ACTIVE,
             razorpay_subscription_id="sub_webhook_active",
             razorpay_payment_id="pay_previous_cycle",
@@ -266,7 +266,7 @@ class RazorpayWebhookAPITests(APITestCase):
         old_tx = PaymentTransaction.objects.create(
             user=self.user,
             plan_name="INDIVIDUAL",
-            amount="599.00",
+            amount="299.00",
             status=PaymentTransaction.Status.ACTIVE,
             razorpay_subscription_id="sub_old_active",
             razorpay_payment_id="pay_old_active",
@@ -322,7 +322,7 @@ class RazorpayWebhookAPITests(APITestCase):
         old_tx = PaymentTransaction.objects.create(
             user=self.user,
             plan_name="INDIVIDUAL",
-            amount="599.00",
+            amount="299.00",
             status=PaymentTransaction.Status.ACTIVE,
             razorpay_subscription_id="sub_old_active_fail",
             razorpay_payment_id="pay_old_active_fail",
@@ -374,7 +374,7 @@ class RazorpayWebhookAPITests(APITestCase):
         PaymentTransaction.objects.create(
             user=self.user,
             plan_name="INDIVIDUAL",
-            amount="599.00",
+            amount="299.00",
             status=PaymentTransaction.Status.ACTIVE,
             razorpay_subscription_id="sub_webhook_done",
             razorpay_payment_id="pay_previous",

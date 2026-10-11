@@ -67,7 +67,7 @@ class CheckoutAndSubscriptionAPITests(APITestCase):
 
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         self.assertEqual(response.data["razorpay_subscription_id"], "sub_abc123")
-        self.assertEqual(response.data["amount"], "599.00")
+        self.assertEqual(response.data["amount"], "299.00")
         self.assertEqual(response.data["currency"], "INR")
         mock_client_cls.return_value.subscription.create.assert_called_once_with(
             {"plan_id": "plan_individual_test", "total_count": 12, "customer_notify": 1}
@@ -76,7 +76,7 @@ class CheckoutAndSubscriptionAPITests(APITestCase):
         tx = PaymentTransaction.objects.get()
         self.assertEqual(tx.user, self.user)
         self.assertEqual(tx.plan_name, "INDIVIDUAL")
-        self.assertEqual(str(tx.amount), "599.00")
+        self.assertEqual(str(tx.amount), "299.00")
         self.assertEqual(tx.status, PaymentTransaction.Status.PENDING)
         self.assertEqual(tx.razorpay_subscription_id, "sub_abc123")
 
@@ -93,7 +93,7 @@ class CheckoutAndSubscriptionAPITests(APITestCase):
 
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         self.assertEqual(response.data["razorpay_subscription_id"], "sub_checkout_individual")
-        self.assertEqual(response.data["amount"], "599.00")
+        self.assertEqual(response.data["amount"], "299.00")
         mock_client_cls.return_value.subscription.create.assert_called_once_with(
             {"plan_id": "plan_individual_test", "total_count": 120, "customer_notify": 1}
         )
@@ -317,7 +317,7 @@ class CheckoutAndSubscriptionAPITests(APITestCase):
         tx = PaymentTransaction.objects.create(
             user=self.user,
             plan_name="INDIVIDUAL",
-            amount="599.00",
+            amount="299.00",
             status=PaymentTransaction.Status.PENDING,
             razorpay_subscription_id="sub_success_1",
         )
@@ -391,7 +391,7 @@ class CheckoutAndSubscriptionAPITests(APITestCase):
         tx = PaymentTransaction.objects.create(
             user=self.user,
             plan_name="INDIVIDUAL",
-            amount="599.00",
+            amount="299.00",
             status=PaymentTransaction.Status.PENDING,
             razorpay_subscription_id="sub_fail_1",
         )
@@ -426,7 +426,7 @@ class CheckoutAndSubscriptionAPITests(APITestCase):
         PaymentTransaction.objects.create(
             user=self.user,
             plan_name="INDIVIDUAL",
-            amount="599.00",
+            amount="299.00",
             status=PaymentTransaction.Status.ACTIVE,
             razorpay_subscription_id="sub_already_done",
         )
@@ -454,7 +454,7 @@ class CheckoutAndSubscriptionAPITests(APITestCase):
         PaymentTransaction.objects.create(
             user=self.user,
             plan_name="INDIVIDUAL",
-            amount="599.00",
+            amount="299.00",
             status=PaymentTransaction.Status.FAILED,
             razorpay_subscription_id="sub_failed_state",
         )
@@ -485,7 +485,7 @@ class CheckoutAndSubscriptionAPITests(APITestCase):
         PaymentTransaction.objects.create(
             user=other_user,
             plan_name="INDIVIDUAL",
-            amount="599.00",
+            amount="299.00",
             status=PaymentTransaction.Status.PENDING,
             razorpay_subscription_id="sub_other_user",
         )
@@ -514,7 +514,7 @@ class CheckoutAndSubscriptionAPITests(APITestCase):
         tx = PaymentTransaction.objects.create(
             user=self.user,
             plan_name="INDIVIDUAL",
-            amount="599.00",
+            amount="299.00",
             status=PaymentTransaction.Status.ACTIVE,
             razorpay_subscription_id="sub_cancel_1",
         )
@@ -549,7 +549,7 @@ class CheckoutAndSubscriptionAPITests(APITestCase):
         tx = PaymentTransaction.objects.create(
             user=self.user,
             plan_name="INDIVIDUAL",
-            amount="599.00",
+            amount="299.00",
             status=PaymentTransaction.Status.ACTIVE,
             razorpay_subscription_id="order_legacy_1",
         )
@@ -576,7 +576,7 @@ class CheckoutAndSubscriptionAPITests(APITestCase):
         PaymentTransaction.objects.create(
             user=self.user,
             plan_name="INDIVIDUAL",
-            amount="599.00",
+            amount="299.00",
             status=PaymentTransaction.Status.CANCELLED,
             razorpay_subscription_id="sub_cancel_done",
         )
@@ -600,7 +600,7 @@ class CheckoutAndSubscriptionAPITests(APITestCase):
         PaymentTransaction.objects.create(
             user=self.user,
             plan_name="INDIVIDUAL",
-            amount="599.00",
+            amount="299.00",
             status=PaymentTransaction.Status.PENDING,
             razorpay_subscription_id="sub_cancel_pending",
         )
@@ -627,7 +627,7 @@ class CheckoutAndSubscriptionAPITests(APITestCase):
         PaymentTransaction.objects.create(
             user=other_user,
             plan_name="INDIVIDUAL",
-            amount="599.00",
+            amount="299.00",
             status=PaymentTransaction.Status.ACTIVE,
             razorpay_subscription_id="sub_cancel_other_user",
         )
@@ -648,7 +648,7 @@ class CheckoutAndSubscriptionAPITests(APITestCase):
         PaymentTransaction.objects.create(
             user=self.user,
             plan_name="INDIVIDUAL",
-            amount="599.00",
+            amount="299.00",
             status=PaymentTransaction.Status.ACTIVE,
             razorpay_subscription_id="sub_cancel_missing_creds",
         )
@@ -668,7 +668,7 @@ class CheckoutAndSubscriptionAPITests(APITestCase):
         PaymentTransaction.objects.create(
             user=self.user,
             plan_name="INDIVIDUAL",
-            amount="599.00",
+            amount="299.00",
             status=PaymentTransaction.Status.ACTIVE,
             razorpay_subscription_id="sub_cancel_error",
         )

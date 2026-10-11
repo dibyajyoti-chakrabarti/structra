@@ -32,7 +32,7 @@ const plans = [
   {
     name: "INDIVIDUAL",
     label: "Individual",
-    price: "₹599",
+    price: "₹299",
     interval: "/month",
     subtitle: "Serious solo architecture work",
     cta: "Start Individual Plan",

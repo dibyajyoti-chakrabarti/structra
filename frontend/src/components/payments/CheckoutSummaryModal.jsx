@@ -1,7 +1,7 @@
 import { Minus, Plus, X } from "lucide-react";
 
 const PLAN_PRICES = {
-  INDIVIDUAL: 599,
+  INDIVIDUAL: 299,
   TEAM: 349,
 };
 
